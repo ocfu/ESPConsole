@@ -170,8 +170,7 @@ void loop() {
 ---
 
 ## 📂 Resources
-- [API Documentation](https://github.com/username/repository/docs/api.md)
-- [Contributing Guidelines](https://github.com/username/repository/CONTRIBUTING.md)
+- [Contributing Guidelines](https://github.com/ocfu/ESPConsole/blob/main/CONTRIBUTING.md)
 
 
 # License and credits
@@ -181,7 +180,7 @@ void loop() {
 
 ## Credits
 
-- ChatGPS: initial creation of classes and library documentation
+- ChatGPS: initial creation of classes and library documentation support
 
 
 
