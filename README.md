@@ -64,9 +64,24 @@ esp@serial:/> _
 | Extended     | flash, esp   | 
 | Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format |
 
+More and description to come.
+
+## Compiler options
+
+| Macro | Description |
+|-------|-------------|
+|`ESP_CONSOLE_NOWIFI`| exclude Wi-Fi-specific code |
+|`ARDUINO_CLI_VER=<MMmmPP>`| (optional) Unfortunately Arduino CLI does not provide any (reliable) compiler macro to provide the CLI verion. This is to define the arduino-cli version for the command `sw` and just to show it.
+ 
+## Example Arduino CLI compiler call
+```bash
+arduino-cli compile -b esp8266:esp8266:nodemcuv2:eesz=4M1M,led=2 --clean --output-dir build/esp8266.esp8266.nodemcuv2  --export-binaries --build-property build.extra_flags="-DESP_CONSOLE_NOWIFI -DARDUINO_CLI_VER=2900 "
+```
+
+
 # Examples
 [ESPConsole_min](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min)
-Bare minimum Arduino example. The ESPConsole library provides a simple command-line terminal interface over the serial port with a minimal set of commands. To reduce the flash memory usage, you can define the compiler macro ESP_CONSOLE_NOWIFI. This will exclude Wi-Fi-specific code during compilation, saving space in the flash.
+Bare minimum Arduino example. The ESPConsole library provides a simple command-line terminal interface over the serial port with a minimal set of commands. To reduce the flash memory usage, you can define the compiler macro `ESP_CONSOLE_NOWIFI`. This will exclude Wi-Fi-specific code during compilation, saving space in the flash.
 
 
 ```cpp
