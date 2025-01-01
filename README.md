@@ -43,6 +43,23 @@ Tested on:
 
 # Examples
 [ESPConsole_min](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min)
+Bare minimum Arduino example. ESPConsole provides only at the serial port a command prompt with a minimum set of commands. To save additional space on in the flash (code in flash), you can use the compiler macro ```ESP_CONSOLE_NOWIFI```, this removes some WIFI specific code during compilation.   
+
+
+```cpp
+#include "CxESPConsole.hpp"
+
+CxESPConsole ESPConsole(Serial, "Test App", "1.0");
+
+void setup() {
+   Serial.begin(115200);
+   ESPConsole.begin();
+}
+
+void loop() {
+   ESPConsole.loop();
+}
+```
 
 # 📋 To-Do List
 
