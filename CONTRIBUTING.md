@@ -49,7 +49,7 @@ git push origin feature/your-feature-name
 ## 🚨 Guidelines
 
 ### Code Standards
-- Follow the [Code Style Guide](#) (add link if applicable).
+- Follow the [Code Style Guide](https://github.com/ocfu/ESPConsole/blob/main/GUIDELINE.md).
 - Write clear and concise comments where necessary.
 
 ### Commit Messages
@@ -71,13 +71,9 @@ git push origin feature/your-feature-name
 
 ## 🤝 Community Standards
 - Be respectful and inclusive in all communications.
-- Review the [Code of Conduct](#) (add link if applicable).
+- Review the [Code of Conduct](https://github.com/ocfu/ESPConsole/blob/main/CODE_OF_CONDUCT.md).
 
 ---
-
-## 🛠️ Resources
-- [Issue Tracker](#)
-- [Code Style Guide](#)
 
 If you have any questions, feel free to reach out by opening an issue or contacting a maintainer.
 
