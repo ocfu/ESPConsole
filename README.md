@@ -55,6 +55,8 @@ Filesystem: Little FS Size: 1024000 bytes Used: 16384 bytes Free: 1007616 bytes
 Enter ? to get help. Have a nice day :-)
 esp@serial:/> _
 ```
+## Terminal
+The output of the console is formated and controlled by using ESC sequences. Your used terminal should support this (e.g. PuTTY).
 
 ## Command Sets
 
@@ -71,7 +73,9 @@ More and description to come.
 | Macro | Description |
 |-------|-------------|
 |`ESP_CONSOLE_NOWIFI`| exclude Wi-Fi-specific code |
-|`ARDUINO_CLI_VER=<MMmmPP>`| (optional) Unfortunately Arduino CLI does not provide any (reliable) compiler macro to provide the CLI verion. This is to define the arduino-cli version for the command `sw` and just to show it.
+|`ARDUINO_CLI_VER=<MMmmPP>`| (optional) Unfortunately Arduino CLI does not provide any (reliable) compiler macro indicating the used version. This marcro defines it manually, only for the benefit of the command `sw`, which shows relevant version info.
+
+The library is developed using XCode and Arduino CLI. For testing purpose, there are code segments, only for the use in this test environment and Arduino specific code is framed by ```#ifdef ARDUINO ... #endif```. 
  
 ## Example Arduino CLI compiler call
 ```bash
