@@ -41,6 +41,29 @@ Tested on:
 
 # Documentation
 
+## Console prompt
+
+```
+ESP console Ext+FS - Test App 1.0 - 01.01.2025 (CET) 13:24:45
+
+  Hostname: ESP-A75F12 IP: 192.168.1.12 SSID: XYZ (-45 dBm)
+    Uptime: 0T:00:00:04 - 1 user(s) Last Restart: 01.01.2025 13:24:41
+ Heap Size: 49576 bytes Used: 2216 bytes Free: 47360 bytes
+      Chip: ESP8266EX/80MHz/4M Sw: core 3.1.2 sdk 2.2.2-dev(38a443e)
+Filesystem: Little FS Size: 1024000 bytes Used: 16384 bytes Free: 1007616 bytes
+
+Enter ? to get help. Have a nice day :-)
+esp@serial:/> _
+```
+
+## Command Sets
+
+| Command Set  | Commands        |
+|--------------|-----------------|
+| Bare minimum | ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid, hw, sw |
+| Extended     | flash, esp   | 
+| Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format |
+
 # Examples
 [ESPConsole_min](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min)
 Bare minimum Arduino example. The ESPConsole library provides a simple command-line terminal interface over the serial port with a minimal set of commands. To reduce the flash memory usage, you can define the compiler macro ESP_CONSOLE_NOWIFI. This will exclude Wi-Fi-specific code during compilation, saving space in the flash.
@@ -98,6 +121,7 @@ void loop() {
 }
 ```
 
+More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examples) 
 
 # 📋 To-Do List
 
