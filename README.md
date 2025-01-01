@@ -43,7 +43,7 @@ Tested on:
 
 # Examples
 [ESPConsole_min](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min)
-Bare minimum Arduino example. ESPConsole provides only at the serial port a command prompt with a minimum set of commands. To save additional space on in the flash (code in flash), you can use the compiler macro ```ESP_CONSOLE_NOWIFI```, this removes some WIFI specific code during compilation.   
+Bare minimum Arduino example. The ESPConsole library provides a simple command-line terminal interface over the serial port with a minimal set of commands. To reduce the flash memory usage, you can define the compiler macro ESP_CONSOLE_NOWIFI. This will exclude Wi-Fi-specific code during compilation, saving space in the flash.
 
 
 ```cpp
@@ -60,6 +60,44 @@ void loop() {
    ESPConsole.loop();
 }
 ```
+
+[ESPConsole_min_wifi](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min_wifi)
+This example offers the same command set as the previous one, but with added remote access capabilities. You can connect a terminal client (e.g., PuTTY) via the defined port 23 to access the same simple command-line terminal interface over the network.
+
+```cpp
+#include "CxESPConsole.hpp"
+
+CxESPConsole ESPConsole(Serial, "Test App", "1.0");
+
+WiFiServer server(23);
+
+#ifndef STASSID
+#define STASSID "your-ssid"
+#define STAPSK "your-password"
+#endif
+
+const char* ssid = STASSID;
+const char* password = STAPSK;
+
+void setup() {
+   Serial.begin(115200);
+   WiFi.begin(STASSID, STAPSK);
+    
+    while (WiFi.status() != WL_CONNECTED) {
+       delay(500);
+       Serial.print(".");
+    }
+    Serial.println("\nWiFi connected.");
+    server.begin();
+    
+    ESPConsole.begin(server);
+}
+
+void loop() {
+   ESPConsole.loop();
+}
+```
+
 
 # 📋 To-Do List
 
@@ -78,6 +116,7 @@ void loop() {
    - Implement functionality to add additional command sets.
       - **mqtt**: mqtt configuration 
       - **ha**: home assistant configuration
+- [ ] Testing
 
 ### Medium Priority
 - [ ] Improve functionality for core features
