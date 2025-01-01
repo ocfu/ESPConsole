@@ -15,7 +15,7 @@
 
 #include <time.h>                    // for time() ctime()
 
-///
+/// Credits:
 /// https://werner.rothschopf.net/microcontroller/202103_arduino_esp32_ntp_en.htm
 /// https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 ///
