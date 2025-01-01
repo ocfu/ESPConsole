@@ -42,6 +42,7 @@ Tested on:
 # Documentation
 
 # Examples
+[ESPConsole_min](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min)
 
 # 📋 To-Do List
 
