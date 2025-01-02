@@ -63,6 +63,9 @@ public:
    void printHW();
    void printSW();
    void printESP();
+   void printFlashMap();
+   
+   void printNetworkInfo();
 
    
    virtual void printInfo() override;

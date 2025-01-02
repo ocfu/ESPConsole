@@ -486,3 +486,107 @@ uint32_t getFSSize() {
    return 0;
 #endif
 }
+
+uint32_t getSketchStart() {
+#ifdef ARDUINO
+   return SKETCH_START;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getFreeStart() {
+#ifdef ARDUINO
+   return FREE_START;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getFreeEnd() {
+#ifdef ARDUINO
+   return FREE_END;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getOTAStart() {
+#ifdef ARDUINO
+   return OTA_START;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getOTAEnd() {
+#ifdef ARDUINO
+   return OTA_END;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getFlashFSStart() {
+#ifdef ARDUINO
+   return FLASHFS_START;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getFlashFSEnd() {
+#ifdef ARDUINO
+   return FLASHFS_END;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getEPROMStart() {
+#ifdef ARDUINO
+   return EPROM_START;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getEPROMEEnd() {
+#ifdef ARDUINO
+   return EPROM_END;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getRFCALStart() {
+#ifdef ARDUINO
+   return RFCAL_START;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getRFCALEnd() {
+#ifdef ARDUINO
+   return RFCAL_END;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getWIFIStart() {
+#ifdef ARDUINO
+   return WIFI_START;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getWIFIEnd() {
+#ifdef ARDUINO
+   return WIFI_END;
+#else
+   return 0;
+#endif
+}

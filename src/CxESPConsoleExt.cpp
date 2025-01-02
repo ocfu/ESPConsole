@@ -47,13 +47,17 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd) {
    if (cmd == "?" || cmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsole::__processCommand(szCmd);
-      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, flash, esp" ESC_ATTR_RESET));
+      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash" ESC_ATTR_RESET));
    } else if (cmd == "hw") {
       printHW();
    } else if (cmd == "sw") {
       printSW();
    } else if (cmd == "esp") {
       printESP();
+   } else if (cmd == "flash") {
+      printFlashMap();
+   } else if (cmd == "net") {
+      printNetworkInfo();
    } else {
       // command not handled here, proceed into the base class(es)
       return CxESPConsole::__processCommand(szCmd);
@@ -91,17 +95,19 @@ void CxESPConsoleExt::printSW() {
    if (getAppName()[0]) printf(F(ESC_ATTR_BOLD "    Firmware:" ESC_ATTR_RESET " %s Ver.:" ESC_ATTR_RESET " %s\n"), getAppName(), getAppVer());
 }
 
-/*
-void printNetworkInfo(Stream& stream) {
-   stream.printf(F("Net:  %s (%c)"),  Eprom.getAPSTAName(), Wifi1.isConnected()?'*':'X');
-   stream.printf(F("RSSI: %d"), WiFi1.getRSSI());
-   stream.printf(F("Host: %s"), Wifi1.getHostname());
-   stream.printf(F("IP:   %s"), Wifi1.getIP());
-   stream.printf(F("GW:   %s"), Wifi1.getGateway());
-   stream.printf(F("DNS:  %s (%s)"), Wifi1.getDNS(), Wifi1.isHostAvailble(Wifi1.getGateway(), 53)?"available":"not avail.");
-   Log.info(XC_F("NTP:  %s"), Time1.getNtpServer());
+void CxESPConsoleExt::printNetworkInfo() {
+#ifndef ESP_CONSOLE_NOWIFI
+   print(F(ESC_ATTR_BOLD "Net:  " ESC_ATTR_RESET)); printSSID(); printf(F(" (%s)"), isConnected()? ESC_TEXT_BRIGHT_GREEN "connected" ESC_ATTR_RESET : ESC_TEXT_BRIGHT_RED "not connected" ESC_ATTR_RESET);println();
+   print(F(ESC_ATTR_BOLD "Host: " ESC_ATTR_RESET)); printHostName(); println();
+   print(F(ESC_ATTR_BOLD "IP:   " ESC_ATTR_RESET)); printIp(); println();
+#ifdef ARDUINO
+   printf(F(ESC_ATTR_BOLD "GW:   " ESC_ATTR_RESET "%s"), WiFi.gatewayIP().toString().c_str());println();
+   printf(F(ESC_ATTR_BOLD "DNS:  " ESC_ATTR_RESET "%s" ESC_ATTR_BOLD " 2nd: " ESC_ATTR_RESET "%s"), WiFi.dnsIP().toString().c_str(), WiFi.dnsIP(1).toString().c_str());println();
+   printf(F(ESC_ATTR_BOLD "NTP:  " ESC_ATTR_RESET "%s"), getNtpServer());
+   printf(F(ESC_ATTR_BOLD " TZ: " ESC_ATTR_RESET "%s"), getTimeZone());println();
+#endif
+#endif
 }
-*/
 
 void CxESPConsoleExt::printInfo() {
    CxESPConsole::printInfo();
@@ -195,5 +201,54 @@ void CxESPConsoleExt::printESP() {
    print(F("time to boot: ")); printTimeToBoot(); println();
    printf(F("free heap:    %5d Bytes\n"), ESP.getFreeHeap());
    printf(F("\n"));
+#endif
+}
+
+void CxESPConsoleExt::printFlashMap() {
+#ifdef ARDUINO
+   printf(F("-FLASHMAP---------------\n"));
+#ifdef ESP32
+   printf(F("Size:         %d kBytes (0x%X)\n"), ESP.getFlashChipSize()/1024, ESP.getFlashChipSize());
+#else
+   printf(F("Size:         %d kBytes (0x%X)\n"), ESP.getFlashChipRealSize()/1024, ESP.getFlashChipRealSize());
+#endif
+   printf(F("\n"));
+#ifdef ESP32
+   printf(F("ESP32 Partition table:\n\n"));
+   printf(F("| Type | Sub |  Offset  |   Size   |       Label      |\n"));
+   printf(F("| ---- | --- | -------- | -------- | ---------------- |\n"));
+   esp_partition_iterator_t pi = esp_partition_find(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_ANY, NULL);
+   if (pi != NULL) {
+      do {
+         const esp_partition_t* p = esp_partition_get(pi);
+         printf(F("|  %02x  | %02x  | 0x%06X | 0x%06X | %-16s |\n"),
+                  p->type, p->subtype, p->address, p->size, p->label);
+      } while (pi = (esp_partition_next(pi)));
+   }
+#else
+   printf(F("Sketch start: %X\n"), getSketchStart());
+   printf(F("Sketch end:   %X (%d kBytes)\n"), getSketchStart() + ESP.getSketchSize() - 0x1, ESP.getSketchSize()/1024);
+   printf(F("Free start:   %X\n"), getFreeStart());
+   printf(F("Free end:     %X (free: %d kBytes)\n"), getFreeEnd(), getFreeSize()/1024);
+   printf(F("OTA start:    %X (with current sketch size)\n"), getOTAStart());
+   printf(F("OTA end:      %X (%d kBytes)\n"), getOTAEnd(), ESP.getSketchSize()/1024);
+   if (getFlashFSStart() < getWIFIEnd()) {
+      printf(F("FLASHFS start: %X\n"), getFlashFSStart());
+      printf(F("FLASHFS end:   %X (%d kBytes)\n"), getFlashFSEnd() - 0x1, (getFlashFSEnd() - getFlashFSStart())/1024);
+   }
+   printf(F("EPPROM start: %X\n"), getEPROMStart());
+   printf(F("EPPROM end:   %X (%d kBytes)\n"), getEPROMEEnd() - 0x1, (getEPROMEEnd() - getEPROMStart())/1024);
+   printf(F("RFCAL start:  %X\n"), getRFCALStart());
+   printf(F("RFCAL end:    %X (%d kBytes)\n"), getRFCALEnd() - 0x1, (getRFCALEnd() - getRFCALStart())/1024);
+   printf(F("WIFI start:   %X\n"), getWIFIStart());
+   printf(F("WIFI end:     %X (%d kBytes)\n"), getWIFIEnd() - 0x1, (getWIFIEnd() - getWIFIStart())/1024);
+   if (getFlashFSStart() >= getWIFIEnd()) {
+      printf(F("FS start:     %X"), getFlashFSStart()); println();
+      printf(F("FS end:       %X (%d kBytes)"), getFlashFSEnd() - 0x1, (getFlashFSEnd() - getFlashFSStart())/1024);
+   }
+
+#endif
+   printf(F("\n"));
+   printf(F("------------------------\n"));
 #endif
 }

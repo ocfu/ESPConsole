@@ -108,6 +108,8 @@ public:
       _ioStream->printf("%ds", (uint32_t) _nTimeToBoot / 1000);
    }
 
+   const char* getNtpServer() {return _strNtpServer.c_str();}
+   const char* getTimeZone() {return _strTz.c_str();}
 
 private:
    String _strNtpServer;

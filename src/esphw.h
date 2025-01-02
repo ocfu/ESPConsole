@@ -35,5 +35,19 @@ bool is_8285();
 const char* getMapName();
 uint32_t getFreeSize();
 uint32_t getFSSize();
+uint32_t getSketchStart();
+uint32_t getFreeStart();
+uint32_t getFreeEnd();
+uint32_t getOTAStart();
+uint32_t getOTAEnd();
+uint32_t getFlashFSStart();
+uint32_t getFlashFSEnd();
+uint32_t getEPROMStart();
+uint32_t getEPROMEEnd();
+uint32_t getRFCALStart();
+uint32_t getRFCALEnd();
+uint32_t getWIFIStart();
+uint32_t getWIFIEnd();
+
 
 #endif /* esphw_h */

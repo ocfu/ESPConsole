@@ -117,6 +117,14 @@ public:
    void setUserName(const char* sz) {_szUserName = sz;}
    const char* getUserName() {return _szUserName[0] ? _szUserName : "esp";}
    
+   bool isConnected() {
+#ifdef ARDUINO
+      return (WiFi.status() == WL_CONNECTED);
+#else
+      return false;
+#endif
+   }
+
    ///
    /// print to stream methods
    ///

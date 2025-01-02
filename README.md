@@ -62,8 +62,8 @@ The output of the console is formated and controlled by using ESC sequences. You
 
 | Command Set  | Commands        |
 |--------------|-----------------|
-| Bare minimum | ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid, hw, sw |
-| Extended     | flash, esp   | 
+| Bare minimum | ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid |
+| Extended     | hw, sw, net, esp, flash   | 
 | Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format |
 
 More and description to come.
@@ -149,9 +149,6 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 ### High Priority
 - [ ] Implement functionality for Ext features
    - Commands
-      - **flash**: show the flash table
-      - **net**: show the network setup
-      - **ntp**: show the ntp configuration
       - **set**: set configuration items
          - ssid, ssidpw, ntpserver
       - **reset**: factory reset (erase files and all configuration)
