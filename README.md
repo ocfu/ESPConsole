@@ -20,6 +20,7 @@ Download a .zip or .tar.gz release from github. Determine the location of your s
 # Dependencies
 
 ## Libraries
+- EEPROM       1.0
 - ESP8266WiFi  1.0   (optional)
 - LittleFS     0.1.0 (optional)
 
@@ -63,8 +64,8 @@ The output of the console is formated and controlled by using ESC sequences. You
 | Command Set  | Commands        |
 |--------------|-----------------|
 | Bare minimum | ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid |
-| Extended     | hw, sw, net, esp, flash, set   | 
-| Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save |
+| Extended     | hw, sw, net, esp, flash, net, set, eeprom, wifi   | 
+| Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save, load |
 
 More and description to come.
 
@@ -149,8 +150,6 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 ### High Priority
 - [ ] Implement functionality for Ext features
    - Commands
-      - **set**: set configuration items
-         - ssid, ssidpw, ntpserver
       - **reset**: factory reset (erase files and all configuration)
    - Implement functionality to add additional command sets.
       - **mqtt**: mqtt configuration 
@@ -161,8 +160,8 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 - [ ] Improve functionality for core features
    - [ ] User prompt (Yes/No and further)
    - Commands
-      - **set**: set configuration items
-         - tz, hostname
+      - **set**: set environment variables
+         - hostname
       - **uptime**: verfy load and loop time measurements
 - [ ] Improve functionality for Ext features
    - Commands:
@@ -170,9 +169,6 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 - [ ] Improve functionality for FS features
    - Commands:
       - **cat**: introduce ">" and ">>" to write inputs from console users
-- [ ] Implement further Ext features
-   - Commands:
-      - **eprom**
 - [ ] Refactor code
 - [ ] Monitor and minimize of resources (code in flash, heap usage)
 - [ ] Test in other environments and up-to-date versions

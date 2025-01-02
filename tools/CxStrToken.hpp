@@ -87,7 +87,7 @@ public:
       template <typename T>
       typename std::enable_if<std::is_same<T, int32_t>::value, T>::type
       asImpl(T) const {
-         return (int32_t)std::strtol(token, nullptr, 10); // Rückgabe als int32_t
+         return (int32_t)std::strtol(token, nullptr, 0); // Rückgabe als int32_t mit automatischer Basis
       }
       
       template <typename T>

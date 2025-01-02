@@ -12,6 +12,7 @@
 #endif
 #include <stdio.h>
 #include <math.h>
+#include "esphw.h"
 
 char __nst_buffer[255];
 
@@ -588,5 +589,138 @@ uint32_t getWIFIEnd() {
    return WIFI_END;
 #else
    return 0;
+#endif
+}
+
+void printEEPROM(Stream& stream, uint32_t nStartAddr, uint32_t nLength) {
+#ifdef ARDUINO
+   uint32_t eepromSize = nStartAddr + nLength;
+   EEPROM.begin(eepromSize);
+   
+   // align the start address to a multiple of 8
+   //nStartAddr = nStartAddr & 0xFFFFFFF8;
+   
+   stream.println("EEPROM Contents:");
+   for (int i = nStartAddr; i < eepromSize; i += 8) {
+      // Print the base address for the line
+      stream.printf("%04X:", i);
+      
+      // Print 8 values for the line
+      for (int j = 0; j < 8; j++) {
+         if (i + j < eepromSize) {  // Ensure we don't read beyond the EEPROM size
+            byte value = EEPROM.read(i + j);
+            
+            // Print printable ASCII characters, otherwise print as HEX
+            if (value >= 32 && value <= 126) {  // Check for printable characters
+               stream.printf("%2c", (char) value);  // Print as character
+            } else {
+               stream.printf("%02X", value);  // Print as HEX
+            }
+            stream.print(" ");
+         }
+      }
+      stream.println();  // Move to the next line
+   }
+   
+   EEPROM.end();
+#endif
+}
+
+bool readSSID(char* szSSID, uint32_t lenmax) {
+#ifdef ARDUINO
+   if (lenmax < 20) {
+      return false;
+   }
+   char buf[20];
+   
+   // initiotialize the buffer
+   memset(buf, 0, sizeof(buf));
+      
+   EEPROM.begin(512);
+   EEPROM_readAnything(0x7, buf);
+   EEPROM.end();
+   strncpy(szSSID, buf, lenmax);
+   return true;
+#else
+   return false;
+#endif
+}
+
+bool writeSSID(const char* szSSID) {
+#ifdef ARDUINO
+   if (strlen(szSSID) > 20) {
+      return false;
+   }
+   // copy the SSID to a buffer (writeAnything does not work with const char)
+   char buf[20];
+   strncpy(buf, szSSID, sizeof(buf));
+   
+   EEPROM.begin(512);
+   EEPROM_writeAnything(0x7, buf);
+   EEPROM.end();
+   return true;
+#else
+   return false;
+#endif
+}
+
+bool readPassword(char* szPassword, uint32_t lenmax) {
+#ifdef ARDUINO
+   if (lenmax < 25) {
+      return false;
+   }
+   char buf[25];
+   
+   // initiotialize the buffer
+   memset(buf, 0, sizeof(buf));
+   
+   EEPROM.begin(512);
+   EEPROM_readAnything(0x1B, buf);
+   EEPROM.end();
+   strncpy(szPassword, buf, lenmax);
+   return true;
+#else
+   return false;
+#endif
+}
+   
+bool writePassword(const char* szPassword) {
+#ifdef ARDUINO
+   if (strlen(szPassword) > 25) {
+      return false;
+   }
+   // copy the password to a buffer (writeAnything does not work with const char)
+   char buf[25];
+   strncpy(buf, szPassword, sizeof(buf));
+   
+   EEPROM.begin(512);
+   EEPROM_writeAnything(0x1B, buf);
+   EEPROM.end();
+   return true;
+#else
+   return false;
+#endif
+}
+
+void scanWiFi(Stream& stream) {
+#ifdef ARDUINO
+#ifndef ESP_CONSOLE_NOWIFI
+   int n = WiFi.scanNetworks();
+   if (n == 0) {
+      stream.println("no networks found");
+   } else {
+      stream.print(n);
+      stream.println(" networks found");
+      for (int i = 0; i < n; ++i) {
+         stream.print(i + 1);
+         stream.print(": ");
+         stream.print(WiFi.SSID(i));
+         stream.print(" (");
+         stream.print(WiFi.RSSI(i));
+         stream.print(" dBm)");
+         stream.println((WiFi.encryptionType(i) == ENC_TYPE_NONE) ? " " : "*");
+      }
+   }
+#endif
 #endif
 }

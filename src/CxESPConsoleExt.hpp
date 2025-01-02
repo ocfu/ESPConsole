@@ -59,11 +59,15 @@ public:
    // specifics for this console class, when needed
    //virtual void end() override {CxESPConsoleExt::end();}
    //virtual void loop() override {CxESPConsoleExt::loop();}
+   
+   void getSSID(char* szSSID, uint32_t lenmax);
+   void getPassword(char* szPassword, uint32_t lenmax);
 
    void printHW();
    void printSW();
    void printESP();
    void printFlashMap();
+   void printEEProm(uint32_t nStartAddr = 0, uint32_t nLength = 512);
    
    void printNetworkInfo();
 

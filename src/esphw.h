@@ -10,6 +10,17 @@
 #define esphw_h
 
 #include "Arduino.h"
+#ifdef ARDUINO
+#include <EEPROM.h>
+#ifndef ESP_CONSOLE_NOWIFI
+#include <WiFiClient.h>
+#ifdef ESP32
+#include <WiFi.h>
+#else  // not ESP32
+#include <ESP8266WiFi.h>
+#endif // end ESP32
+#endif
+#endif
 
 size_t getStackSize();
 void reboot();
@@ -48,6 +59,46 @@ uint32_t getRFCALStart();
 uint32_t getRFCALEnd();
 uint32_t getWIFIStart();
 uint32_t getWIFIEnd();
+void printEEPROM(Stream& stream, uint32_t nStartAddr = 0, uint32_t nLength = 4096);
+bool readSSID(char* szSSID, uint32_t lenmax);
+bool writeSSID(const char* szSSID);
+bool readPassword(char* szPassword, uint32_t lenmax);
+bool writePassword(const char* szPassword);
+
+template <class T> int EEPROM_writeAnything(int ee, const T& value)
+{
+   unsigned int i;
+#ifdef ARDUINO
+   const byte* p = (const byte*)(const void*)&value;
+   for (i = 0; i < sizeof(value); i++)
+      EEPROM.write(ee++, *p++);
+#endif
+   return i;
+}
+
+template <class T> int EEPROM_readAnything(int ee, T& value)
+{
+   unsigned int i;
+#ifdef ARDUINO
+   byte* p = (byte*)(void*)&value;
+   for (i = 0; i < sizeof(value); i++)
+      *p++ = EEPROM.read(ee++);
+#endif
+   return i;
+}
+
+template <class T> int EEPROM_vanishData(int ee, T& value)
+{
+   unsigned int i;
+#ifdef ARDUINO
+   byte* p = (byte*)(void*)&value;
+   for (i = 0; i < sizeof(value); i++)
+      EEPROM.write(ee++, '\0');
+#endif
+   return i;
+}
+
+void scanWiFi(Stream& stream);
 
 
 #endif /* esphw_h */

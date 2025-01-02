@@ -47,7 +47,7 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
    if (cmd == "?" || cmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsole::__processCommand(szCmd);
-      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash, set" ESC_ATTR_RESET));
+      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash, net, set, eeprom, wifi" ESC_ATTR_RESET));
    } else if (cmd == "hw") {
       printHW();
    } else if (cmd == "sw") {
@@ -76,6 +76,43 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("known env variables:\n ntp <server>\n tz <timezone>"));
          println(F("example: set ntp pool.ntp.org"));
          println(F("example: set tz CET-1CEST,M3.5.0,M10.5.0/3"));         
+      }
+   } else if (cmd == "eeprom") {
+      printEEProm(TKTOINT(tkCmd, 1, 0), TKTOINT(tkCmd, 2, 512));
+   } else if (cmd == "wifi") {
+      String strCmd = TKTOCHAR(tkCmd, 1);
+      if (strCmd == "ssid") {
+         if (b) {
+            writeSSID(TKTOCHAR(tkCmd, 2));
+         } else {
+            char buf[20];
+            readSSID(buf, sizeof(buf));
+            print(F(ESC_ATTR_BOLD "SSID: " ESC_ATTR_RESET)); print(buf); println();
+         }
+      } else if (strCmd == "pass") {
+         if (b) {
+            writePassword(TKTOCHAR(tkCmd, 2));
+         } else {
+            char buf[25];
+            readPassword(buf, sizeof(buf));
+            print(F(ESC_ATTR_BOLD "Password: " ESC_ATTR_RESET)); print(buf); println();
+         }
+      } else if (strCmd == "connect") {
+         //connect();
+      } else if (strCmd == "disconnect") {
+         //disconnect();
+      } else if (strCmd == "status") {
+         printNetworkInfo();
+      } else if (strCmd == "scan") {
+         scanWiFi(*__ioStream);
+      } else {
+         println(F("WiFi commands:"));
+         println(F("  ssid <ssid>"));
+         println(F("  pass <password>"));
+         println(F("  connect"));
+         println(F("  disconnect"));
+         println(F("  status"));
+         println(F("  scan"));
       }
    } else {
       // command not handled here, proceed into the base class(es)
@@ -270,4 +307,16 @@ void CxESPConsoleExt::printFlashMap() {
    printf(F("\n"));
    printf(F("------------------------\n"));
 #endif
+}
+
+void CxESPConsoleExt::printEEProm(uint32_t nStartAddr, uint32_t nLength) {
+   printEEPROM(*__ioStream, nStartAddr, nLength);
+}
+   
+void CxESPConsoleExt::getSSID(char* szSSID, uint32_t lenmax) {
+   readSSID(szSSID, lenmax);
+}
+
+void CxESPConsoleExt::getPassword(char* szPassword, uint32_t lenmax) {
+   readPassword(szPassword, lenmax);
 }

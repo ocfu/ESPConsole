@@ -359,7 +359,7 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
    if (cmd == "?" || cmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsoleExt::__processCommand(szCmd);
-      println(F("FS commands:" ESC_TEXT_BRIGHT_WHITE "      du, df, size, ls, cat, cp, rm, touch, mount, umount, format" ESC_ATTR_RESET));
+      println(F("FS commands:" ESC_TEXT_BRIGHT_WHITE "      du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save, load" ESC_ATTR_RESET));
    } else if (cmd == "du") {printDu(a);a ? println() : println(" .");
    } else if (cmd == "df") {printDf();println(F(" bytes"));
    } else if (cmd == "size") {printSize();println(F(" bytes"));
