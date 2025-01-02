@@ -20,7 +20,7 @@ void CxESPConsoleExt::begin() {
 
 }
 
-bool CxESPConsoleExt::__processCommand(const char *szCmd) {
+bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
    // validate the call
    if (!szCmd) return false;
    
@@ -47,7 +47,7 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd) {
    if (cmd == "?" || cmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsole::__processCommand(szCmd);
-      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash" ESC_ATTR_RESET));
+      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash, set" ESC_ATTR_RESET));
    } else if (cmd == "hw") {
       printHW();
    } else if (cmd == "sw") {
@@ -58,9 +58,28 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd) {
       printFlashMap();
    } else if (cmd == "net") {
       printNetworkInfo();
+   } else if (cmd == "set") {
+      ///
+      /// known env variables:
+      /// - ntp <server>
+      /// - tz <timezone>
+      ///
+      
+      String strVar = TKTOCHAR(tkCmd, 1);
+      if (strVar == "ntp") {
+         setNtpServer(TKTOCHAR(tkCmd, 2));
+      } else if (strVar == "tz") {
+         setTimeZone(TKTOCHAR(tkCmd, 2));
+      } else {
+         println(F("set environment variable."));
+         println(F("usage: set <env> <server>"));
+         println(F("known env variables:\n ntp <server>\n tz <timezone>"));
+         println(F("example: set ntp pool.ntp.org"));
+         println(F("example: set tz CET-1CEST,M3.5.0,M10.5.0/3"));         
+      }
    } else {
       // command not handled here, proceed into the base class(es)
-      return CxESPConsole::__processCommand(szCmd);
+      return CxESPConsole::__processCommand(szCmd, bQuiet);
    }
    return true;
 }

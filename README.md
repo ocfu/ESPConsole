@@ -63,8 +63,8 @@ The output of the console is formated and controlled by using ESC sequences. You
 | Command Set  | Commands        |
 |--------------|-----------------|
 | Bare minimum | ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid |
-| Extended     | hw, sw, net, esp, flash   | 
-| Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format |
+| Extended     | hw, sw, net, esp, flash, set   | 
+| Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save |
 
 More and description to come.
 

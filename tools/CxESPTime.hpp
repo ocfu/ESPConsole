@@ -22,13 +22,13 @@
 
 class CxESPTime {
 public:
-   CxESPTime(Stream& stream) : _ioStream(&stream), _strNtpServer("fritz.box"), _strTz("CET-1CEST,M3.5.0,M10.5.0/3") {_init();};
+   CxESPTime(Stream& stream) : _ioStream(&stream), _strNtpServer("pool.ntp.org"), _strTz("GMT0") {_initTime();};
    
    void printTime() {
       _update();
       
       char buf[80];
-      strftime (buf, sizeof(buf), "%H:%M:%S", &_tmLocal);
+      strftime (buf, sizeof(buf), "%H:%M:%S (%Z)", &_tmLocal);
       _ioStream->print(buf);
    }
    
@@ -36,7 +36,7 @@ public:
       _update();
       
       char buf[80];
-      strftime (buf, sizeof(buf), "%d.%m.%Y (%Z)", &_tmLocal);
+      strftime (buf, sizeof(buf), "%d.%m.%Y", &_tmLocal);
       _ioStream->print(buf);
    }
    
@@ -111,6 +111,10 @@ public:
    const char* getNtpServer() {return _strNtpServer.c_str();}
    const char* getTimeZone() {return _strTz.c_str();}
 
+   void setNtpServer(const char* sz) {_strNtpServer = sz; _initTime();}
+   void setTimeZone(const char* sz) {_strTz = sz; _initTime();}
+      
+
 private:
    String _strNtpServer;
    String _strTz;
@@ -131,18 +135,20 @@ private:
       }
    }
 
-   void _init() {
+   void _initTime() {
+      if (_strNtpServer.length() != 0 && _strTz.length() != 0) {
 #ifdef ARDUINO
 #ifdef ESP32
-      // ESP32 seems to be a little more complex:
-      configTime(0, 0, _strNtpServer.c_str());  // 0, 0 because we will use TZ in the next line
-      setenv("TZ", _strTz, 1);                  // Set environment variable with your time zone
-      tzset();
+         // ESP32 seems to be a little more complex:
+         configTime(0, 0, _strNtpServer.c_str());  // 0, 0 because we will use TZ in the next line
+         setenv("TZ", _strTz, 1);                  // Set environment variable with your time zone
+         tzset();
 #else
-      // ESP8266
-      configTime(_strTz.c_str(), _strNtpServer.c_str());    // --> for the ESP8266 only
+         // ESP8266
+         configTime(_strTz.c_str(), _strNtpServer.c_str());    // --> for the ESP8266 only
 #endif
 #endif
+      }
    };
    
 };

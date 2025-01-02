@@ -53,7 +53,7 @@ private:
 #endif
    
 protected:
-   virtual bool __processCommand(const char* szCmd) override;
+   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
 
    void __printNoFS() {
       println(F("file system not mounted!"));
@@ -87,7 +87,7 @@ public:
    void printDu(bool fmt = false, const char* szFn = nullptr);
    void printSize(bool fmt = false);
    void printDf(bool fmt = false);
-   void ls(bool all = false);
+   void ls(bool all = false, bool bLong = false);
    void cat(const char* szFn);
    void rm(const char* szFn);
    void cp(const char* src, const char* dst);
@@ -95,6 +95,10 @@ public:
    void mount();
    void umount();
    void format();
+   
+   void saveEnv(const char* szEnv, const char* szValue);
+   bool loadEnv(const char* szEnv, String& strValue);
+
 
 };
 

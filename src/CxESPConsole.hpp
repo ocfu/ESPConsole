@@ -42,7 +42,7 @@
 ///
 class CxESPConsoleBase  {
 protected:
-   virtual bool __processCommand(const char* szCmd) = 0;
+   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) = 0;
 };
 
 ///
@@ -196,7 +196,7 @@ protected:
    /// protected virtual methods
    ///
 protected:   
-   virtual bool __processCommand(const char* szCmd) override;
+   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
    
    virtual void __prompt() {
       __ioStream->print(ESC_CLEAR_LINE);

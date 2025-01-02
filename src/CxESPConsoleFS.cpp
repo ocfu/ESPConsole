@@ -15,7 +15,9 @@ void CxESPConsoleFS::begin() {
    
    // specifics for this console
    mount();
-   
+   __processCommand("load ntp", true);
+   __processCommand("load tz", true);
+
    // call the begin() from base class(es)
    CxESPConsoleExt::begin();
 }
@@ -102,7 +104,7 @@ void CxESPConsoleFS::printDf(bool fmt) {
    }
 }
 
-void CxESPConsoleFS::ls(bool bAll) {
+void CxESPConsoleFS::ls(bool bAll, bool bLong) {
    if (hasFS()) {
       uint32_t totalBytes;
       uint32_t usedBytes;
@@ -124,6 +126,11 @@ void CxESPConsoleFS::ls(bool bAll) {
             if (file.isDirectory()) {
                printf(F("DIR     %s/\n"), file.name());
             } else {
+               const char* fn = file.name();
+               
+               // skip hidden files
+               if (!bAll && fn && fn[0] == '.') continue;
+               
                if (bAll) {
                   printf(F("%7d "), file.size());
                   printFileDateTime(file.getCreationTime(), file.getLastWrite());
@@ -137,7 +144,13 @@ void CxESPConsoleFS::ls(bool bAll) {
       Dir dir = LittleFS.openDir("");
       while (dir.next()) {
          File file = dir.openFile("r");
-         if (bAll) {
+         const char* fn = file.name();
+
+         // skip hidden files
+         if (!bAll && fn && fn[0] == '.') continue;
+            
+         // print file size and date/time
+         if (bLong) {
             printf(F("%7d "), file.size());
             printFileDateTime(file.getCreationTime(), file.getLastWrite());
          }
@@ -146,7 +159,7 @@ void CxESPConsoleFS::ls(bool bAll) {
          file.close();
       }
 #endif // end ESP32
-      if (bAll) {
+      if (bLong) {
          printf(F("%7d (%d bytes free)\n"), total, totalBytes - usedBytes);
       }
 #endif // end ARDUINO
@@ -319,7 +332,7 @@ void CxESPConsoleFS::format() {
    }
 }
 
-bool CxESPConsoleFS::__processCommand(const char *szCmd) {
+bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
    // validate the call
    if (!szCmd) return false;
    
@@ -352,7 +365,7 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd) {
    } else if (cmd == "size") {printSize();println(F(" bytes"));
    } else if (cmd == "ls") {
       String strOpt = TKTOCHAR(tkCmd, 1);
-      ls((strOpt == "-l"));
+      ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la");
    } else if (cmd == "cat") {cat(a);
    } else if (cmd == "cp") {cp(a, b);
    } else if (cmd == "rm") {rm(a);
@@ -367,11 +380,87 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd) {
    } else if (cmd == "fs") {
       printFsUsage();
       println();
+   } else if (cmd == "save") {
+      ///
+      /// known env variables:
+      /// - ntp
+      /// - tz
+      ///
+      /// environment variables are stored in files. the file name is the name of the variable, with a trailing '.',
+      /// which indicates that it is a hidden file. the content of the file is the value of the variable.
+      ///
+
+      String strEnv = ".";
+      strEnv += TKTOCHAR(tkCmd, 1);
+      if (strEnv == ".ntp") {
+         saveEnv(strEnv.c_str(), getNtpServer());
+      } else if (strEnv == ".tz") {
+         saveEnv(strEnv.c_str(), getTimeZone());
+      } else {
+         println(F("save environment variable. \nusage: save <env>"));
+         println(F("known env variables:\n ntp \n tz "));
+         println(F("example: save ntp"));
+      }
+   } else if (cmd == "load") {
+      String strEnv = ".";
+      strEnv += TKTOCHAR(tkCmd, 1);
+      String strValue;
+      if (strEnv == ".ntp") {
+         if (loadEnv(strEnv.c_str(), strValue)) {
+            setNtpServer(strValue.c_str());
+            printf(F("NTP server set to %s\n"), getNtpServer());
+         } else {
+            println(F("NTP server env variable (ntp) not found!"));
+         }
+      } else if (strEnv == ".tz") {
+         if (loadEnv(strEnv.c_str(), strValue)) {
+            setTimeZone(strValue.c_str());
+            printf(F("Timezone set to %s\n"), getTimeZone());
+         } else {
+            println(F("Timezone env variable (tz) not found!"));
+         }
+      } else {
+         println(F("load environment varialbe.\nusage: load <env>"));
+         println(F("known env variables:\n ntp \n tz "));
+         println(F("example: load ntp"));
+      }
    } else {
       // command not handled here, proceed into the base class
-      return CxESPConsoleExt::__processCommand(szCmd);
+      return CxESPConsoleExt::__processCommand(szCmd, bQuiet);
    }
    return true;
+}
+
+void CxESPConsoleFS::saveEnv(const char* szEnv, const char* szValue) {
+   if (hasFS()) {
+#ifdef ARDUINO
+      File file = LittleFS.open(szEnv, "w");
+      if (file) {
+         file.print(szValue);
+         file.close();
+      }
+#endif
+   } else {
+      __printNoFS();
+   }
+}
+
+bool CxESPConsoleFS::loadEnv(const char* szEnv, String& strValue) {
+   if (hasFS()) {
+#ifdef ARDUINO
+      File file = LittleFS.open(szEnv, "r");
+      if (file) {
+         while (file.available()) {
+            strValue += (char)file.read();
+         }
+         file.close();
+         return true;
+      }
+#endif
+   } else {
+      __printNoFS();
+   }
+   return false;
 }
 
 #endif /*ESP_CONSOLE_NOFS*/

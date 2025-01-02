@@ -28,7 +28,7 @@ private:
 #endif
    
 protected:
-   virtual bool __processCommand(const char* szCmd) override;
+   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
 
 public:
 #ifndef ESP_CONSOLE_NOWIFI

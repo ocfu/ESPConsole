@@ -130,7 +130,7 @@ void CxESPConsole::printHeapUsed(bool fmt) {
    }
 }
 
-bool CxESPConsole::__processCommand(const char *szCmd) {
+bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
    // validate the call
    if (!szCmd) return false;
    
