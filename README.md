@@ -166,9 +166,10 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
    - Commands
       - **set**: set configuration items
          - tz, hostname
+      - **uptime**: verfy load and loop time measurements
 - [ ] Improve functionality for Ext features
    - Commands:
-      - **uptime**: verfy load and loop time measurements
+   -   - **gpio**: get/set gpio ports
 - [ ] Improve functionality for FS features
    - Commands:
       - **cat**: introduce ">" and ">>" to write inputs from console users
