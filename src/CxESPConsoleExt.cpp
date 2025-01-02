@@ -52,6 +52,8 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd) {
       printHW();
    } else if (cmd == "sw") {
       printSW();
+   } else if (cmd == "esp") {
+      printESP();
    } else {
       // command not handled here, proceed into the base class(es)
       return CxESPConsole::__processCommand(szCmd);
@@ -105,4 +107,93 @@ void CxESPConsoleExt::printInfo() {
    CxESPConsole::printInfo();
    printf(F(ESC_ATTR_BOLD   "      Chip: " ESC_ATTR_RESET "%s " ESC_ATTR_BOLD "Sw:" ESC_ATTR_RESET " %s\n"), getChipInfo(), _strCoreSdkVersion.c_str());
 
+}
+
+void CxESPConsoleExt::printESP() {
+#ifdef ARDUINO
+#ifdef ESP32
+   //TODO: get real flash size for esp32
+   uint32_t realSize = ESP.getFlashChipSize();
+#else
+   uint32_t realSize = ESP.getFlashChipRealSize();
+#endif
+   uint32_t ideSize = ESP.getFlashChipSize();
+   FlashMode_t ideMode = ESP.getFlashChipMode();
+   
+   printf(F("-CPU--------------------\n"));
+#ifdef ESP32
+   printf(F("ESP:          %s\n"), "ESP32");
+#else
+   printf(F("ESP:          %s\n"), getChipType());
+#endif
+   printf(F("Freq:         %d MHz\n"), ESP.getCpuFreqMHz());
+   printf(F("ChipId:       %X\n"), getChipId());
+   printf(F("MAC:          %s\n"), WiFi.macAddress().c_str());
+   printf(F("\n"));
+#ifdef ESP32
+   printf(F("-FLASH------------------\n"));
+#else
+   if (is_8285()) {
+      printf(F("-FLASH-(embeded)--------\n"));
+   } else {
+      printf(F("-FLASH------------------\n"));
+   }
+#endif
+#ifdef ESP32
+   printf(F("Vendor:       unknown\n"));
+#else
+   printf(F("Vendor:       0x%X\n"), ESP.getFlashChipVendorId());  // complete list in spi_vendors.h
+#ifdef PUYA_SUPPORT
+   if (ESP.getFlashChipVendorId() == SPI_FLASH_VENDOR_PUYA) printf(F("Puya support: Yes\n"));
+#else
+   printf(F("Puya support: No\n"));
+   if (ESP.getFlashChipVendorId() == SPI_FLASH_VENDOR_PUYA) {
+      printf(F("WARNING: #### vendor is PUYA, FLASHFS will fail, if you don't define -DPUYA_SUPPORT (ref. esp8266/Arduino #6221)\n"));
+   }
+#endif
+#endif
+   printf(F("Size (real):  %d kBytes\n"), realSize/1024);
+   printf(F("Size (comp.): %d kBytes\n"), ideSize/1024);
+   if(realSize != ideSize) {
+      printf(F("### compiled size differs from real chip size\n"));
+   }
+   //printf(F("CRC ok:       %d\n"),ESP.checkFlashCRC());
+   printf(F("Freq:         %d MHz\n"), ESP.getFlashChipSpeed()/1000000);
+   printf(F("Mode (ide):   %s\n"), ideMode == FM_QIO ? "QIO" : ideMode == FM_QOUT ? "QOUT" : ideMode == FM_DIO ? "DIO" : ideMode == FM_DOUT ? "DOUT" : "UNKNOWN");
+#ifdef ESP32
+   printf(F("Size Map:     unknown\n"));
+#else
+   printf(F("Size Map:     %s\n"), getMapName());
+#endif
+   printf(F("Size avail.:  %7d Bytes\n"), ESP.getSketchSize() + ESP.getFreeSketchSpace());
+   printf(F("     sketch:  %7d Bytes\n"), ESP.getSketchSize());
+   printf(F("       free:  %7d Bytes\n"), ESP.getFreeSketchSpace());
+#ifdef ESP32
+   printf(F("   fr.w.OTA:  ? Bytes\n"));
+#else
+   printf(F("   fr.w.OTA:  %7d Bytes\n"), getFreeSize());
+   if (getFreeSize() < 20000) {
+      printf(F("*** Free size for OTA very low!\n"));
+   } else if (getFreeSize() < 100000) {
+      printf(F("*** Free size for OTA is getting low!\n"));
+   }
+   printf(F("FLASHFS size: %6d Bytes\n"), getFSSize());
+#endif
+   printf(F("\n"));
+   printf(F("-FIRMWARE---------------\n"));
+#ifdef ESP32
+   //TODO: implement esp core version for esp32
+   printf(F("ESP core:     unknown\n"));
+#else
+   printf(F("ESP core:     %s\n"), ESP.getCoreVersion().c_str());
+#endif
+   printf(F("ESP sdk:      %s\n"), ESP.getSdkVersion());
+   printf(F("Application:  %s (%s)\n"), getAppName(), getAppVer());
+   printf(F("\n"));
+   printf(F("-BOOT-------------------\n"));
+   printf(F("reset reason: %s\n"), getResetInfo());
+   print(F("time to boot: ")); printTimeToBoot(); println();
+   printf(F("free heap:    %5d Bytes\n"), ESP.getFreeHeap());
+   printf(F("\n"));
+#endif
 }

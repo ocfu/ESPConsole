@@ -85,6 +85,7 @@ const char * const FLASH_SIZE_MAP_NAMES[] = {
 };
 #endif
 
+//Credits
 //http://www.bitflippin.net/riscv/bfref/esp8266/
 //https://github.com/espressif/esptool/blob/master/esptool.py
 //https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/index.html
@@ -457,6 +458,30 @@ uint32_t getFlashChipRealSize() {
 #else
    return ESP.getFlashChipRealSize();
 #endif
+#else
+   return 0;
+#endif
+}
+
+const char* getMapName() {
+#ifdef ARDUINO
+   return FLASH_SIZE_MAP_NAMES[system_get_flash_size_map()];
+#else
+   return "";
+#endif
+}
+
+uint32_t getFreeSize() {
+#ifdef ARDUINO
+   return FREE_SIZE;
+#else
+   return 0;
+#endif
+}
+
+uint32_t getFSSize() {
+#ifdef ARDUINO
+   return FLASHFS_END - FLASHFS_START;
 #else
    return 0;
 #endif

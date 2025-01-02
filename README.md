@@ -150,7 +150,6 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 - [ ] Implement functionality for Ext features
    - Commands
       - **flash**: show the flash table
-      - **esp**: show esp status 
       - **net**: show the network setup
       - **ntp**: show the ntp configuration
       - **set**: set configuration items

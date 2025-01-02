@@ -24,8 +24,6 @@ const char* getChipInfo();
 const char* getChipType();
 uint32_t getChipId();
 const char* getCoreVersion();
-void printEspInfo(Stream& stream);
-void printEspFlashMap(Stream& stream);
 bool utf8_check_is_valid(const char* sz);
 uint64_t speed_check(uint32_t start = 1, uint32_t end = 1023);
 char* remove8BitChars(const char *mess);
@@ -33,5 +31,9 @@ void replaceInvalidChars(char * sz, uint32_t lenmax);
 uint32_t getFlashChipSize();
 uint32_t getFlashChipSize();
 uint32_t getFlashChipRealSize();
+bool is_8285();
+const char* getMapName();
+uint32_t getFreeSize();
+uint32_t getFSSize();
 
 #endif /* esphw_h */

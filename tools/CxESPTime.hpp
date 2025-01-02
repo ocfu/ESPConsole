@@ -103,6 +103,10 @@ public:
          _ioStream->printf("%dT:%02d:%02d", days, hours, minutes);
       }
    }
+   
+   void printTimeToBoot() {
+      _ioStream->printf("%ds", (uint32_t) _nTimeToBoot / 1000);
+   }
 
 
 private:
@@ -111,6 +115,7 @@ private:
    Stream* _ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    
    time_t _tStart = 0;
+   uint32_t _nTimeToBoot = 0;
 
    time_t _tNow;
    struct tm _tmLocal;
@@ -119,7 +124,8 @@ private:
       time(&_tNow);                    // read the current time
       localtime_r(&_tNow, &_tmLocal);  // make it the local time
       if (!_tStart) {
-         _tStart = _tNow - (millis() / 1000);   // set the start time one time, deduct the time system is running
+         _nTimeToBoot = (uint32_t) millis();
+         _tStart = _tNow - (_nTimeToBoot / 1000);   // set the start time one time, deduct the time system is running
       }
    }
 
