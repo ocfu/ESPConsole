@@ -160,13 +160,11 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 - [ ] Improve functionality for core features
    - [ ] User prompt (Yes/No and further)
    - Commands
-      - **set**: set environment variables
-         - hostname
       - **uptime**: verfy load and loop time measurements
 - [ ] Improve functionality for Ext features
    - Commands:
      - **gpio**: get/set gpio ports
-     - **ping**: ping a host (simple, no ext. lib, save of resources)   
+     - **ping**: ping a host (simple, no ext. lib, save resources)   
 - [ ] Improve functionality for FS features
    - Commands:
       - **cat**: introduce ">" and ">>" to write inputs from console users
@@ -178,7 +176,7 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 
 ---
 
-## 🚀 Upcoming Features
+## 🚀 More to come
 - [ ] Configuration file on FS
 - [ ] Logging
    - to file(s)
