@@ -24,11 +24,15 @@ class CxESPTime {
 public:
    CxESPTime(Stream& stream) : _ioStream(&stream), _strNtpServer("pool.ntp.org"), _strTz("GMT0") {_initTime();};
    
-   void printTime() {
+   void printTime(bool withTZ = true) {
       _update();
       
       char buf[80];
-      strftime (buf, sizeof(buf), "%H:%M:%S (%Z)", &_tmLocal);
+      if (withTZ) {
+         strftime (buf, sizeof(buf), "%H:%M:%S (%Z)", &_tmLocal);
+      } else {
+         strftime (buf, sizeof(buf), "%H:%M:%S", &_tmLocal);
+      }
       _ioStream->print(buf);
    }
    

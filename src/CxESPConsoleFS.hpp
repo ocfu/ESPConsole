@@ -81,7 +81,7 @@ public:
    virtual void printInfo() override;
 
 
-   void printFsUsage();
+   void printFsInfo();
    //void printFileDateTime(time_t cr, time_t lw);
 
    void printDu(bool fmt = false, const char* szFn = nullptr);

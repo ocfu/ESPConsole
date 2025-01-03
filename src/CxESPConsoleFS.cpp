@@ -13,7 +13,7 @@ void CxESPConsoleFS::begin() {
    // set the name for this console
    setConsoleName("Ext+FS");
    
-   // specifics for this console
+   // load specific environments for this class
    mount();
    __processCommand("load ntp", true);
    __processCommand("load tz", true);
@@ -40,7 +40,7 @@ void CxESPConsoleFS::printInfo() {
    CxESPConsoleExt::printInfo();
    
    // print the special usage of this console extension
-   printFsUsage();
+   printFsInfo();
 }
 
 
@@ -278,7 +278,7 @@ void CxESPConsoleFS::cp(const char *szSrc, const char *szDst) {
    }
 }
 
-void CxESPConsoleFS::printFsUsage() {
+void CxESPConsoleFS::printFsInfo() {
    if (hasFS()) {
       print(F(ESC_ATTR_BOLD   "Filesystem: " ESC_ATTR_RESET "Little FS"));
       print(F(ESC_ATTR_BOLD " Size: " ESC_ATTR_RESET));printSize();print(F(" bytes"));
@@ -299,7 +299,7 @@ void CxESPConsoleFS::mount() {
 #else
 #endif
    } else {
-      println(F("LittleFS already mounted!"));
+      //println(F("LittleFS already mounted!"));
    }
 }
 
@@ -378,7 +378,7 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
    } else if (cmd == "format") {
       format();
    } else if (cmd == "fs") {
-      printFsUsage();
+      printFsInfo();
       println();
    } else if (cmd == "save") {
       ///
