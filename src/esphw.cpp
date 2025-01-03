@@ -597,9 +597,6 @@ void printEEPROM(Stream& stream, uint32_t nStartAddr, uint32_t nLength) {
    uint32_t eepromSize = nStartAddr + nLength;
    EEPROM.begin(eepromSize);
    
-   // align the start address to a multiple of 8
-   //nStartAddr = nStartAddr & 0xFFFFFFF8;
-   
    stream.println("EEPROM Contents:");
    for (int i = nStartAddr; i < eepromSize; i += 8) {
       // Print the base address for the line
@@ -633,9 +630,10 @@ bool readSSID(char* szSSID, uint32_t lenmax) {
    }
    char buf[20];
    
-   // initiotialize the buffer
+   // initialize the buffer
    memset(buf, 0, sizeof(buf));
       
+   // address for the SSID in eeprom is 0x7, length 20 bytes
    EEPROM.begin(512);
    EEPROM_readAnything(0x7, buf);
    EEPROM.end();
@@ -655,6 +653,7 @@ bool writeSSID(const char* szSSID) {
    char buf[20];
    strncpy(buf, szSSID, sizeof(buf));
    
+   // address for the SSID in eeprom is 0x7, length 20 bytes
    EEPROM.begin(512);
    EEPROM_writeAnything(0x7, buf);
    EEPROM.end();
@@ -673,7 +672,8 @@ bool readPassword(char* szPassword, uint32_t lenmax) {
    
    // initiotialize the buffer
    memset(buf, 0, sizeof(buf));
-   
+
+   // address for the password in eeprom is 0x1B, length 25 bytes
    EEPROM.begin(512);
    EEPROM_readAnything(0x1B, buf);
    EEPROM.end();
@@ -692,9 +692,50 @@ bool writePassword(const char* szPassword) {
    // copy the password to a buffer (writeAnything does not work with const char)
    char buf[25];
    strncpy(buf, szPassword, sizeof(buf));
-   
+
+   // address for the password in eeprom is 0x1B, length 25 bytes
    EEPROM.begin(512);
    EEPROM_writeAnything(0x1B, buf);
+   EEPROM.end();
+   return true;
+#else
+   return false;
+#endif
+}
+
+bool readHostName(char* szHostname, uint32_t lenmax) {
+#ifdef ARDUINO
+   if (lenmax < 80) {
+      return false;
+   }
+   char buf[80];
+   
+   // initialize the buffer
+   memset(buf, 0, sizeof(buf));
+
+   // address for the hostname in eeprom is 0x34, length 80 bytes
+   EEPROM.begin(512);
+   EEPROM_readAnything(0x34, buf);
+   EEPROM.end();
+   strncpy(szHostname, buf, lenmax);
+   return true;
+#else
+   return false;
+#endif
+}
+
+bool writeHostName(const char* szHostname) {
+#ifdef ARDUINO
+   if (strlen(szHostname) > 80) {
+      return false;
+   }
+   // copy the hostname to a buffer (writeAnything does not work with const char)
+   char buf[80];
+   strncpy(buf, szHostname, sizeof(buf));
+   
+   // address for the hostname in eeprom is 0x34, length 80 bytes
+   EEPROM.begin(512);
+   EEPROM_writeAnything(0x34, buf);
    EEPROM.end();
    return true;
 #else

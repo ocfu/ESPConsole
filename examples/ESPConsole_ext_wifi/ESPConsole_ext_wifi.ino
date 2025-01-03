@@ -4,24 +4,29 @@ CxESPConsoleExt ESPConsole(Serial, "Test App", "1.0");
 
 WiFiServer server(23);
 
-char ssid[20];
-char password[25];
-
 void setup() {
    Serial.begin(115200);
    
    //
-   // Get the wifi ssid and password from the console settings.
-   // The ssid and password can be set in the console with the commands
+   // Read the ssid, password and hostname from the console settings.
+   // All can be set in the console with the commands
    //   wifi ssid <ssid>
-   //   wifi pass <password>
-   // These credentials will be stored in the EEPROM.
+   //   wifi password <password>
+   //   wifi hostname <hostname>
+   // These settings will be stored in the EEPROM.
    //
    
-   ESPConsole.getSSID(ssid, sizeof(ssid));
-   ESPConsole.getPassword(password, sizeof(password));
+   String strSSID;
+   String strPassword;
+   String strHostName;
    
-   WiFi.begin(ssid, password);
+   ESPConsole.readSSID(strSSID);
+   ESPConsole.readPassword(strPassword);
+   ESPConsole.readHostName(strHostName);
+
+   WiFi.begin(strSSID.c_str(), strPassword.c_str());
+   WiFi.setAutoReconnect(true);
+   WiFi.hostname(strHostName.c_str());
 
    // try to connect to the network for max. 10 seconds
    while (WiFi.status() != WL_CONNECTED && millis() < 10000) {

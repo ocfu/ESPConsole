@@ -165,7 +165,8 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
       - **uptime**: verfy load and loop time measurements
 - [ ] Improve functionality for Ext features
    - Commands:
-   -   - **gpio**: get/set gpio ports
+     - **gpio**: get/set gpio ports
+     - **ping**: ping a host (simple, no ext. lib, save of resources)   
 - [ ] Improve functionality for FS features
    - Commands:
       - **cat**: introduce ">" and ">>" to write inputs from console users
