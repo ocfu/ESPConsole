@@ -60,8 +60,9 @@ public:
    //virtual void end() override {CxESPConsoleExt::end();}
    //virtual void loop() override {CxESPConsoleExt::loop();}
    
-   void getSSID(char* szSSID, uint32_t lenmax);
-   void getPassword(char* szPassword, uint32_t lenmax);
+   void readSSID(String& strSSID);
+   void readPassword(String& strPassword);
+   void readHostName(String& strHostName);
 
    void printHW();
    void printSW();

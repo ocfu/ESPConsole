@@ -64,6 +64,8 @@ bool readSSID(char* szSSID, uint32_t lenmax);
 bool writeSSID(const char* szSSID);
 bool readPassword(char* szPassword, uint32_t lenmax);
 bool writePassword(const char* szPassword);
+bool readHostName(char* szHostname, uint32_t lenmax);
+bool writeHostName(const char* szHostname);
 
 template <class T> int EEPROM_writeAnything(int ee, const T& value)
 {

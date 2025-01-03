@@ -86,16 +86,25 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
             writeSSID(TKTOCHAR(tkCmd, 2));
          } else {
             char buf[20];
-            readSSID(buf, sizeof(buf));
+            ::readSSID(buf, sizeof(buf));
             print(F(ESC_ATTR_BOLD "SSID: " ESC_ATTR_RESET)); print(buf); println();
          }
-      } else if (strCmd == "pass") {
+      } else if (strCmd == "password") {
          if (b) {
-            writePassword(TKTOCHAR(tkCmd, 2));
+            ::writePassword(TKTOCHAR(tkCmd, 2));
          } else {
             char buf[25];
-            readPassword(buf, sizeof(buf));
+            ::readPassword(buf, sizeof(buf));
             print(F(ESC_ATTR_BOLD "Password: " ESC_ATTR_RESET)); print(buf); println();
+         }
+      } else if (strCmd == "hostname") {
+         if (b) {
+            setHostName(TKTOCHAR(tkCmd, 2));
+            ::writeHostName(TKTOCHAR(tkCmd, 2));
+         } else {
+            char buf[80];
+            ::readHostName(buf, sizeof(buf));
+            print(F(ESC_ATTR_BOLD "Hostname: " ESC_ATTR_RESET)); printHostName(); println();
          }
       } else if (strCmd == "connect") {
          //connect();
@@ -107,9 +116,10 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          scanWiFi(*__ioStream);
       } else {
          println(F("WiFi commands:"));
-         println(F("  ssid <ssid>"));
-         println(F("  pass <password>"));
-         println(F("  connect"));
+         println(F("  ssid [<ssid>]"));
+         println(F("  password [<password>]"));
+         println(F("  hostname [<hostname>]"));
+         println(F("  connect [<ssid> <password>]"));
          println(F("  disconnect"));
          println(F("  status"));
          println(F("  scan"));
@@ -313,10 +323,20 @@ void CxESPConsoleExt::printEEProm(uint32_t nStartAddr, uint32_t nLength) {
    printEEPROM(*__ioStream, nStartAddr, nLength);
 }
    
-void CxESPConsoleExt::getSSID(char* szSSID, uint32_t lenmax) {
-   readSSID(szSSID, lenmax);
+void CxESPConsoleExt::readSSID(String& strSSID) {
+   char buf[20];
+   ::readSSID(buf, sizeof(buf));
+   strSSID = buf;
 }
 
-void CxESPConsoleExt::getPassword(char* szPassword, uint32_t lenmax) {
-   readPassword(szPassword, lenmax);
+void CxESPConsoleExt::readPassword(String& strPassword) {
+   char buf[25];
+   ::readPassword(buf, sizeof(buf));
+   strPassword = buf;
+}
+
+void CxESPConsoleExt::readHostName(String& strHostName) {
+   char buf[80];
+   ::readHostName(buf, sizeof(buf));
+   strHostName = buf;
 }
