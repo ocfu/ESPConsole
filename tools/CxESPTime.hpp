@@ -14,6 +14,7 @@
 #endif
 
 #include <time.h>                    // for time() ctime()
+#include <sys/time.h>                // struct timeval
 
 /// Credits:
 /// https://werner.rothschopf.net/microcontroller/202103_arduino_esp32_ntp_en.htm
@@ -34,6 +35,19 @@ public:
          strftime (buf, sizeof(buf), "%H:%M:%S", &_tmLocal);
       }
       _ioStream->print(buf);
+   }
+   
+   uint32_t getTime(char* buf, uint32_t lenmax, bool ms = false) {
+      strftime (buf, lenmax, "%H:%M:%S", &_tmLocal);
+      if (ms && lenmax > 12) {
+         unsigned long millisec;
+         struct timeval tv;
+         
+         gettimeofday(&tv, NULL);
+         millisec = lrint(tv.tv_usec/1000.0); // Round to nearest millisec
+         snprintf(buf+8, lenmax-8, ".%03lu", millisec);
+      }
+      return (uint32_t)strlen(buf);
    }
    
    void printDate() {

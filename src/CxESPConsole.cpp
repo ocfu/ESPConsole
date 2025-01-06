@@ -320,27 +320,27 @@ void CxESPConsole::loop() {
 #ifndef ESP_CONSOLE_NOWIFI
    // check, if a new wifi client is or the current one is (still) connected
    if (_pWiFiServer) {
-      if (!activeClient || !activeClient.connected()) {
+      if (!_activeClient || !_activeClient.connected()) {
          WiFiClient client = _pWiFiServer->available();
          if (client) {
             println(F("New client connected."));
-            activeClient = client; // Aktiven Client aktualisieren
-            delete espConsoleWiFiClient; // Alte Instanz löschen
-            espConsoleWiFiClient = _createInstance(activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
-            if (espConsoleWiFiClient) {
-               espConsoleWiFiClient->setHostName(getHostName());
-               espConsoleWiFiClient->begin();
+            _activeClient = client; // Aktiven Client aktualisieren
+            delete __espConsoleWiFiClient; // Alte Instanz löschen
+            __espConsoleWiFiClient = _createInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
+            if (__espConsoleWiFiClient) {
+               __espConsoleWiFiClient->setHostName(getHostName());
+               __espConsoleWiFiClient->begin();
             } else {
                println(F("*** error: _createInstance() for new wifi client failed!"));
             }
-         } else if (espConsoleWiFiClient) {
+         } else if (__espConsoleWiFiClient) {
             println(F("Client disconnected."));
-            delete espConsoleWiFiClient;
-            espConsoleWiFiClient = nullptr;
+            delete __espConsoleWiFiClient;
+            __espConsoleWiFiClient = nullptr;
          }
       }
       
-      if (espConsoleWiFiClient) espConsoleWiFiClient->loop(); // Befehle in der Hauptschleife abarbeiten
+      if (__espConsoleWiFiClient) __espConsoleWiFiClient->loop(); // Befehle in der Hauptschleife abarbeiten
    }
 #endif
 #endif
@@ -365,4 +365,17 @@ void CxESPConsole::printSSID() {
 #endif
 }
 
+bool CxESPConsole::isHostAvailable(const char* szHost, int nPort) {
+#ifdef ARDUINO
+   if (WiFi.status() == WL_CONNECTED && nPort > 0 && szHost && szHost[0] != '\0') { //Check WiFi connection status
+      WiFiClient client;
+      if (client.connect(szHost, nPort)) {
+         client.stop();
+         return true;
+      }
+   }
 #endif
+   return false;
+}
+
+#endif /* ESP_COSNOLE_NOWIFI */
