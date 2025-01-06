@@ -116,7 +116,8 @@ public:
    const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
    void setUserName(const char* sz) {_szUserName = sz;}
    const char* getUserName() {return _szUserName[0] ? _szUserName : "esp";}
-   
+
+#ifndef ESP_CONSOLE_NOWIFI
    bool isConnected() {
 #ifdef ARDUINO
       return (WiFi.status() == WL_CONNECTED);
@@ -124,6 +125,8 @@ public:
       return false;
 #endif
    }
+   bool isHostAvailable(const char* szHost, int nPort);
+#endif
 
    ///
    /// print to stream methods
@@ -183,6 +186,8 @@ public:
 protected:
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    bool __bIsWiFiClient = false;
+   
+   CxESPConsole* __espConsoleWiFiClient = nullptr;
 
    const char* __szConsoleName = ""; // appears at the start message
    void setConsoleName(const char* sz) {
@@ -232,8 +237,7 @@ private:
 private:
 #ifndef ESP_CONSOLE_NOWIFI
    WiFiServer* _pWiFiServer = nullptr;
-   WiFiClient activeClient;
-   CxESPConsole* espConsoleWiFiClient = nullptr;
+   WiFiClient _activeClient;
 #endif
    
    String _strHostName; // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
