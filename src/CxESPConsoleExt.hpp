@@ -58,11 +58,12 @@ public:
    virtual void begin() override;
    // specifics for this console class, when needed
    //virtual void end() override {CxESPConsoleExt::end();}
-   //virtual void loop() override {CxESPConsoleExt::loop();}
+   virtual void loop() override;
    
    void readSSID(String& strSSID);
    void readPassword(String& strPassword);
    void readHostName(String& strHostName);
+   void readOtaPassword(String& strPassword);
 
    void printHW();
    void printSW();

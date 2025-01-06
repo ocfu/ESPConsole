@@ -7,17 +7,30 @@
 //
 
 #include "CxESPConsoleExt.hpp"
+#include "../tools/CxOta.hpp"
 #include "esphw.h"
+
+CxOta Ota1;
 
 void CxESPConsoleExt::begin() {
    // set the name for this console
    setConsoleName("Ext");
    
+   println(F("start ota..."));
+   String strPw;
+   readOtaPassword(strPw);
+   Ota1.begin(getHostName(), strPw.c_str());
+   
    // call the begin() from base class(es) first
    CxESPConsole::begin();
-
+   
    // no specifics for this console
 
+}
+
+void CxESPConsoleExt::loop() {
+   CxESPConsole::loop();
+   Ota1.loop();
 }
 
 bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
@@ -114,6 +127,14 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          printNetworkInfo();
       } else if (strCmd == "scan") {
          scanWiFi(*__ioStream);
+      } else if (strCmd == "otapw") {
+         if (b) {
+            ::writeOtaPassword(TKTOCHAR(tkCmd, 2));
+         } else {
+            char buf[25];
+            ::readOtaPassword(buf, sizeof(buf));
+            print(F(ESC_ATTR_BOLD "Password: " ESC_ATTR_RESET)); print(buf); println();
+         }
       } else {
          println(F("WiFi commands:"));
          println(F("  ssid [<ssid>]"));
@@ -123,6 +144,7 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("  disconnect"));
          println(F("  status"));
          println(F("  scan"));
+         println(F("  otapw [<password>]"));
       }
    } else {
       // command not handled here, proceed into the base class(es)
@@ -339,4 +361,10 @@ void CxESPConsoleExt::readHostName(String& strHostName) {
    char buf[80];
    ::readHostName(buf, sizeof(buf));
    strHostName = buf;
+}
+
+void CxESPConsoleExt::readOtaPassword(String& strPassword) {
+   char buf[25];
+   ::readOtaPassword(buf, sizeof(buf));
+   strPassword = buf;
 }

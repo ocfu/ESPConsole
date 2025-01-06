@@ -23,6 +23,7 @@ Download a .zip or .tar.gz release from github. Determine the location of your s
 - EEPROM       1.0
 - ESP8266WiFi  1.0   (optional)
 - LittleFS     0.1.0 (optional)
+- ArduinoOTA   1.0   (optional)
 
 ## Hardware
 - ESP8266
@@ -71,9 +72,11 @@ More and description to come.
 
 ## Compiler options
 
+By default the library includes WiFi and OTA.
+
 | Macro | Description |
 |-------|-------------|
-|`ESP_CONSOLE_NOWIFI`| exclude Wi-Fi-specific code |
+|`ESP_CONSOLE_NOWIFI`| exclude Wi-Fi- and OTA-specific code |
 |`ARDUINO_CLI_VER=<MMmmPP>`| (optional) Unfortunately Arduino CLI does not provide any (reliable) compiler macro indicating the used version. This marcro defines it manually, only for the benefit of the command `sw`, which shows relevant version info.
 
 The library is developed using XCode and Arduino CLI. For testing purpose, there are code segments, only for the use in this test environment and Arduino specific code is framed by ```#ifdef ARDUINO ... #endif```. 

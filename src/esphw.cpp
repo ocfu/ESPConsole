@@ -765,3 +765,43 @@ void scanWiFi(Stream& stream) {
 #endif
 #endif
 }
+
+bool readOtaPassword(char* szPassword, uint32_t lenmax) {
+#ifdef ARDUINO
+   if (lenmax < 25) {
+      return false;
+   }
+   char buf[25];
+   
+   // initiotialize the buffer
+   memset(buf, 0, sizeof(buf));
+   
+   // address for the password in eeprom is 0x8A, length 25 bytes
+   EEPROM.begin(512);
+   EEPROM_readAnything(0x8A, buf);
+   EEPROM.end();
+   strncpy(szPassword, buf, lenmax);
+   return true;
+#else
+   return false;
+#endif
+}
+
+bool writeOtaPassword(const char* szPassword) {
+#ifdef ARDUINO
+   if (strlen(szPassword) > 25) {
+      return false;
+   }
+   // copy the password to a buffer (writeAnything does not work with const char)
+   char buf[25];
+   strncpy(buf, szPassword, sizeof(buf));
+   
+   // address for the password in eeprom is 0x8A, length 25 bytes
+   EEPROM.begin(512);
+   EEPROM_writeAnything(0x8A, buf);
+   EEPROM.end();
+   return true;
+#else
+   return false;
+#endif
+}
