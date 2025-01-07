@@ -10,6 +10,8 @@
 
 #ifdef ARDUINO
 #include <ArduinoOTA.h>
+#else
+#define ota_error_t int
 #endif
 
 #ifndef ESP_CONSOLE_NOWIFI
@@ -21,13 +23,15 @@ class CxOta {
 public:
    typedef void (*cb_t)();
    typedef void (*cbPrgs_t)(unsigned int, unsigned int);
-
+   typedef void (*cbErr_t)(ota_error_t error);
+   
 private:
    bool m_bInitialized = false;
    
    cb_t _cbStart = nullptr;
    cbPrgs_t _cbProgress = nullptr;
    cb_t _cbEnd = nullptr;
+   cbErr_t _cbError = nullptr;
 
 public:
    bool begin(const char* szHostname, const char* szPw) {
@@ -36,34 +40,25 @@ public:
       ArduinoOTA.setPassword(szPw);
       
       ArduinoOTA.onStart([]() {
-         Ota1.start(); // tells the app about the start (via callback)
+         Ota1.start(); // inform the console through cb
       });
       ArduinoOTA.onEnd([]() {
-         Ota1.end();
-         ESP.restart();
+         Ota1.end(); // inform the console through cb
       });
       ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
          int8_t p = (int8_t)round(progress * 100 / total);
          static int8_t last = 0;
          if ((p % 10)==0 && p != last) {
-            //info(F("OTA: Progress %u"), p);
+            // only report 10% steps to the console cb
+            Ota1.progress(progress, total);
             last = p;
          }
-         Ota1.progress(progress, total);
-         //Led1.blinkData();
       });
       ArduinoOTA.onError([](ota_error_t error) {
-         //error(XC_F("OTA: ### Error[%u]"), error);
-         //Led1.blinkError();
-         //      if (error == OTA_AUTH_ERROR) {Log.error(XC_F("OTA: ### Auth Failed"));}
-         //      else if (error == OTA_BEGIN_ERROR) {Log.error(XC_F("OTA: ### Begin Failed"));}
-         //      else if (error == OTA_CONNECT_ERROR) {Log.error(XC_F("OTA: ### Connect Failed"));}
-         //      else if (error == OTA_RECEIVE_ERROR) {Log.error(XC_F("OTA: ### Receive Failed"));}
-         //      else if (error == OTA_END_ERROR) {Log.error(XC_F("OTA: ### End Failed"));}
+         Ota1.error(error);
       });
       
       ArduinoOTA.begin();
-      //info(F("OTA: ready"));
       
       m_bInitialized = true;
 #endif
@@ -84,6 +79,8 @@ public:
    void progress(unsigned int p, unsigned int t) {if(_cbProgress) _cbProgress(p, t);}
    void onEnd(cb_t cb){_cbEnd = cb;}
    void end() {if(_cbEnd) _cbEnd();}
+   void onError(cbErr_t cb){_cbError = cb;}
+   void error(ota_error_t error) {if(_cbError) _cbError(error);}
 };
 
 #endif /* ESP_CONSOLE_NOWIFI */

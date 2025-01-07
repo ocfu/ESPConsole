@@ -17,9 +17,41 @@ void CxESPConsoleExt::begin() {
    setConsoleName("Ext");
    
    if (!__bIsWiFiClient) {
-      info(F("start ota..."));
+      info(F("start OTA service"));
       String strPw;
       readOtaPassword(strPw);
+      Ota1.onStart([](){
+         if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->info(F("OTA start..."));
+      });
+      
+      Ota1.onEnd([](){
+         if (CxESPConsole::getInstance()) {
+            CxESPConsole::getInstance()->info(F("OTA end"));
+            CxESPConsole::getInstance()->reboot();
+         }
+      });
+      
+      Ota1.onProgress([](unsigned int progress, unsigned int total){
+         int8_t p = (int8_t)round(progress * 100 / total);
+         static int8_t last = 0;
+         if ((p % 10)==0 && p != last) {
+            if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->info(F("OTA Progress %u"), p);
+            last = p;
+         }
+      });
+      
+      Ota1.onError([](ota_error_t error){
+         String strErr;
+#ifdef ARDUINOI
+         if (error == OTA_AUTH_ERROR) {strErr = F("authorisation failed");}
+         else if (error == OTA_BEGIN_ERROR) {strErr = F("begin failed");}
+         else if (error == OTA_CONNECT_ERROR) {strErr = F("connect failed");}
+         else if (error == OTA_RECEIVE_ERROR) {strErr = F("receive failed");}
+         else if (error == OTA_END_ERROR) {strErr = F("end failed");}
+#endif
+         if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->error(F("OTA error: %s [%d]"), strErr.c_str(), error);
+      });
+
       Ota1.begin(getHostName(), strPw.c_str());
    }
    
