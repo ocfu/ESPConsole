@@ -75,6 +75,8 @@ public:
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
    : CxESPTime(stream), __ioStream(&stream), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
       
+      if (!_pESPConsoleInstance) _pESPConsoleInstance = this;
+      
       _nLastMeasurement = (uint32_t) micros(); // Startzeit initialisieren
    
       // Zeit für die aktive Aufgabe messen
@@ -108,6 +110,7 @@ public:
    /// public methods
    ///
 public:
+   static CxESPConsole* getInstance() {return _pESPConsoleInstance;}
    void setHostName(const char* sz) {_strHostName = sz;}
    const char* getHostNameForPrompt() {return _isWiFiClient() ? (_strHostName.length() ? _strHostName.c_str() : "host") : "serial";}
    const char* getHostName() {return _strHostName.c_str();}
@@ -116,6 +119,8 @@ public:
    const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
    void setUserName(const char* sz) {_szUserName = sz;}
    const char* getUserName() {return _szUserName[0] ? _szUserName : "esp";}
+   
+   void reboot();
 
 #ifndef ESP_CONSOLE_NOWIFI
    bool isConnected() {
@@ -284,6 +289,8 @@ private:
    /// private members
    ///
 private:
+   static CxESPConsole* _pESPConsoleInstance;
+   
 #ifndef ESP_CONSOLE_NOWIFI
    WiFiServer* _pWiFiServer = nullptr;
    WiFiClient _activeClient;

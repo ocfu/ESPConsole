@@ -12,6 +12,7 @@ CxESPHeapTracker g_Heap; // init as early as possible...
 
 
 uint8_t CxESPConsole::_nUsers = 0;
+CxESPConsole* CxESPConsole::_pESPConsoleInstance = nullptr;
 
 
 ///
@@ -19,6 +20,8 @@ uint8_t CxESPConsole::_nUsers = 0;
 /// inherited classes shall be called first.
 ///
 void CxESPConsole::begin() {
+
+   
    println();println();
 
 #ifdef ARDUINO
@@ -156,14 +159,7 @@ bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
       // TODO: prompt user to be improved
       __promptUserYN("Are you sure you want to reboot?", [](bool confirmed) {
          if (confirmed) {
-#ifdef ARDUINO
-            delay(1000); // let some time to handle last network messages
-#ifndef ESP_CONSOLE_NOWIFI
-            WiFi.disconnect();
-#endif
-            delay(1000);
-            ESP.restart();
-#endif
+            if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->reboot();
          }
       });
    } else if (cmd == "cls") {
@@ -640,5 +636,15 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
    va_end(args);
 }
 
+void CxESPConsole::reboot() {
+   warn(F("reboot..."));
+#ifdef ARDUINO
+   delay(1000); // let some time to handle last network messages
+#ifndef ESP_CONSOLE_NOWIFI
+   WiFi.disconnect();
+#endif
+   ESP.restart();
+#endif
+}
 
 #endif /* ESP_COSNOLE_NOWIFI */
