@@ -10,19 +10,21 @@
 
 #ifndef ESP_CONSOLE_NOFS
 void CxESPConsoleLog::begin() {
+   
+#ifndef ESP_CONSOLE_NOWIFI
+   if (!__bIsWiFiClient && !isConnected()) startWiFi();
+#endif
+
    // set the name for this console
    setConsoleName("Ext+FS+Log");
    
    // load specific environments for this class
    if (!__bIsWiFiClient) {
       mount();
-   }
-   
-   __processCommand("load log", true);
-   __processCommand("load logserver", true);
-   __processCommand("load logport", true);
-   
-   if (!__bIsWiFiClient) {
+      __processCommand("load log", true);
+      __processCommand("load logserver", true);
+      __processCommand("load logport", true);
+      
       info(F("log started"));
    }
 
@@ -179,7 +181,7 @@ void CxESPConsoleLog::__warn(const char *buf) {
 void CxESPConsoleLog::__error(const char *buf) {
    if (__nUsrLogLevel >= LOGLEVEL_ERROR) {
       print(F(ESC_ATTR_BOLD));
-      print(F(ESC_TEXT_RED));
+      print(F(ESC_TEXT_BRIGHT_RED));
       println(buf);
       print(F(ESC_ATTR_RESET));
   }
