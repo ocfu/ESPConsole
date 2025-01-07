@@ -59,12 +59,17 @@ public:
    // specifics for this console class, when needed
    //virtual void end() override {CxESPConsoleExt::end();}
    virtual void loop() override;
+
+#ifndef ESP_CONSOLE_NOWIFI
+   void startWiFi(const char* ssid = nullptr, const char* pw = nullptr);
+   void stopWiFi();
    
    void readSSID(String& strSSID);
    void readPassword(String& strPassword);
    void readHostName(String& strHostName);
    void readOtaPassword(String& strPassword);
-
+#endif
+   
    void printHW();
    void printSW();
    void printESP();

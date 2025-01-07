@@ -13,9 +13,14 @@
 CxOta Ota1;
 
 void CxESPConsoleExt::begin() {
+#ifndef ESP_CONSOLE_NOWIFI
+   if (!__bIsWiFiClient && !isConnected()) startWiFi();
+#endif
+
    // set the name for this console
    setConsoleName("Ext");
-   
+
+#ifndef ESP_CONSOLE_NOWIFI
    if (!__bIsWiFiClient) {
       info(F("start OTA service"));
       String strPw;
@@ -54,6 +59,7 @@ void CxESPConsoleExt::begin() {
 
       Ota1.begin(getHostName(), strPw.c_str());
    }
+#endif
    
    // call the begin() from base class(es) first
    CxESPConsole::begin();
@@ -154,9 +160,9 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
             print(F(ESC_ATTR_BOLD "Hostname: " ESC_ATTR_RESET)); printHostName(); println();
          }
       } else if (strCmd == "connect") {
-         //connect();
+         startWiFi(TKTOCHAR(tkCmd, 2), TKTOCHAR(tkCmd, 3));
       } else if (strCmd == "disconnect") {
-         //disconnect();
+         stopWiFi();
       } else if (strCmd == "status") {
          printNetworkInfo();
       } else if (strCmd == "scan") {
@@ -219,7 +225,8 @@ void CxESPConsoleExt::printSW() {
 
 void CxESPConsoleExt::printNetworkInfo() {
 #ifndef ESP_CONSOLE_NOWIFI
-   print(F(ESC_ATTR_BOLD "Net:  " ESC_ATTR_RESET)); printSSID(); printf(F(" (%s)"), isConnected()? ESC_TEXT_BRIGHT_GREEN "connected" ESC_ATTR_RESET : ESC_TEXT_BRIGHT_RED "not connected" ESC_ATTR_RESET);println();
+   print(F(ESC_ATTR_BOLD "Mode: " ESC_ATTR_RESET)); printMode();println();
+   print(F(ESC_ATTR_BOLD "SSID: " ESC_ATTR_RESET)); printSSID(); printf(F(" (%s)"), isConnected()? ESC_TEXT_BRIGHT_GREEN "connected" ESC_ATTR_RESET : ESC_TEXT_BRIGHT_RED "not connected" ESC_ATTR_RESET);println();
    print(F(ESC_ATTR_BOLD "Host: " ESC_ATTR_RESET)); printHostName(); println();
    print(F(ESC_ATTR_BOLD "IP:   " ESC_ATTR_RESET)); printIp(); println();
 #ifdef ARDUINO
@@ -375,6 +382,8 @@ void CxESPConsoleExt::printFlashMap() {
 #endif
 }
 
+#ifndef ESP_CONSOLE_NOWIFI
+
 void CxESPConsoleExt::printEEProm(uint32_t nStartAddr, uint32_t nLength) {
    printEEPROM(*__ioStream, nStartAddr, nLength);
 }
@@ -402,3 +411,67 @@ void CxESPConsoleExt::readOtaPassword(String& strPassword) {
    ::readOtaPassword(buf, sizeof(buf));
    strPassword = buf;
 }
+
+void CxESPConsoleExt::startWiFi(const char* ssid, const char* pw) {
+
+   //
+   // Set the ssid, password and hostname from the console settings or from the arguments.
+   // If set by the arguments, it will replace settings stored in the eprom.
+   //
+   // All can be set in the console with the commands
+   //   wifi ssid <ssid>
+   //   wifi password <password>
+   //   wifi hostname <hostname>
+   // These settings will be stored in the EEPROM.
+   //
+   
+   String strSSID;
+   String strPassword;
+   String strHostName;
+   
+   if (ssid) writeSSID(ssid);
+   readSSID(strSSID);
+   if (pw) writePassword(pw);
+   readPassword(strPassword);
+   readHostName(strHostName);
+   
+   info(F("WiFi: connect to %s"), strSSID.c_str());
+
+#ifdef ARDUINO
+   WiFi.persistent(false);
+   WiFi.mode(WIFI_STA);
+   WiFi.begin(strSSID.c_str(), strPassword.c_str());
+   WiFi.setAutoReconnect(true);
+   WiFi.hostname(strHostName.c_str());
+   
+   // try to connect to the network for max. 10 seconds
+   uint32_t ti = millis();
+   
+   while (WiFi.status() != WL_CONNECTED && (millis() - ti) < 10000) {
+      delay(500);
+      print(".");
+   }
+   
+   if (WiFi.status() != WL_CONNECTED) {
+      println(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "not connected!" ESC_ATTR_RESET));
+      error("WiFi not connected.");
+   } else {
+      println(F(ESC_TEXT_BRIGHT_GREEN "connected!" ESC_ATTR_RESET));
+      info("WiFi connected.");
+   }
+
+#endif
+}
+
+void CxESPConsoleExt::stopWiFi() {
+   info(F("WiFi disconnect"));
+#ifdef ARDUINO
+   WiFi.disconnect();
+   WiFi.softAPdisconnect();
+   WiFi.mode(WIFI_OFF);
+   WiFi.forceSleepBegin();
+#endif
+}
+
+#endif /* ESP_CONSOLE_NOWIFI */
+
