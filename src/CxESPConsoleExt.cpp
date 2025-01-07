@@ -16,10 +16,12 @@ void CxESPConsoleExt::begin() {
    // set the name for this console
    setConsoleName("Ext");
    
-   println(F("start ota..."));
-   String strPw;
-   readOtaPassword(strPw);
-   Ota1.begin(getHostName(), strPw.c_str());
+   if (!__bIsWiFiClient) {
+      info(F("start ota..."));
+      String strPw;
+      readOtaPassword(strPw);
+      Ota1.begin(getHostName(), strPw.c_str());
+   }
    
    // call the begin() from base class(es) first
    CxESPConsole::begin();

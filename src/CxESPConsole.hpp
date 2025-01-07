@@ -70,7 +70,7 @@ public:
    /// Constructor needed to differenciate between serial and wifi clients to abort the the session, if needed, properly.
    ///
 #ifndef ESP_CONSOLE_NOWIFI
-   CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
+   CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;__nUsrLogLevel = 0;}
 #endif
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
    : CxESPTime(stream), __ioStream(&stream), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
@@ -162,6 +162,28 @@ public:
    float load() {return _fLoad;}
    float avgload() {return _fAvgLoad;}
    uint32_t avglooptime() {return _navgLoopTime;}
+   
+   // basic logging functions
+   void debug(const char* fmt...);
+   void debug(String& str) {debug(str.c_str());}
+   void debug(const FLASHSTRINGHELPER * fmt...);
+   
+   void debug_ext(uint32_t flag, const char* fmt...);
+   void debug_ext(uint32_t flag, String& str) {debug_ext(flag, str.c_str());}
+   void debug_ext(uint32_t flag, const FLASHSTRINGHELPER * fmt...);
+   
+   void info(const char* fmt...);
+   void info(String& str) {info(str.c_str());}
+   void info(const FLASHSTRINGHELPER * fmt...);
+   
+   void warn(const char* fmt...);
+   void warn(String& str) {warn(str.c_str());}
+   void warn(const FLASHSTRINGHELPER * szP...);
+   
+   void error(const char* fmt...);
+   void error(String& str) {error(str.c_str());}
+   void error(const FLASHSTRINGHELPER * fmt...);
+
 
    ///
    /// public virtual methods
@@ -179,7 +201,7 @@ public:
    void cls() {print(F(ESC_CLEAR_SCREEN));}
    
    virtual void printInfo();
-
+   
    ///
    /// protected members and methods
    ///
@@ -193,6 +215,27 @@ protected:
    void setConsoleName(const char* sz) {
       if (!__szConsoleName[0]) __szConsoleName = sz; // set only, if not set by calling class already
    }
+   
+   ///
+   /// log levels
+   ///  0: off
+   ///  1: error
+   ///  2: warning
+   ///  3: info
+   ///  4: debug
+   ///  5: ext. debug (controlled by _nDebugFlag)
+   ///
+   uint32_t __nLogLevel  = 0;
+   uint32_t __nUsrLogLevel = 4;
+   
+   ///
+   /// debug flags 32 bits 0xfffffffe (except: -1)
+   /// 0x0: off
+   ///
+   ///
+   uint32_t __nExtDebugFlag = 0x0;
+   
+
 
    void __handleConsoleInputs();
    void __flush() {__ioStream->flush();}
@@ -225,6 +268,12 @@ protected:
       _bWaitingForUsrResponseYN = true;
       _cbUsrResponse = responseCallback;
    }
+   
+   virtual void __debug(const char* sz) {println(sz);}
+   virtual void __debug_ext(uint32_t flang, const char* sz) {println(sz);}
+   virtual void __info(const char* sz) {println(sz);}
+   virtual void __warn(const char* sz) {println(sz);}
+   virtual void __error(const char* sz) {println(sz);}
    
    ///
    /// private virtual methods
@@ -363,6 +412,10 @@ private:
    bool _isWiFiClient() {return __bIsWiFiClient;}
    
    void _measureCPULoad();
+   
+   // logging functions
+   uint32_t _addPrefix(char c, char* buf, uint32_t lenmax);
+
    
 };
 

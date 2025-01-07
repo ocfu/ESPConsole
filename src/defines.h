@@ -96,4 +96,24 @@
 #define FMT_PROMPT_USER_YN ESC_ATTR_BOLD ESC_TEXT_BRIGHT_WHITE "\r%s [y/n]:\n" ESC_ATTR_RESET
 
 
+// logging
+#ifdef DEBUG_BUILD
+#  define _LOG_DEBUG(...) debug(__VA_ARGS__)
+#  define _LOG_DEBUG_EXT(...) debug_ext(__VA_ARGS__)
+#else
+#  define _LOG_DEBUG(...) ((void)0)
+#  define _LOG_DEBUG_EXT(...) ((void)0)
+#endif
+
+
+#define LOGLEVEL_OFF       0
+#define LOGLEVEL_ERROR     1
+#define LOGLEVEL_WARN      2
+#define LOGLEVEL_INFO      3
+#define LOGLEVEL_DEBUG     4
+#define LOGLEVEL_DEBUG_EXT 5
+
+#define LOGLEVEL_MAX LOGLEVEL_DEBUG_EXT
+
+
 #endif /* defines_h */

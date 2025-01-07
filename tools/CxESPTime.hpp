@@ -23,10 +23,10 @@
 
 class CxESPTime {
 public:
-   CxESPTime(Stream& stream) : _ioStream(&stream), _strNtpServer("pool.ntp.org"), _strTz("GMT0") {_initTime();};
+   CxESPTime(Stream& stream) : _ioStream(&stream), _strNtpServer("pool.ntp.org"), _strTz("GMT0") {__initTime();};
    
    void printTime(bool withTZ = true) {
-      _update();
+      __updateTime();
       
       char buf[80];
       if (withTZ) {
@@ -51,7 +51,7 @@ public:
    }
    
    void printDate() {
-      _update();
+      __updateTime();
       
       char buf[80];
       strftime (buf, sizeof(buf), "%d.%m.%Y", &_tmLocal);
@@ -91,7 +91,7 @@ public:
    }
    
    void printFileDateTime(time_t cr, time_t lw) {
-      _update();
+      __updateTime();
 
       // Dec  4 08:04
       //struct tm *tmcr = localtime(&cr);
@@ -129,9 +129,19 @@ public:
    const char* getNtpServer() {return _strNtpServer.c_str();}
    const char* getTimeZone() {return _strTz.c_str();}
 
-   void setNtpServer(const char* sz) {_strNtpServer = sz; _initTime();}
-   void setTimeZone(const char* sz) {_strTz = sz; _initTime();}
+   void setNtpServer(const char* sz) {_strNtpServer = sz; __initTime();}
+   void setTimeZone(const char* sz) {_strTz = sz; __initTime();}
       
+protected:
+   void __updateTime() {
+      time(&_tNow);                    // read the current time
+      localtime_r(&_tNow, &_tmLocal);  // make it the local time
+      if (!_tStart) {
+         _nTimeToBoot = (uint32_t) millis();
+         _tStart = _tNow - (_nTimeToBoot / 1000);   // set the start time one time, deduct the time system is running
+      }
+   }
+   
 
 private:
    String _strNtpServer;
@@ -144,16 +154,7 @@ private:
    time_t _tNow;
    struct tm _tmLocal;
    
-   void _update() {
-      time(&_tNow);                    // read the current time
-      localtime_r(&_tNow, &_tmLocal);  // make it the local time
-      if (!_tStart) {
-         _nTimeToBoot = (uint32_t) millis();
-         _tStart = _tNow - (_nTimeToBoot / 1000);   // set the start time one time, deduct the time system is running
-      }
-   }
-
-   void _initTime() {
+   void __initTime() {
       if (_strNtpServer.length() != 0 && _strTz.length() != 0) {
 #ifdef ARDUINO
 #ifdef ESP32

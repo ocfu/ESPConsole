@@ -14,9 +14,12 @@ void CxESPConsoleFS::begin() {
    setConsoleName("Ext+FS");
    
    // load specific environments for this class
-   mount();
+   if (! __bIsWiFiClient) {
+      mount();
+   }
    __processCommand("load ntp", true);
    __processCommand("load tz", true);
+   __updateTime();
 
    // call the begin() from base class(es)
    CxESPConsoleExt::begin();
@@ -293,7 +296,7 @@ void CxESPConsoleFS::mount() {
    if (!hasFS()) {
 #ifdef ARDUINO
       if (!LittleFS.begin()) {
-         println("LittleFS mount failed");
+         error("LittleFS mount failed");
          return;
       }
 #else
@@ -309,8 +312,6 @@ void CxESPConsoleFS::umount() {
       LittleFS.end();
 #else
 #endif
-   } else {
-      println(F("LittleFS already mounted!"));
    }
 }
 
@@ -408,16 +409,16 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
       if (strEnv == ".ntp") {
          if (loadEnv(strEnv.c_str(), strValue)) {
             setNtpServer(strValue.c_str());
-            printf(F("NTP server set to %s\n"), getNtpServer());
+            info(F("NTP server set to %s\n"), getNtpServer());
          } else {
-            println(F("NTP server env variable (ntp) not found!"));
+            warn(F("NTP server env variable (ntp) not found!"));
          }
       } else if (strEnv == ".tz") {
          if (loadEnv(strEnv.c_str(), strValue)) {
             setTimeZone(strValue.c_str());
-            printf(F("Timezone set to %s\n"), getTimeZone());
+            info(F("Timezone set to %s\n"), getTimeZone());
          } else {
-            println(F("Timezone env variable (tz) not found!"));
+            warn(F("Timezone env variable (tz) not found!"));
          }
       } else {
          println(F("load environment varialbe.\nusage: load <env>"));
@@ -433,6 +434,7 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
 
 void CxESPConsoleFS::saveEnv(const char* szEnv, const char* szValue) {
    if (hasFS()) {
+      debug(F("save env variable %s, value=%s"), szEnv, szValue);
 #ifdef ARDUINO
       File file = LittleFS.open(szEnv, "w");
       if (file) {
@@ -447,6 +449,7 @@ void CxESPConsoleFS::saveEnv(const char* szEnv, const char* szValue) {
 
 bool CxESPConsoleFS::loadEnv(const char* szEnv, String& strValue) {
    if (hasFS()) {
+      debug(F("load env variable %s"), szEnv);
 #ifdef ARDUINO
       File file = LittleFS.open(szEnv, "r");
       if (file) {
