@@ -38,14 +38,26 @@ public:
    }
    
    uint32_t getTime(char* buf, uint32_t lenmax, bool ms = false) {
-      strftime (buf, lenmax, "%H:%M:%S", &_tmLocal);
-      if (ms && lenmax > 12) {
-         unsigned long millisec;
-         struct timeval tv;
-         
-         gettimeofday(&tv, NULL);
-         millisec = lrint(tv.tv_usec/1000.0); // Round to nearest millisec
-         snprintf(buf+8, lenmax-8, ".%03lu", millisec);
+      if (isValid()) {
+         strftime (buf, lenmax, "%H:%M:%S", &_tmLocal);
+         if (ms && lenmax > 12) {
+            unsigned long millisec;
+            struct timeval tv;
+            
+            gettimeofday(&tv, NULL);
+            millisec = lrint(tv.tv_usec/1000.0); // Round to nearest millisec
+            snprintf(buf+8, lenmax-8, ".%03lu", millisec);
+         }
+      } else {
+         uint32_t millisec = uint32_t (millis());
+         millisec %= 1000;
+         uint32_t seconds = uint32_t (millis() / 1000);
+         seconds %= 86400;
+         uint32_t hours = seconds / 3600;
+         seconds %= 3600;
+         uint32_t minutes = seconds / 60;
+         seconds %= 60;
+         snprintf(buf, lenmax, "%02d:%02d:%02d.%03d", hours, minutes, seconds, millisec);
       }
       return (uint32_t)strlen(buf);
    }
@@ -131,11 +143,13 @@ public:
 
    void setNtpServer(const char* sz) {_strNtpServer = sz; __initTime();}
    void setTimeZone(const char* sz) {_strTz = sz; __initTime();}
+   
+   bool isValid() {return _bValid;}
       
 protected:
    void __updateTime() {
       time(&_tNow);                    // read the current time
-      localtime_r(&_tNow, &_tmLocal);  // make it the local time
+      _bValid = localtime_r(&_tNow, &_tmLocal);  // make it the local time
       if (!_tStart) {
          _nTimeToBoot = (uint32_t) millis();
          _tStart = _tNow - (_nTimeToBoot / 1000);   // set the start time one time, deduct the time system is running
@@ -153,6 +167,7 @@ private:
 
    time_t _tNow;
    struct tm _tmLocal;
+   bool _bValid = false; // true, if synchronised
    
    void __initTime() {
       if (_strNtpServer.length() != 0 && _strTz.length() != 0) {
