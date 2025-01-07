@@ -202,7 +202,7 @@ bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
    } else if (cmd == "users") {
       printf(F("%d users (max: %d)\n"), _nUsers, _nMaxUsers);
    }  else if (cmd == "?" || cmd == USR_CMD_HELP) {
-      println(F("General commands:" ESC_TEXT_BRIGHT_WHITE " ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid, usr " ESC_ATTR_RESET));
+      println(F("General commands:" ESC_TEXT_BRIGHT_WHITE " ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid " ESC_ATTR_RESET));
    } else if (cmd == "usr") {
       // set user specific commands here. The first parameter is the command number, the second the flag
       // and the optional third how to set/clear. (0: clear flag, 1: set flag, default (-1): set the flag as value.)
