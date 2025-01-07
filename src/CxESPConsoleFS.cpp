@@ -409,14 +409,14 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
       if (strEnv == ".ntp") {
          if (loadEnv(strEnv.c_str(), strValue)) {
             setNtpServer(strValue.c_str());
-            info(F("NTP server set to %s\n"), getNtpServer());
+            info(F("NTP server set to %s"), getNtpServer());
          } else {
             warn(F("NTP server env variable (ntp) not found!"));
          }
       } else if (strEnv == ".tz") {
          if (loadEnv(strEnv.c_str(), strValue)) {
             setTimeZone(strValue.c_str());
-            info(F("Timezone set to %s\n"), getTimeZone());
+            info(F("Timezone set to %s"), getTimeZone());
          } else {
             warn(F("Timezone env variable (tz) not found!"));
          }
