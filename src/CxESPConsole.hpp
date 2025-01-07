@@ -160,6 +160,7 @@ public:
    void printHostName();
    void printIp();
    void printSSID();
+   void printMode();
 #endif
    
    // TODO: get number of connected clients
@@ -195,7 +196,11 @@ public:
    ///
 public:
 #ifndef ESP_CONSOLE_NOWIFI
-   void begin(WiFiServer& server) {_pWiFiServer = &server;begin();};
+   void begin(WiFiServer& server) {
+      _pWiFiServer = &server;
+      server.begin();
+      begin();
+   };
 #endif
    virtual void begin();
    virtual void end(){}
