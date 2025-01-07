@@ -116,7 +116,8 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
          if (loadEnv(strEnv.c_str(), strValue)) {
             _strLogServer = strValue;
             info(F("Log server set to %s"), _strLogServer.c_str());
-            _bLogServerAvailable = true; // optimistic
+            _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
+            _nLastLogServerCheck = 0; // but force a check at next log message
          } else {
             warn(F("Log server env variable (logserver) not found!"));
          }
@@ -124,7 +125,8 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
          if (loadEnv(strEnv.c_str(), strValue)) {
             _nLogPort = (uint32_t)strValue.toInt();
             info(F("Log port set to %d"), _nLogPort);
-            _bLogServerAvailable = true; // optimistic
+            _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
+            _nLastLogServerCheck = 0; // but force a check at next log message
          } else {
             warn(F("Log port env varialbe (logport) not found!"));
          }
@@ -140,32 +142,54 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
 }
 
 void CxESPConsoleLog::__debug(const char *buf) {
-   if (__nUsrLogLevel >= LOGLEVEL_DEBUG) println(buf);
+   if (__nUsrLogLevel >= LOGLEVEL_DEBUG) {
+      print(F(ESC_ATTR_DIM));
+      println(buf);
+      print(F(ESC_ATTR_RESET));
+   }
    if (__nLogLevel >= LOGLEVEL_DEBUG) _print2logServer(buf);
 }
 
 void CxESPConsoleLog::__debug_ext(uint32_t flag, const char *buf) {
-   if (__nUsrLogLevel >= LOGLEVEL_DEBUG_EXT) println(buf);
+   if (__nUsrLogLevel >= LOGLEVEL_DEBUG_EXT) {
+      print(F(ESC_ATTR_DIM));
+      println(buf);
+      print(F(ESC_ATTR_RESET));
+   }
    if (__nLogLevel >= LOGLEVEL_DEBUG_EXT) _print2logServer(buf);
 }
 
 void CxESPConsoleLog::__info(const char *buf) {
-   if (__nUsrLogLevel >= LOGLEVEL_INFO) println(buf);
+   if (__nUsrLogLevel >= LOGLEVEL_INFO) {
+      println(buf);
+      print(F(ESC_ATTR_RESET));
+   }
    if (__nLogLevel >= LOGLEVEL_INFO) _print2logServer(buf);
 }
 
 void CxESPConsoleLog::__warn(const char *buf) {
-   if (__nUsrLogLevel >= LOGLEVEL_WARN) println(buf);
+   if (__nUsrLogLevel >= LOGLEVEL_WARN) {
+      print(F(ESC_TEXT_YELLOW));
+      println(buf);
+      print(F(ESC_ATTR_RESET));
+   }
    if (__nLogLevel >= LOGLEVEL_WARN) _print2logServer(buf);
 }
 
 void CxESPConsoleLog::__error(const char *buf) {
-   if (__nUsrLogLevel >= LOGLEVEL_ERROR) println(buf);
+   if (__nUsrLogLevel >= LOGLEVEL_ERROR) {
+      print(F(ESC_ATTR_BOLD));
+      print(F(ESC_TEXT_RED));
+      println(buf);
+      print(F(ESC_ATTR_RESET));
+  }
    if (__nLogLevel >= LOGLEVEL_ERROR) _print2logServer(buf);
 }
 
 void CxESPConsoleLog::_print2logServer(const char *sz) {
    if (__bIsWiFiClient) return; // only serial console will log to server
+   
+   bool bAvailable = _bLogServerAvailable;
    
 #ifdef ARDUINO
    if (_bLogServerAvailable) {
@@ -173,18 +197,26 @@ void CxESPConsoleLog::_print2logServer(const char *sz) {
       if (client.connect(_strLogServer.c_str(), _nLogPort)) {
          if (client.connected()) {
             client.print(sz);
-         } else {
-            _bLogServerAvailable = false;
-            warn(F("log server %s is no more available on port %d"), _strLogServer.c_str(), _nLogPort);
          }
          client.stop();
+      } else {
+         _bLogServerAvailable = false;
       }
    } else {
-      if ((millis() - _nLastLogServerCheck) > 60000) {
+      if (_nLastLogServerCheck == 0 || (millis() - _nLastLogServerCheck) > 60000) {
          _bLogServerAvailable = isHostAvailable(_strLogServer.c_str(), _nLogPort);
          _nLastLogServerCheck = millis();
       }
    }
+   
+   if (bAvailable != _bLogServerAvailable) {
+      if (!_bLogServerAvailable) {
+         warn(F("log server %s OFFLINE, next attemp after 60s."), _strLogServer.c_str());
+      } else {
+         info(F("log server %s online"), _strLogServer.c_str());
+      }
+   }
+
 #endif
 }
 
