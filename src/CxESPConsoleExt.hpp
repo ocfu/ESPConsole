@@ -27,6 +27,11 @@ private:
    }
 #endif
    
+   static void _handleRoot();
+   static void _handleConnect();
+   void _beginAP();
+   void _stopAP();
+   
 protected:
    virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
 

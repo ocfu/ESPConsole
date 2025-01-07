@@ -7,10 +7,103 @@
 //
 
 #include "CxESPConsoleExt.hpp"
-#include "../tools/CxOta.hpp"
 #include "esphw.h"
 
+#ifndef ESP_CONSOLE_NOWIFI
+#include "../tools/CxOta.hpp"
+#ifdef ARDUINO
+#ifdef ESP32
+#include <WebServer.h>
+WebServer webServer(80);
+#else
+#include <ESP8266WebServer.h>
+ESP8266WebServer webServer(80);
+#endif /* ESP32*/
+#include <DNSServer.h>
+DNSServer dnsServer;
+const byte DNS_PORT = 53;
+
+#endif /* ARDUINO */
+
+// HTML and CSS as embedded strings
+const char htmlPageTemplate[] PROGMEM = R"rawliteral(
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WiFi Setup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .container {
+      text-align: center;
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      width: 300px;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      margin-bottom: 5px;
+      text-align: left;
+    }
+    select, input {
+      margin-bottom: 15px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      width: 100%;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WiFi Setup</h1>
+    <form action="/connect" method="POST">
+      <label for="ssid">WiFi Network:</label>
+      <select id="ssid" name="ssid" required>
+        {{options}}
+      </select>
+      <label for="password">Password:</label>
+      <input type="password" id="password" name="password" required>
+      <button type="submit">Connect</button>
+    </form>
+  </div>
+</body>
+</html>
+)rawliteral";
+
 CxOta Ota1;
+#endif /* ESP_CONSOLE_NOWIFI */
+
 
 void CxESPConsoleExt::begin() {
 #ifndef ESP_CONSOLE_NOWIFI
@@ -47,7 +140,7 @@ void CxESPConsoleExt::begin() {
       
       Ota1.onError([](ota_error_t error){
          String strErr;
-#ifdef ARDUINOI
+#ifdef ARDUINO
          if (error == OTA_AUTH_ERROR) {strErr = F("authorisation failed");}
          else if (error == OTA_BEGIN_ERROR) {strErr = F("begin failed");}
          else if (error == OTA_CONNECT_ERROR) {strErr = F("connect failed");}
@@ -70,7 +163,13 @@ void CxESPConsoleExt::begin() {
 
 void CxESPConsoleExt::loop() {
    CxESPConsole::loop();
+#ifndef ESP_CONSOLE_NOWIFI
    Ota1.loop();
+#ifdef ARDUINO
+   dnsServer.processNextRequest();
+   webServer.handleClient();
+#endif
+#endif
 }
 
 bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
@@ -175,6 +274,10 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
             ::readOtaPassword(buf, sizeof(buf));
             print(F(ESC_ATTR_BOLD "Password: " ESC_ATTR_RESET)); print(buf); println();
          }
+      } else if (strCmd == "ap") {
+         if (__bIsWiFiClient) println(F("switching to AP mode. Note: this disconnects this console!"));
+         delay(500);
+         _beginAP();
       } else {
          println(F("WiFi commands:"));
          println(F("  ssid [<ssid>]"));
@@ -185,6 +288,7 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("  status"));
          println(F("  scan"));
          println(F("  otapw [<password>]"));
+         println(F("  ap"));
       }
    } else {
       // command not handled here, proceed into the base class(es)
@@ -414,6 +518,8 @@ void CxESPConsoleExt::readOtaPassword(String& strPassword) {
 
 void CxESPConsoleExt::startWiFi(const char* ssid, const char* pw) {
 
+   _stopAP();
+   
    //
    // Set the ssid, password and hostname from the console settings or from the arguments.
    // If set by the arguments, it will replace settings stored in the eprom.
@@ -435,7 +541,7 @@ void CxESPConsoleExt::startWiFi(const char* ssid, const char* pw) {
    readPassword(strPassword);
    readHostName(strHostName);
    
-   info(F("WiFi: connect to %s"), strSSID.c_str());
+   printf(F("WiFi: connect to %s"), strSSID.c_str());
 
 #ifdef ARDUINO
    WiFi.persistent(false);
@@ -470,6 +576,103 @@ void CxESPConsoleExt::stopWiFi() {
    WiFi.softAPdisconnect();
    WiFi.mode(WIFI_OFF);
    WiFi.forceSleepBegin();
+#endif
+}
+
+void CxESPConsoleExt::_handleRoot() {
+#ifdef ARDUINO
+   String htmlPage = htmlPageTemplate;
+   
+   // Scan for available Wi-Fi networks
+   int n = WiFi.scanNetworks();
+   String options = "";
+   
+   if (n == 0) {
+      options = "<option value=\"\">No networks found</option>";
+   } else {
+      for (int i = 0; i < n; ++i) {
+         // Get network name (SSID) and signal strength
+         String ssid = WiFi.SSID(i);
+         int rssi = WiFi.RSSI(i);
+         options += "<option value=\"" + ssid + "\">" + ssid + " (Signal: " + String(rssi) + " dBm)</option>";
+      }
+   }
+   
+   // Replace placeholder with actual network options
+   htmlPage.replace("{{options}}", options);
+   
+   webServer.send(200, "text/html", htmlPage);
+#endif
+}
+
+void CxESPConsoleExt::_handleConnect() {
+#ifdef ARDUINO
+   CxESPConsoleExt* pConsole = static_cast<CxESPConsoleExt*>(CxESPConsole::getInstance());
+   
+   if (pConsole && webServer.hasArg("ssid") && webServer.hasArg("password")) {
+      String ssid = webServer.arg("ssid");
+      String password = webServer.arg("password");
+      
+      webServer.send(200, "text/plain", "Attempting to connect to WiFi...");
+      pConsole->info(F("SSID: %s, Password: %s"), ssid.c_str(), password.c_str());
+      
+      // Attempt WiFi connection
+      WiFi.begin(ssid.c_str(), password.c_str());
+      
+      // Wait a bit to connect
+      unsigned long startAttemptTime = millis();
+      while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+         delay(100);
+      }
+      
+      if (WiFi.status() == WL_CONNECTED) {
+         pConsole->info("Connected successfully!");
+         webServer.send(200, "text/plain", "Connected to WiFi!");
+         
+         // switch to STA moden, saves credentials and stop web and dns server.
+         pConsole->startWiFi(ssid.c_str(), password.c_str());
+      } else {
+         if (pConsole) pConsole->error("Connection failed.");
+         webServer.send(200, "text/plain", "Failed to connect. Check credentials.");
+      }
+   } else {
+      webServer.send(400, "text/plain", "Missing SSID or Password");
+   }
+
+#endif
+}
+
+void CxESPConsoleExt::_beginAP() {
+   stopWiFi();
+
+#ifdef ARDUINO
+   // Start Access Point
+   WiFi.softAP(getHostName(), "12345678");
+   
+   // Start DNS Server
+   dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+
+   
+   // Define routes
+   webServer.on("/", _handleRoot);
+   webServer.on("/connect", HTTP_POST, _handleConnect);
+   webServer.onNotFound([]() {
+      webServer.sendHeader("Location", "/", true); // Redirect to root
+      webServer.send(302, "text/plain", "Redirecting to Captive Portal");
+   });
+   
+   // Start the web server
+   webServer.begin();
+   info(F("Web Server started"));
+#endif
+}
+
+void CxESPConsoleExt::_stopAP() {
+#if defined(ESP32)
+   webServer.stop();
+#elif defined(ESP8266)
+   webServer.close();
+   dnsServer.stop();
 #endif
 }
 

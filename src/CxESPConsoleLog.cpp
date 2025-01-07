@@ -191,9 +191,9 @@ void CxESPConsoleLog::__error(const char *buf) {
 void CxESPConsoleLog::_print2logServer(const char *sz) {
    if (__bIsWiFiClient) return; // only serial console will log to server
    
+#ifdef ARDUINO
    bool bAvailable = _bLogServerAvailable;
    
-#ifdef ARDUINO
    if (_bLogServerAvailable) {
       WiFiClient client;
       if (client.connect(_strLogServer.c_str(), _nLogPort)) {
