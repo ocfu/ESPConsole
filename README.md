@@ -1,9 +1,11 @@
-# ESP Console for Arduino Projects
+# ESP Console for Arduino Projects (NONOS)
 ===========================================
 
 This library offers a command console for the ESP8266 (with ESP32 support in the future) accessible via the serial port (Serial) and a WiFiClient. It provides users with an interactive console for entering commands. Designed to facilitate debugging during the development of Arduino ESP projects, the library also enables remote administration through a Linux shell-like command interface.
 
-The console operates non-blockingly and requires frequent calls within the main loop() function without significant delays to function properly. It includes basic commands for viewing configuration, status, and processing information. Additionally, for projects utilizing a file system (LittleFS), the library provides a set of commands for managing the file system and files.
+The console operates non-blockingly and requires frequent calls within the main loop() function without significant delays to function properly. It includes basic commands for viewing configuration, status, and processing information. Additionally, for projects utilizing a file system (LittleFS), the library provides a set of commands for managing the file system and files and the wifi settings.
+
+The library also enables and manage basic services, which are quite often needed in many ESP projects, such as logging, OTA and an access point mode with a captive portal for the initial connection to a WiFi network.
 
 # Contents
 - [Installing](#installing)
@@ -20,10 +22,14 @@ Download a .zip or .tar.gz release from github. Determine the location of your s
 # Dependencies
 
 ## Libraries
-- EEPROM       1.0
-- ESP8266WiFi  1.0   (optional)
-- LittleFS     0.1.0 (optional)
-- ArduinoOTA   1.0   (optional)
+- EEPROM           1.0
+- ESP8266WiFi      1.0     (1)
+- LittleFS         0.1.0   (1)
+- ArduinoOTA       1.0     (1)
+- ESP8266WebServer 1.0     (1)
+- DNSServer        1.1.1   (1)
+
+(1): Optional, depending on the used ESPConsole class and compiler options.
 
 ## Hardware
 - ESP8266
@@ -67,6 +73,7 @@ The output of the console is formated and controlled by using ESC sequences. You
 | Bare minimum | ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid |
 | Extended     | hw, sw, net, esp, flash, net, set, eeprom, wifi   | 
 | Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save, load |
+| Logging      | log, usr |
 
 More and description to come.
 
@@ -171,6 +178,8 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 - [ ] Improve functionality for FS features
    - Commands:
       - **cat**: introduce ">" and ">>" to write inputs from console users
+- [ ] File up/download
+- [ ] Remote shell commands
 - [ ] Refactor code
 - [ ] Monitor and minimize of resources (code in flash, heap usage)
 - [ ] Test in other environments and up-to-date versions
@@ -183,8 +192,7 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 - [ ] Configuration file on FS
 - [ ] Logging
    - to file(s)
-   - to a log server
-   - ...   
+   - to syslog   
 - [ ] Process Manager
    - Managing user processes (control and measure times and resources etc.). 
    - New console commands: start, kill, top, ps
