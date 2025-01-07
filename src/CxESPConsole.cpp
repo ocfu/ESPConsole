@@ -20,8 +20,6 @@ CxESPConsole* CxESPConsole::_pESPConsoleInstance = nullptr;
 /// inherited classes shall be called first.
 ///
 void CxESPConsole::begin() {
-
-   
    println();println();
 
 #ifdef ARDUINO
@@ -410,7 +408,31 @@ void CxESPConsole::printIp() {
 
 void CxESPConsole::printSSID() {
 #ifdef ARDUINO
-   printf(F("%s (%d dBm)"), WiFi.SSID().c_str(), WiFi.RSSI());
+   if (isConnected()) {
+      printf(F("%s (%d dBm)"), WiFi.SSID().c_str(), WiFi.RSSI());
+   }
+#endif
+}
+
+void CxESPConsole::printMode() {
+#ifdef ARDUINO
+   switch(WiFi.getMode()) {
+      case WIFI_OFF:
+         print(F("OFF"));;
+         break;
+      case WIFI_STA:
+         print(F("Station (STA)"));
+         break;
+      case WIFI_AP:
+         print(F("Access Point (AP)"));
+         break;
+      case WIFI_AP_STA:
+         print(F("AP+STA"));
+         break;
+      default:
+         print(F("unknown"));
+         break;
+   }
 #endif
 }
 
