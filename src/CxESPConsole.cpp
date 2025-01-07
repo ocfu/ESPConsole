@@ -14,6 +14,10 @@ CxESPHeapTracker g_Heap; // init as early as possible...
 uint8_t CxESPConsole::_nUsers = 0;
 
 
+///
+/// begin() shall be overridden by the last derived class. The begin()s of the
+/// inherited classes shall be called first.
+///
 void CxESPConsole::begin() {
    println();println();
 
@@ -33,9 +37,11 @@ void CxESPConsole::begin() {
    }
 #endif
    
+   // silence the log messages on the console by default
+   __nUsrLogLevel = 0;
+   
    _nUsers++;
-   setConsoleName("");
-   // wellcome message(s) will be called from derived classes to here
+   setConsoleName(""); // shall be set by the last derived class
    cls();
    wlcm();
    println();
