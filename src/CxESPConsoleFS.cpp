@@ -10,17 +10,22 @@
 
 #ifndef ESP_CONSOLE_NOFS
 void CxESPConsoleFS::begin() {
+   
+#ifndef ESP_CONSOLE_NOWIFI
+   if (!__bIsWiFiClient && !isConnected()) startWiFi();
+#endif
+
    // set the name for this console
    setConsoleName("Ext+FS");
    
    // load specific environments for this class
    if (! __bIsWiFiClient) {
       mount();
+      __processCommand("load ntp", true);
    }
-   __processCommand("load ntp", true);
    __processCommand("load tz", true);
    __updateTime();
-
+   
    // call the begin() from base class(es)
    CxESPConsoleExt::begin();
 }
