@@ -438,10 +438,10 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("known env variables:\n ntp \n tz "));
          println(F("example: load ntp"));
       }
-   } else if (cmd == "$RXFILE$") {
-      _recieveFile();
-   } else if (cmd == "txfile") {
-      // todo
+   } else if (cmd == "$UPLOAD$") {
+      _handleFile();
+   } else if (cmd == "$DOWNLOAD$") {
+      _handleFile();
    } else {
       // command not handled here, proceed into the base class
       return CxESPConsoleExt::__processCommand(szCmd, bQuiet);
@@ -483,7 +483,7 @@ bool CxESPConsoleFS::loadEnv(const char* szEnv, String& strValue) {
    return false;
 }
 
-bool CxESPConsoleFS::_recieveFile() {
+bool CxESPConsoleFS::_handleFile() {
 #ifdef ARDUINO
    char buffer[512];
    String header = "";
@@ -503,8 +503,16 @@ bool CxESPConsoleFS::_recieveFile() {
       }
    }
    
+   _LOG_DEBUG(F("receive header: %s"), header.c_str());
+
    // analyse header
-   if (header.startsWith("FILE:")) {
+   if (header.startsWith("GET ")) {
+      // Handle GET <filename>
+      String filename = header.substring(4);
+      filename.trim();
+      return _sendFile(client, filename.c_str());
+   } else if (header.startsWith("FILE:")) {
+      // receive file
       int fileStart = header.indexOf("FILE:") + 5;
       int sizeStart = header.indexOf("SIZE:") + 5;
       int sizeEnd = header.indexOf("\n");
@@ -521,7 +529,7 @@ bool CxESPConsoleFS::_recieveFile() {
       info(F("receive file: %s (size: %d Bytes)"), filename.c_str(), expectedSize);
             
       // file open
-      file = LittleFS.open("/" + filename, "w");
+      file = LittleFS.open(filename, "w");
       if (!file) {
          println(F("error: create file"));
          error(F("error: create file %s"), filename.c_str());
@@ -566,5 +574,34 @@ bool CxESPConsoleFS::_recieveFile() {
    return true;
 }
 
+bool CxESPConsoleFS::_sendFile(WiFiClient* client, const char* filename) {
+#ifdef ARDUINO
+   
+   _LOG_DEBUG(F("download file: %s"), filename);
+   
+   File file = LittleFS.open(filename, "r");
+   if (!file) {
+      client->println("ERROR: File not found");
+      warn("File not found: %s", filename);
+      return false;
+   }
+   
+   size_t fileSize = file.size();
+   client->printf("SIZE: %d\n", fileSize);
+   info("Sending file: %s (%d bytes)\n", filename, fileSize);
+   
+   char buffer[512];
+   size_t bytesRead;
+   
+   // Send file data
+   while ((bytesRead = file.readBytes(buffer, sizeof(buffer))) > 0) {
+      client->write((uint8_t *)buffer, bytesRead);
+   }
+   
+   file.close();
+   info("File transfer complete.");
+#endif
+   return true;
+}
 
 #endif /*ESP_CONSOLE_NOFS*/

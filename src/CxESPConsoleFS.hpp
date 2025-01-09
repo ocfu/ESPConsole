@@ -52,7 +52,9 @@ private:
    }
 #endif
    
-   bool _recieveFile();
+   bool _handleFile();
+   bool _sendFile(WiFiClient* client, const char* filename);
+
    
 protected:
    virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
