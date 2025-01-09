@@ -54,7 +54,7 @@ void CxESPConsole::begin() {
 void CxESPConsole::wlcm() {
    // show the wellcome message
 #ifndef ESP_CONSOLE_NOWIFI
-   printf(F("ESP console %s - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime();println();
+   printf(F("ESP console %s - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime(*__ioStream);println();
 #else
    printf(F("ESP console %s + WiFi - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime();println();
 #endif
@@ -64,7 +64,7 @@ void CxESPConsole::wlcm() {
 
 void CxESPConsole::printInfo() {
    print(F(ESC_ATTR_BOLD "  Hostname: " ESC_ATTR_RESET));printHostName();printf(F(ESC_ATTR_BOLD " IP: " ESC_ATTR_RESET));printIp();printf(F(ESC_ATTR_BOLD " SSID: " ESC_ATTR_RESET));printSSID();println();
-   print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));printUpTimeISO();printf(F(" - %d user(s)"), _nUsers);    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));printStartTime();println();
+   print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));printUpTimeISO(*__ioStream);printf(F(" - %d user(s)"), _nUsers);    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));printStartTime(*__ioStream);println();
    printHeap();println();
 }
 
@@ -95,7 +95,7 @@ void CxESPConsole::printUptimeExt() {
    seconds %= 3600;
    uint32_t minutes = seconds / 60;
    seconds %= 60;
-   printTime();
+   printTime(*__ioStream);
    printf(F(" up %d days, %02d:%02d,"), days, hours, minutes);
    printf(F(" %d user, load: %.2f average: %.2f, loop time: %d"), users(), load(), avgload(), avglooptime());
 }
@@ -154,12 +154,19 @@ bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
    cmd.trim();
    
    if (cmd == "reboot") {
-      // TODO: prompt user to be improved
-      __promptUserYN("Are you sure you want to reboot?", [](bool confirmed) {
-         if (confirmed) {
-            if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->reboot();
-         }
-      });
+      String opt = TKTOCHAR(tkCmd, 1);
+      
+      // force reboot
+      if (opt == "-f") {
+         reboot();
+      } else {
+         // TODO: prompt user to be improved
+         __promptUserYN("Are you sure you want to reboot?", [](bool confirmed) {
+            if (confirmed) {
+               if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->reboot();
+            }
+         });
+      }
    } else if (cmd == "cls") {
       cls();
    } else if (cmd == "info") {
@@ -169,10 +176,10 @@ bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
       printUptimeExt();
       println();
    } else if (cmd == "time") {
-      printTime();
+      printTime(*__ioStream);
       println();
    } else if (cmd == "date") {
-      printDate();
+      printDate(*__ioStream);
       println();
    } else if (cmd == "heap") {
       printHeap();
@@ -367,10 +374,62 @@ void CxESPConsole::loop() {
 #ifndef ESP_CONSOLE_NOWIFI
    // check, if a new wifi client is or the current one is (still) connected
    if (_pWiFiServer) {
-      if (!_activeClient || !_activeClient.connected()) {
-         WiFiClient client = _pWiFiServer->available();
+      char commandBuffer[128] = {0};
+      bool commandReceived = false;
+      int index = 0;
+
+      WiFiClient client = _pWiFiServer->available();
+      
+      // first check, if remote connection has a command
+      if (client) {
+         info(F("New client connected."));
+         memset(commandBuffer, 0, sizeof(commandBuffer));
+         int index = 0;
+         unsigned long startTime = millis(); // set for timeout
+
+         while (client.connected()) {
+            if (millis() - startTime > 3000) {
+               break; // no command received. get into interactive console session.
+               
+               warn(F("Client timeout."));
+               /*
+               client.println("Timeout: No command received.");
+               client.stop();
+                */
+            }
+
+            while (client.available() > 0) {
+               char c = client.read();
+               if (c == '\n' || c == '\r' || index >= sizeof(commandBuffer) - 1) {
+                  commandBuffer[index] = '\0'; // Null-Terminierung.
+                  commandReceived = true;
+                  break;
+               }
+               commandBuffer[index++] = c;
+            }
+            
+            if (commandReceived) {
+               info(F("remote command received: %s"), commandBuffer);
+               // redirect stream to client
+               Stream* pStream = __ioStream;
+               __ioStream = &client;
+               if ( !__processCommand(commandBuffer)) {
+                  println(F("command was not valid!"));
+               };
+               // restore stream
+               __ioStream = pStream;
+               client.stop();
+               
+               info(F("Client disconnected after command."));
+               break;
+            }
+         }
+      }
+      
+      // start an interactive console
+      if (!commandReceived && (!_activeClient || !_activeClient.connected())) {
          if (client) {
-            info(F("New client connected."));
+            info(F("Start interactive console"));
             _activeClient = client; // Aktiven Client aktualisieren
             delete __espConsoleWiFiClient; // Alte Instanz löschen
             __espConsoleWiFiClient = _createInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient

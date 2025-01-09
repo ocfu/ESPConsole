@@ -431,7 +431,7 @@ void CxESPConsoleExt::printESP() {
    printf(F("\n"));
    printf(F("-BOOT-------------------\n"));
    printf(F("reset reason: %s\n"), getResetInfo());
-   print(F("time to boot: ")); printTimeToBoot(); println();
+   print(F("time to boot: ")); printTimeToBoot(*__ioStream); println();
    printf(F("free heap:    %5d Bytes\n"), ESP.getFreeHeap());
    printf(F("\n"));
 #endif

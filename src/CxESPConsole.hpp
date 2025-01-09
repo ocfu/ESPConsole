@@ -73,7 +73,7 @@ public:
    CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;__nUsrLogLevel = 0;}
 #endif
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
-   : CxESPTime(stream), __ioStream(&stream), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
+   : CxESPTime(), __ioStream(&stream), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
       
       if (!_pESPConsoleInstance) _pESPConsoleInstance = this;
       
@@ -162,6 +162,24 @@ public:
    void printSSID();
    void printMode();
 #endif
+   
+   void printProgress(uint32_t actual, uint32_t max, const char* header, const char* unit) {
+      uint32_t progress = (actual * 100) / max;
+      printf("\r\033[K%16s: %d%% (%d / %d %s)", header, progress, actual, max, unit);
+   }
+   
+   void printProgressBar(uint32_t actual, uint32_t max, const char* header) {
+      uint32_t progress = (actual * 100) / max;
+      const uint8_t barWidth = 50; // Breite des Fortschrittsbalkens
+      uint8_t pos = (progress * barWidth) / 100;
+      
+      printf("\r\033[K%16s: [", header);
+      for (int i = 0; i < barWidth; i++) {
+         if (i < pos) print("#");
+         else print("-");
+      }
+      printf("] %d%%", progress);
+   }
    
    // TODO: get number of connected clients
    uint8_t users() {return _nUsers;}

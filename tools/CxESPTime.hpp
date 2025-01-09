@@ -23,9 +23,9 @@
 
 class CxESPTime {
 public:
-   CxESPTime(Stream& stream) : _ioStream(&stream), _strNtpServer("pool.ntp.org"), _strTz("GMT0") {__initTime();};
+   CxESPTime() : _strNtpServer("pool.ntp.org"), _strTz("GMT0") {__initTime();};
    
-   void printTime(bool withTZ = true) {
+   void printTime(Stream& stream, bool withTZ = true) {
       __updateTime();
       
       char buf[80];
@@ -34,7 +34,7 @@ public:
       } else {
          strftime (buf, sizeof(buf), "%H:%M:%S", &_tmLocal);
       }
-      _ioStream->print(buf);
+      stream.print(buf);
    }
    
    uint32_t getTime(char* buf, uint32_t lenmax, bool ms = false) {
@@ -62,47 +62,47 @@ public:
       return (uint32_t)strlen(buf);
    }
    
-   void printDate() {
+   void printDate(Stream& stream) {
       __updateTime();
       
       char buf[80];
       strftime (buf, sizeof(buf), "%d.%m.%Y", &_tmLocal);
-      _ioStream->print(buf);
+      stream.print(buf);
    }
    
-   void printDateTime() {
-      printDate();
-      _ioStream->print(" ");
-      printTime();
+   void printDateTime(Stream& stream) {
+      printDate(stream);
+      stream.print(" ");
+      printTime(stream);
    }
    
-   void printStartTime() {
+   void printStartTime(Stream& stream) {
       struct tm *tmstart = localtime(&_tStart);
       
       char buf[80];
       strftime (buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", tmstart);
-      _ioStream->print(buf);
+      stream.print(buf);
    }
    
-   void printFileTime(time_t cr, time_t lw) {
+   void printFileTime(Stream& stream, time_t cr, time_t lw) {
       //struct tm *tmcr = localtime(&cr);
       struct tm *tmlw = localtime(&lw);
       
       char buf[80];
       strftime (buf, sizeof(buf), "%H:%M:%S", tmlw);
-      _ioStream->print(buf);
+      stream.print(buf);
    }
    
-   void printFileDate(time_t cr, time_t lw) {
+   void printFileDate(Stream& stream, time_t cr, time_t lw) {
       //struct tm *tmcr = localtime(&cr);
       struct tm *tmlw = localtime(&lw);
       
       char buf[80];
       strftime (buf, sizeof(buf), "%d.%m.%Y", tmlw);
-      _ioStream->print(buf);
+      stream.print(buf);
    }
    
-   void printFileDateTime(time_t cr, time_t lw) {
+   void printFileDateTime(Stream& stream, time_t cr, time_t lw) {
       __updateTime();
 
       // Dec  4 08:04
@@ -116,10 +116,10 @@ public:
       } else {
          strftime (buf, sizeof(buf), "%b %e %H:%M", tmlw);
       }
-      _ioStream->print(buf);
+      stream.print(buf);
    }
    
-   void printUpTimeISO(bool sec = true) {
+   void printUpTimeISO(Stream& stream, bool sec = true) {
       uint32_t seconds = uint32_t (millis() / 1000);
       uint32_t days = seconds / 86400;
       seconds %= 86400;
@@ -128,14 +128,14 @@ public:
       uint32_t minutes = seconds / 60;
       seconds %= 60;
       if (sec) {
-         _ioStream->printf("%dT:%02d:%02d:%02d", days, hours, minutes, seconds);
+         stream.printf("%dT:%02d:%02d:%02d", days, hours, minutes, seconds);
       } else {
-         _ioStream->printf("%dT:%02d:%02d", days, hours, minutes);
+         stream.printf("%dT:%02d:%02d", days, hours, minutes);
       }
    }
    
-   void printTimeToBoot() {
-      _ioStream->printf("%ds", (uint32_t) _nTimeToBoot / 1000);
+   void printTimeToBoot(Stream& stream) {
+      stream.printf("%ds", (uint32_t) _nTimeToBoot / 1000);
    }
 
    const char* getNtpServer() {return _strNtpServer.c_str();}
@@ -160,7 +160,6 @@ protected:
 private:
    String _strNtpServer;
    String _strTz;
-   Stream* _ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    
    time_t _tStart = 0;
    uint32_t _nTimeToBoot = 0;

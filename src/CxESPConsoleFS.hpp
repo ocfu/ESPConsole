@@ -52,6 +52,8 @@ private:
    }
 #endif
    
+   bool _recieveFile();
+   
 protected:
    virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
 
@@ -80,9 +82,9 @@ public:
    
    virtual void printInfo() override;
 
+   uint32_t getDf(); // get disk free
 
    void printFsInfo();
-   //void printFileDateTime(time_t cr, time_t lw);
 
    void printDu(bool fmt = false, const char* szFn = nullptr);
    void printSize(bool fmt = false);

@@ -21,9 +21,9 @@ void CxESPConsoleLog::begin() {
    // load specific environments for this class
    if (!__bIsWiFiClient) {
       mount();
-      __processCommand("load log", true);
-      __processCommand("load logserver", true);
-      __processCommand("load logport", true);
+      __processCommand("load log");
+      __processCommand("load logserver");
+      __processCommand("load logport");
       
       info(F("log started"));
    }

@@ -21,9 +21,9 @@ void CxESPConsoleFS::begin() {
    // load specific environments for this class
    if (! __bIsWiFiClient) {
       mount();
-      __processCommand("load ntp", true);
+      __processCommand("load ntp");
    }
-   __processCommand("load tz", true);
+   __processCommand("load tz");
    __updateTime();
    
    // call the begin() from base class(es)
@@ -100,15 +100,23 @@ void CxESPConsoleFS::printSize(bool fmt) {
 
 void CxESPConsoleFS::printDf(bool fmt) {
    if (hasFS()) {
-      FSInfo fsinfo;
-      _getFSInfo(fsinfo);
       if (fmt) {
-         printf(F("%7ld"), fsinfo.totalBytes - fsinfo.usedBytes);
+         printf(F("%7ld"), getDf());
       } else {
-         printf(F("%ld"), fsinfo.totalBytes - fsinfo.usedBytes);
+         printf(F("%ld"), getDf());
       }
    } else {
       __printNoFS();
+   }
+}
+
+uint32_t CxESPConsoleFS::getDf() {
+   if (hasFS()) {
+      FSInfo fsinfo;
+      _getFSInfo(fsinfo);
+      return (uint32_t) (fsinfo.totalBytes - fsinfo.usedBytes);
+   } else {
+      return 0;
    }
 }
 
@@ -141,7 +149,7 @@ void CxESPConsoleFS::ls(bool bAll, bool bLong) {
                
                if (bAll) {
                   printf(F("%7d "), file.size());
-                  printFileDateTime(file.getCreationTime(), file.getLastWrite());
+                  printFileDateTime(*__ioStream, file.getCreationTime(), file.getLastWrite());
                }
                printf(F(" %s\n"), file.name());
             }
@@ -160,7 +168,7 @@ void CxESPConsoleFS::ls(bool bAll, bool bLong) {
          // print file size and date/time
          if (bLong) {
             printf(F("%7d "), file.size());
-            printFileDateTime(file.getCreationTime(), file.getLastWrite());
+            printFileDateTime(*__ioStream, file.getCreationTime(), file.getLastWrite());
          }
          printf(F(" %s\n"), file.name());
          total += file.size();
@@ -430,6 +438,10 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("known env variables:\n ntp \n tz "));
          println(F("example: load ntp"));
       }
+   } else if (cmd == "$RXFILE$") {
+      _recieveFile();
+   } else if (cmd == "txfile") {
+      // todo
    } else {
       // command not handled here, proceed into the base class
       return CxESPConsoleExt::__processCommand(szCmd, bQuiet);
@@ -470,5 +482,89 @@ bool CxESPConsoleFS::loadEnv(const char* szEnv, String& strValue) {
    }
    return false;
 }
+
+bool CxESPConsoleFS::_recieveFile() {
+#ifdef ARDUINO
+   char buffer[512];
+   String header = "";
+   String filename = "";
+   size_t expectedSize = 0;
+   size_t receivedSize = 0;
+   File file;
+   bool bError = false;
+
+   WiFiClient* client = static_cast<WiFiClient*>(__ioStream);
+   
+   // read header
+   while (client->connected() && header.indexOf("\n") == -1) {
+      if (client->available()) {
+         char c = client->read();
+         header += c;
+      }
+   }
+   
+   // analyse header
+   if (header.startsWith("FILE:")) {
+      int fileStart = header.indexOf("FILE:") + 5;
+      int sizeStart = header.indexOf("SIZE:") + 5;
+      int sizeEnd = header.indexOf("\n");
+      
+      filename = header.substring(fileStart, header.indexOf(" ", fileStart));
+      expectedSize = header.substring(sizeStart, sizeEnd).toInt();
+      
+      if (expectedSize > getDf() * 0.9) {
+         println(F("not enough space available for the file!"));
+         error(F("not enough space available for the file!"));
+         return false;
+      }
+      
+      info(F("receive file: %s (size: %d Bytes)"), filename.c_str(), expectedSize);
+            
+      // file open
+      file = LittleFS.open("/" + filename, "w");
+      if (!file) {
+         println(F("error: create file"));
+         error(F("error: create file %s"), filename.c_str());
+         return false;
+      }
+   } else {
+      println(F("error: invalid header"));
+      error(F("error: invalid header received during file transfer"));
+      return false;
+   }
+   
+   // receive file data
+   unsigned long startTime = millis();
+   while (client->connected() && receivedSize < expectedSize) {
+      size_t bytesToRead = client->available();
+      if (bytesToRead > 0) {
+         size_t bytesRead = client->readBytes(buffer, min(bytesToRead, sizeof(buffer)));
+         file.write((uint8_t *)buffer, bytesRead);
+         receivedSize += bytesRead;
+         //printProgress(receivedSize, expectedSize, filename.c_str(), "bytes");
+         printProgressBar(receivedSize, expectedSize, filename.c_str());
+         startTime = millis(); // reset timeout
+      } else if (millis() - startTime > 5000) { // 5 s timeout
+         error(F("timeout receiving a file"));
+         bError = true;
+         break;
+      }
+      delay(1);
+   }
+   println(" done!");
+   file.close();
+   
+   // Empfang überprüfen
+   if (receivedSize == expectedSize) {
+      info(F("file transfer finished."));
+   } else {
+      printf(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "Warning: received size of data (%d bytes) not same as expected file size (%d bytes) !\n" ESC_ATTR_RESET), receivedSize, expectedSize);
+      error(F("received size of data (%d bytes) not same as expected file size (%d bytes)!"), receivedSize, expectedSize);
+   }
+#endif
+   
+   return true;
+}
+
 
 #endif /*ESP_CONSOLE_NOFS*/
