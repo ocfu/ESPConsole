@@ -29,7 +29,9 @@ void setup() {
    WiFi.hostname(strHostName.c_str());
 
    // try to connect to the network for max. 10 seconds
-   while (WiFi.status() != WL_CONNECTED && millis() < 10000) {
+   CxTimer10s timerTO; // set timeout
+   
+   while (WiFi.status() != WL_CONNECTED && !timerTO.isDue()) {
       delay(500);
       Serial.print(".");
    }
