@@ -551,9 +551,9 @@ void CxESPConsoleExt::startWiFi(const char* ssid, const char* pw) {
    WiFi.hostname(strHostName.c_str());
    
    // try to connect to the network for max. 10 seconds
-   uint32_t ti = millis();
+   CxTimer10s timerTO; // set timeout
    
-   while (WiFi.status() != WL_CONNECTED && (millis() - ti) < 10000) {
+   while (WiFi.status() != WL_CONNECTED && !timerTO.isDue()) {
       delay(500);
       print(".");
    }
@@ -620,8 +620,9 @@ void CxESPConsoleExt::_handleConnect() {
       WiFi.begin(ssid.c_str(), password.c_str());
       
       // Wait a bit to connect
-      unsigned long startAttemptTime = millis();
-      while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+      CxTimer10s timerTO; // set timeout
+
+      while (WiFi.status() != WL_CONNECTED && timerTO.isDue()) {
          delay(100);
       }
       
@@ -629,7 +630,7 @@ void CxESPConsoleExt::_handleConnect() {
          pConsole->info("Connected successfully!");
          webServer.send(200, "text/plain", "Connected to WiFi!");
          
-         // switch to STA moden, saves credentials and stop web and dns server.
+         // switch to STA mode, saves credentials and stop web and dns server.
          pConsole->startWiFi(ssid.c_str(), password.c_str());
       } else {
          if (pConsole) pConsole->error("Connection failed.");

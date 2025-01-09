@@ -24,7 +24,8 @@ private:
    String _strLogServer = "";
    uint32_t _nLogPort = 0;
    bool _bLogServerAvailable = false;
-   uint32_t _nLastLogServerCheck = 0;
+   
+   CxTimer60s _timer60sLogServer;
    
 #ifndef ESP_CONSOLE_NOWIFI
    virtual CxESPConsole* _createInstance(WiFiClient& wifiClient, const char* app = "", const char* ver = "") const override {

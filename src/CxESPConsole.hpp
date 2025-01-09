@@ -14,6 +14,7 @@
 #include "../tools/CxESPHeapTracker.hpp"
 #include "../tools/CxESPTime.hpp"
 #include "../tools/CxStrToken.hpp"
+#include "../tools/CxTimer.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI

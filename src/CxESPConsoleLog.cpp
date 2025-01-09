@@ -119,7 +119,7 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
             _strLogServer = strValue;
             info(F("Log server set to %s"), _strLogServer.c_str());
             _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
-            _nLastLogServerCheck = 0; // but force a check at next log message
+            _timer60sLogServer.finish(); // force an immidiate check at next log message
          } else {
             warn(F("Log server env variable (logserver) not found!"));
          }
@@ -128,7 +128,7 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
             _nLogPort = (uint32_t)strValue.toInt();
             info(F("Log port set to %d"), _nLogPort);
             _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
-            _nLastLogServerCheck = 0; // but force a check at next log message
+            _timer60sLogServer.finish(); // force an immidiate check at next log message
          } else {
             warn(F("Log port env varialbe (logport) not found!"));
          }
@@ -205,9 +205,8 @@ void CxESPConsoleLog::_print2logServer(const char *sz) {
          _bLogServerAvailable = false;
       }
    } else {
-      if (_nLastLogServerCheck == 0 || (millis() - _nLastLogServerCheck) > 60000) {
+      if (_timer60sLogServer.isDue()) {
          _bLogServerAvailable = isHostAvailable(_strLogServer.c_str(), _nLogPort);
-         _nLastLogServerCheck = millis();
       }
    }
    

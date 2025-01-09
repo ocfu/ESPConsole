@@ -542,7 +542,8 @@ bool CxESPConsoleFS::_handleFile() {
    }
    
    // receive file data
-   unsigned long startTime = millis();
+   CxTimer timerTO(5000); // set timeout
+
    while (client->connected() && receivedSize < expectedSize) {
       size_t bytesToRead = client->available();
       if (bytesToRead > 0) {
@@ -551,8 +552,8 @@ bool CxESPConsoleFS::_handleFile() {
          receivedSize += bytesRead;
          //printProgress(receivedSize, expectedSize, filename.c_str(), "bytes");
          printProgressBar(receivedSize, expectedSize, filename.c_str());
-         startTime = millis(); // reset timeout
-      } else if (millis() - startTime > 5000) { // 5 s timeout
+         timerTO.restart(); // reset timeout
+      } else if (timerTO.isDue()) { // timeout
          error(F("timeout receiving a file"));
          bError = true;
          break;

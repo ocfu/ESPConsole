@@ -385,10 +385,10 @@ void CxESPConsole::loop() {
          info(F("New client connected."));
          memset(commandBuffer, 0, sizeof(commandBuffer));
          int index = 0;
-         unsigned long startTime = millis(); // set for timeout
+         CxTimer timerTO(3000); // set timeout
 
          while (client.connected()) {
-            if (millis() - startTime > 3000) {
+            if (timerTO.isDue()) {
                break; // no command received. get into interactive console session.
                
                warn(F("Client timeout."));
