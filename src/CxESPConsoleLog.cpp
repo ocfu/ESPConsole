@@ -93,12 +93,15 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
    } else if (cmd == "save") {
       String strEnv = ".";
       strEnv += TKTOCHAR(tkCmd, 1);
+      String strValue;
       if (strEnv == ".log") {
-         saveEnv(strEnv.c_str(), String(__nLogLevel).c_str());
+         strValue = __nLogLevel;
+         saveEnv(strEnv, strValue);
       } else if (strEnv == ".logserver") {
-         saveEnv(strEnv.c_str(), _strLogServer.c_str());
+         saveEnv(strEnv, _strLogServer);
       } else if (strEnv == ".logport") {
-         saveEnv(strEnv.c_str(), String(_nLogPort).c_str());
+         strValue = _nLogPort;
+         saveEnv(strEnv, strValue);
       } else {
          // command not handled here, proceed into the base class
          return CxESPConsoleFS::__processCommand(szCmd, bQuiet);
@@ -108,14 +111,14 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
       strEnv += TKTOCHAR(tkCmd, 1);
       String strValue;
       if (strEnv == ".log") {
-         if (loadEnv(strEnv.c_str(), strValue)) {
+         if (loadEnv(strEnv, strValue)) {
             __nLogLevel = (uint32_t)strValue.toInt();
             info(F("Log level set to %d"), __nLogLevel);
          } else {
             warn(F("Log level env variable (log) not found!"));
          }
       } else if (strEnv == ".logserver") {
-         if (loadEnv(strEnv.c_str(), strValue)) {
+         if (loadEnv(strEnv, strValue)) {
             _strLogServer = strValue;
             info(F("Log server set to %s"), _strLogServer.c_str());
             _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
@@ -124,7 +127,7 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
             warn(F("Log server env variable (logserver) not found!"));
          }
       } else if (strEnv == ".logport") {
-         if (loadEnv(strEnv.c_str(), strValue)) {
+         if (loadEnv(strEnv, strValue)) {
             _nLogPort = (uint32_t)strValue.toInt();
             info(F("Log port set to %d"), _nLogPort);
             _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
