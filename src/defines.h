@@ -90,6 +90,8 @@
 // prompt formats, used as argument to call printf
 #define FMT_PROMPT_ESP  ESC_ATTR_BOLD "\resp:/> " ESC_ATTR_RESET
 #define FMT_PROMPT_USER_HOST  ESC_ATTR_BOLD "\r%s@%s:/> " ESC_ATTR_RESET, getUserName(), getHostNameForPrompt()
+#define FMT_PROMPT_USER_HOST_OFFLINE  ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "\r%s@%s:/> " ESC_ATTR_RESET, getUserName(), getHostNameForPrompt()
+#define FMT_PROMPT_USER_HOST_APMODE   ESC_ATTR_BOLD ESC_TEXT_BRIGHT_MAGENTA "\r%s@%s:/> " ESC_ATTR_RESET, getUserName(), getHostNameForPrompt()
 
 #define FMT_PROMPT_DEFAULT FMT_PROMPT_USER_HOST
 
