@@ -86,14 +86,28 @@ public:
       
       template <typename T>
       typename std::enable_if<std::is_same<T, int32_t>::value, T>::type
-      asImpl(T) const {
-         return (int32_t)std::strtol(token, nullptr, 0); // Rückgabe als int32_t mit automatischer Basis
+      asImpl(T defaultValue) const {
+         char* end;
+         int32_t value = (int32_t)std::strtol(token, &end, 0); // return as int32_t with auto base
+         
+         // Check if the conversion failed (no characters processed or out of range)
+         if (end == token || *end != '\0') {
+            return defaultValue; // Return the provided default value
+         }
+         return value;
       }
       
       template <typename T>
       typename std::enable_if<std::is_same<T, float>::value, T>::type
-      asImpl(T) const {
-         return std::strtof(token, nullptr); // Rückgabe als float
+      asImpl(T defaultValue) const {
+         char* end;
+         float value = std::strtof(token, &end); // return als float
+         
+         // Check if the conversion failed (no characters processed or out of range)
+         if (end == token || *end != '\0') {
+            return defaultValue; // Return the provided default value
+         }
+         return value;
       }
    };
 
