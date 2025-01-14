@@ -24,6 +24,8 @@ void CxESPConsoleFS::begin() {
       __processCommand("load ntp");
    }
    __processCommand("load tz");
+   __processCommand("load led");
+
    __updateTime();
    
    // call the begin() from base class(es)
@@ -406,10 +408,18 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
 
       String strEnv = ".";
       strEnv += TKTOCHAR(tkCmd, 1);
+      String strValue;
       if (strEnv == ".ntp") {
-         saveEnv(strEnv.c_str(), getNtpServer());
+         strValue = getNtpServer();
+         saveEnv(strEnv, strValue);
       } else if (strEnv == ".tz") {
-         saveEnv(strEnv.c_str(), getTimeZone());
+         strValue = getTimeZone();
+         saveEnv(strEnv, strValue);
+      } else if (strEnv == ".led") {
+         strValue = "Pin:";
+         strValue += Led1.getPin();
+         if (Led1.isInverted()) strValue += ",inverted";
+         saveEnv(strEnv, strValue);
       } else {
          println(F("save environment variable. \nusage: save <env>"));
          println(F("known env variables:\n ntp \n tz "));
@@ -420,20 +430,47 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
       strEnv += TKTOCHAR(tkCmd, 1);
       String strValue;
       if (strEnv == ".ntp") {
-         if (loadEnv(strEnv.c_str(), strValue)) {
+         if (loadEnv(strEnv, strValue)) {
             setNtpServer(strValue.c_str());
             info(F("NTP server set to %s"), getNtpServer());
          } else {
             warn(F("NTP server env variable (ntp) not found!"));
          }
       } else if (strEnv == ".tz") {
-         if (loadEnv(strEnv.c_str(), strValue)) {
+         if (loadEnv(strEnv, strValue)) {
             setTimeZone(strValue.c_str());
             info(F("Timezone set to %s"), getTimeZone());
          } else {
             warn(F("Timezone env variable (tz) not found!"));
          }
-      } else {
+      } else if (strEnv == ".led") {
+         if (loadEnv(strEnv, strValue)) {
+            // Extract pin number
+            int pinIndex = strValue.indexOf("Pin:");
+            int pin = -1; // Default invalid pin
+            if (pinIndex != -1) {
+               int start = pinIndex + 4; // Position after "Pin:"
+               int end = strValue.indexOf(',', start); // Find the comma after the pin
+               if (end == -1) end = strValue.length(); // No comma, take the rest of the string
+               pin = (uint8_t)strValue.substring(start, end).toInt(); // Convert the extracted substring to an integer
+            }
+            
+            // Check if inverted
+            bool inverted = strValue.indexOf("inverted") != -1;
+            
+            // set led pin if changed
+            if (Led1.getPin() != pin) {
+               info(F("set Led1 to pin %d"), pin);
+               Led1.setPin(pin);
+            }
+            
+            if (Led1.isInverted() != inverted) {
+               info(F("set Led1 on pin %d to %s logic"), Led1.getPin(), inverted?"inverted":"non-inverted");
+               Led1.setInverted(inverted);
+            }
+         }
+      }
+      else {
          println(F("load environment varialbe.\nusage: load <env>"));
          println(F("known env variables:\n ntp \n tz "));
          println(F("example: load ntp"));
@@ -449,13 +486,13 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
    return true;
 }
 
-void CxESPConsoleFS::saveEnv(const char* szEnv, const char* szValue) {
+void CxESPConsoleFS::saveEnv(String& strEnv, String& strValue) {
    if (hasFS()) {
-      debug(F("save env variable %s, value=%s"), szEnv, szValue);
+      debug(F("save env variable %s, value=%s"), strEnv.c_str(), strValue.c_str());
 #ifdef ARDUINO
-      File file = LittleFS.open(szEnv, "w");
+      File file = LittleFS.open(strEnv.c_str(), "w");
       if (file) {
-         file.print(szValue);
+         file.print(strValue.c_str());
          file.close();
       }
 #endif
@@ -464,11 +501,11 @@ void CxESPConsoleFS::saveEnv(const char* szEnv, const char* szValue) {
    }
 }
 
-bool CxESPConsoleFS::loadEnv(const char* szEnv, String& strValue) {
+bool CxESPConsoleFS::loadEnv(String& strEnv, String& strValue) {
    if (hasFS()) {
-      debug(F("load env variable %s"), szEnv);
+      debug(F("load env variable %s"), strEnv.c_str());
 #ifdef ARDUINO
-      File file = LittleFS.open(szEnv, "r");
+      File file = LittleFS.open(strEnv.c_str(), "r");
       if (file) {
          while (file.available()) {
             strValue += (char)file.read();

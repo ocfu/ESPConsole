@@ -100,8 +100,8 @@ public:
    void umount();
    void format();
    
-   void saveEnv(const char* szEnv, const char* szValue);
-   bool loadEnv(const char* szEnv, String& strValue);
+   void saveEnv(String& strEnv, String& strValue);
+   bool loadEnv(String& strEnv, String& strValue);
 
 
 };
