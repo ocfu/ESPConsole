@@ -46,13 +46,7 @@ public:
          Ota1.end(); // inform the console through cb
       });
       ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-         int8_t p = (int8_t)round(progress * 100 / total);
-         static int8_t last = 0;
-         if ((p % 10)==0 && p != last) {
-            // only report 10% steps to the console cb
-            Ota1.progress(progress, total);
-            last = p;
-         }
+         Ota1.progress(progress, total);
       });
       ArduinoOTA.onError([](ota_error_t error) {
          Ota1.error(error);
