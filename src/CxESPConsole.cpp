@@ -355,7 +355,7 @@ void CxESPConsole::_measureCPULoad() {
 
 #ifndef ESP_CONSOLE_NOWIFI
 void CxESPConsole::_abortClient() {
-   if (!_isWiFiClient()) {
+   if (!__isWiFiClient()) {
       println("No exit on a serial connection.");
       return;
    }
@@ -520,7 +520,7 @@ void CxESPConsole::debug(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
    }
    
@@ -540,7 +540,7 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
    }
    
@@ -560,7 +560,7 @@ void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
    }
    
@@ -581,7 +581,7 @@ void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
    }
    
@@ -602,7 +602,7 @@ void CxESPConsole::info(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
    }
    
@@ -622,7 +622,7 @@ void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
    }
    
@@ -642,7 +642,7 @@ void CxESPConsole::warn(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
    }
    
@@ -662,7 +662,7 @@ void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
    }
    
@@ -682,7 +682,7 @@ void CxESPConsole::error(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
    }
    
@@ -702,7 +702,7 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__bIsWiFiClient) {
+   if (!__isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
    }
    

@@ -113,7 +113,7 @@ public:
 public:
    static CxESPConsole* getInstance() {return _pESPConsoleInstance;}
    void setHostName(const char* sz) {_strHostName = sz;}
-   const char* getHostNameForPrompt() {return _isWiFiClient() ? (_strHostName.length() ? _strHostName.c_str() : "host") : "serial";}
+   const char* getHostNameForPrompt() {return __isWiFiClient() ? (_strHostName.length() ? _strHostName.c_str() : "host") : "serial";}
    const char* getHostName() {return _strHostName.c_str();}
    void setAppNameVer(const char* szName, const char* szVer) {_szAppName = szName;_szAppVer = szVer;}
    const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
@@ -268,6 +268,9 @@ protected:
 
    void __handleConsoleInputs();
    void __flush() {__ioStream->flush();}
+   
+   bool __isWiFiClient() {return __bIsWiFiClient;}
+
    
    ///
    /// protected virtual methods
@@ -440,7 +443,6 @@ private:
 #ifndef ESP_CONSOLE_NOWIFI
    void _abortClient(); // aborts (ends) the (WiFi) client
 #endif
-   bool _isWiFiClient() {return __bIsWiFiClient;}
    
    void _measureCPULoad();
    
