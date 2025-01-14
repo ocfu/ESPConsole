@@ -7,6 +7,7 @@
 //
 
 #include "CxESPConsoleExt.hpp"
+#include "../tools/CxGpio.hpp"
 #include "esphw.h"
 
 #ifndef ESP_CONSOLE_NOWIFI
@@ -104,8 +105,10 @@ const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 CxOta Ota1;
 #endif /* ESP_CONSOLE_NOWIFI */
 
-
 void CxESPConsoleExt::begin() {
+
+   Led1.on();
+   
 #ifndef ESP_CONSOLE_NOWIFI
    if (!__bIsWiFiClient && !isConnected()) startWiFi();
 #endif
@@ -119,7 +122,11 @@ void CxESPConsoleExt::begin() {
       String strPw;
       readOtaPassword(strPw);
       Ota1.onStart([](){
-         if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->info(F("OTA start..."));
+         CxESPConsoleExt* consoleInstance = static_cast<CxESPConsoleExt*>(CxESPConsole::getInstance());
+         if(consoleInstance) {
+            consoleInstance->info(F("OTA start..."));
+            consoleInstance->Led1.blinkFlash();
+         }
       });
       
       Ota1.onEnd([](){
@@ -130,10 +137,12 @@ void CxESPConsoleExt::begin() {
       });
       
       Ota1.onProgress([](unsigned int progress, unsigned int total){
+         CxESPConsoleExt* consoleInstance = static_cast<CxESPConsoleExt*>(CxESPConsole::getInstance());
          int8_t p = (int8_t)round(progress * 100 / total);
+         if (consoleInstance) consoleInstance->ledAction();
          static int8_t last = 0;
          if ((p % 10)==0 && p != last) {
-            if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->info(F("OTA Progress %u"), p);
+            if (consoleInstance) consoleInstance->info(F("OTA Progress %u"), p);
             last = p;
          }
       });
@@ -157,19 +166,26 @@ void CxESPConsoleExt::begin() {
    // call the begin() from base class(es) first
    CxESPConsole::begin();
    
-   // no specifics for this console
-
+   Led1.off();
+   if (isConnected()) {
+      Led1.flashOk();
+   } else {
+      Led1.blinkError();
+   }
 }
 
 void CxESPConsoleExt::loop() {
    CxESPConsole::loop();
+   if (!__isWiFiClient()) {
 #ifndef ESP_CONSOLE_NOWIFI
-   Ota1.loop();
+      Ota1.loop();
 #ifdef ARDUINO
-   dnsServer.processNextRequest();
-   webServer.handleClient();
+      dnsServer.processNextRequest();
+      webServer.handleClient();
 #endif
 #endif
+      ledAction();
+   }
 }
 
 bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
@@ -199,7 +215,7 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
    if (cmd == "?" || cmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsole::__processCommand(szCmd);
-      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash, net, set, eeprom, wifi" ESC_ATTR_RESET));
+      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash, net, set, eeprom, wifi, gpio, led" ESC_ATTR_RESET));
    } else if (cmd == "hw") {
       printHW();
    } else if (cmd == "sw") {
@@ -230,7 +246,12 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("example: set tz CET-1CEST,M3.5.0,M10.5.0/3"));         
       }
    } else if (cmd == "eeprom") {
-      printEEProm(TKTOINT(tkCmd, 1, 0), TKTOINT(tkCmd, 2, 512));
+      if (a) {
+         printEEProm(TKTOINT(tkCmd, 1, 0), TKTOINT(tkCmd, 2, 128));
+      } else {
+         println(F("show eeprom content."));
+         println(F("usage: eeprom [<start address>] [<length>]"));
+      }
    } else if (cmd == "wifi") {
       String strCmd = TKTOCHAR(tkCmd, 1);
       if (strCmd == "ssid") {
@@ -279,7 +300,8 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          delay(500);
          _beginAP();
       } else {
-         println(F("WiFi commands:"));
+         printNetworkInfo();
+         println(F("wifi commands:"));
          println(F("  ssid [<ssid>]"));
          println(F("  password [<password>]"));
          println(F("  hostname [<hostname>]"));
@@ -289,6 +311,128 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("  scan"));
          println(F("  otapw [<password>]"));
          println(F("  ap"));
+      }
+   } else if (cmd == "gpio") {
+      String strCmd = TKTOCHAR(tkCmd, 1);
+      uint8_t nPin = TKTOINT(tkCmd, 2, INVALID_PIN);
+      int16_t nValue = TKTOINT(tkCmd, 3, -1);
+      String strValue = TKTOCHAR(tkCmd, 3);
+
+      if (strCmd == "state") {
+         _gpioTracker.printAllStates(*__ioStream);
+      } else if (strCmd == "set") {
+         if (CxGPIO::isValidPin(nPin)) {
+            CxGPIO gpio(nPin);
+            if (nValue < 0) { // setting the pin mode
+               if (strValue == "in") {
+                  gpio.setPinMode(INPUT);
+               } else if (strValue == "out") {
+                  gpio.setPinMode(OUTPUT);
+               } else if (strValue == "pwm") {
+                  // todo
+                  println(F("feature is not yet implemented!"));
+               } else if (strValue == "inverted") {
+                  gpio.setInverted(true);
+               } else if (strValue == "non-inverted") {
+                  gpio.setInverted(false);
+               } else {
+                  printf(F("invalid pin mode!"));
+               }
+            } else if (nValue < 1024) {
+               if (nValue > HIGH && gpio.isAnalog()) {
+                  println("write analog");
+                  gpio.writeAnalog(nValue);
+               } else {
+                  println("write digital");
+                  gpio.writePin(nValue);
+               }
+            } else {
+               printf(F("invalid value!"));
+            }
+         } else {
+            println("invalid");
+            CxGPIO::printInvalidReason(*__ioStream, nPin);
+         }
+      } else if (strCmd == "get") {
+         if (CxGPIO::isValidPin(nPin)) {
+            CxGPIO gpio(nPin);
+            if (gpio.isSet()) {
+               gpio.printState(*__ioStream);
+            }
+         } else {
+            CxGPIO::printInvalidReason(*__ioStream, nPin);
+         }
+      } else {
+         _gpioTracker.printAllStates(*__ioStream);
+         println(F("gpio commands:"));
+         println(F("  state [<pin>]"));
+         println(F("  set <pin> <mode> (in, out, pwm, inverted, non-inverted"));
+         println(F("  set <pin> 0...1023 (set pin state to value)"));
+         println(F("  get <pin>"));
+      }
+   } else if (cmd == "led") {
+      String strCmd = TKTOCHAR(tkCmd, 1);
+      if (strCmd == "on") {
+         Led1.on();
+      } else if (strCmd == "off") {
+         Led1.off();
+      } else if (strCmd == "blink") {
+         String strPattern = TKTOCHAR(tkCmd, 2);
+         if (strPattern == "ok") {
+            Led1.blinkOk();
+         } else if (strPattern == "error") {
+            Led1.blinkError();
+         } else if (strPattern == "busy") {
+            Led1.blinkBusy();
+         } else if (strPattern == "flash") {
+            Led1.blinkFlash();
+         } else if (strPattern == "data") {
+            Led1.blinkData();
+         } else if (strPattern == "wait") {
+            Led1.blinkWait();
+         } else if (strPattern == "connect") {
+            Led1.blinkConnect();
+         }  else {
+            Led1.setBlink(TKTOINT(tkCmd, 2, 1000), TKTOINT(tkCmd, 3, 128));
+         }
+      } else if (strCmd == "flash") {
+         String strPattern = TKTOCHAR(tkCmd, 2);
+         if (strPattern == "ok") {
+            Led1.flashOk();
+         } else if (strPattern == "error") {
+            Led1.flashError();
+         } else if (strPattern == "busy") {
+            Led1.flashBusy();
+         } else if (strPattern == "flash") {
+            Led1.flashFlash();
+         } else if (strPattern == "data") {
+            Led1.flashData();
+         } else if (strPattern == "wait") {
+            Led1.flashWait();
+         } else if (strPattern == "connect") {
+            Led1.flashConnect();
+         } else {
+            Led1.setFlash(TKTOINT(tkCmd, 2, 250), TKTOINT(tkCmd, 3, 128), TKTOINT(tkCmd, 4, 1));
+         }
+      } else if (strCmd == "invert") {
+         Led1.setInverted(true);
+      } else if (strCmd == "set") {
+         uint8_t pin = TKTOINT(tkCmd, 2, INVALID_PIN);
+         bool bInverted = TKTOINT(tkCmd, 2, INVALID_PIN);
+         if (CxGPIO::isValidPin(pin)) {
+            Led1.setPin(pin);
+            Led1.setInverted(bInverted);
+         } else {
+            CxGPIO::printInvalidReason(*__ioStream, pin);
+         }
+      } else {
+         printf(F("LED on pin %02d%s\n"), Led1.getPin(), Led1.isInverted() ? ",inverted":"");
+         println(F("led commands:"));
+         println(F("  on|off"));
+         println(F("  blink [period] [duty]"));
+         println(F("  blink [pattern] (ok, error...)"));
+         println(F("  flash [period] [duty] [number]"));
+         println(F("  set <pin> [0|1] (1: inverted)"));
       }
    } else {
       // command not handled here, proceed into the base class(es)
@@ -486,6 +630,10 @@ void CxESPConsoleExt::printFlashMap() {
 #endif
 }
 
+void CxESPConsoleExt::ledAction() {
+   Led1.action();
+}
+
 #ifndef ESP_CONSOLE_NOWIFI
 
 void CxESPConsoleExt::printEEProm(uint32_t nStartAddr, uint32_t nLength) {
@@ -520,6 +668,10 @@ void CxESPConsoleExt::startWiFi(const char* ssid, const char* pw) {
 
    _stopAP();
    
+   if (isConnected()) {
+      stopWiFi();
+   }
+   
    //
    // Set the ssid, password and hostname from the console settings or from the arguments.
    // If set by the arguments, it will replace settings stored in the eprom.
@@ -541,8 +693,6 @@ void CxESPConsoleExt::startWiFi(const char* ssid, const char* pw) {
    readPassword(strPassword);
    readHostName(strHostName);
    
-   printf(F("WiFi: connect to %s"), strSSID.c_str());
-
 #ifdef ARDUINO
    WiFi.persistent(false);
    WiFi.mode(WIFI_STA);
@@ -550,27 +700,42 @@ void CxESPConsoleExt::startWiFi(const char* ssid, const char* pw) {
    WiFi.setAutoReconnect(true);
    WiFi.hostname(strHostName.c_str());
    
+   println();
+   printf(F(ESC_ATTR_BOLD "WiFi: connecting to %s" ESC_ATTR_RESET), strSSID.c_str());
+   print(F(ESC_ATTR_BLINK "..." ESC_ATTR_RESET));
+   
+   Led1.blinkConnect();
+   
    // try to connect to the network for max. 10 seconds
    CxTimer10s timerTO; // set timeout
    
    while (WiFi.status() != WL_CONNECTED && !timerTO.isDue()) {
-      delay(500);
-      print(".");
+      Led1.action();
+      delay(1);
    }
+   
+   print(ESC_CLEAR_LINE "\r");
+   printf(F(ESC_ATTR_BOLD "WiFi: connecting to %s..." ESC_ATTR_RESET), strSSID.c_str());
+
+   Led1.off();
    
    if (WiFi.status() != WL_CONNECTED) {
       println(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "not connected!" ESC_ATTR_RESET));
       error("WiFi not connected.");
+      Led1.blinkError();
    } else {
       println(F(ESC_TEXT_BRIGHT_GREEN "connected!" ESC_ATTR_RESET));
       info("WiFi connected.");
+      __updateTime();
+      Led1.flashOk();
    }
 
 #endif
 }
 
 void CxESPConsoleExt::stopWiFi() {
-   info(F("WiFi disconnect"));
+   info(F("WiFi disconnect and switch off."));
+   printf(F("WiFi disconnect and switch off."));
 #ifdef ARDUINO
    WiFi.disconnect();
    WiFi.softAPdisconnect();
@@ -645,6 +810,8 @@ void CxESPConsoleExt::_handleConnect() {
 
 void CxESPConsoleExt::_beginAP() {
    stopWiFi();
+   
+   Led1.blinkWait();
 
 #ifdef ARDUINO
    // Start Access Point
@@ -664,11 +831,14 @@ void CxESPConsoleExt::_beginAP() {
    
    // Start the web server
    webServer.begin();
-   info(F("Web Server started"));
 #endif
+   info(F("ESP started in AP mode"));
+   printf(F("ESP started in AP mode. SSID: %s, PW:%s\n"), getHostName(), "12345678");
 }
 
 void CxESPConsoleExt::_stopAP() {
+   Led1.off();
+   
 #if defined(ESP32)
    webServer.stop();
 #elif defined(ESP8266)

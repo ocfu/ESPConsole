@@ -10,6 +10,7 @@
 #define CxESPConsoleExt_hpp
 
 #include "CxESPConsole.hpp"
+#include "../tools/CxLed.hpp"
 
 #ifdef ARDUINO
 #ifdef ESP32
@@ -17,9 +18,16 @@
 #endif // end ESP32
 #endif // end ARDUINO
 
+#ifndef LED_BUILTIN
+#define LED_BUILTIN -1
+#endif
+
+
 class CxESPConsoleExt : public CxESPConsole {
 private:
    String _strCoreSdkVersion;
+   CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
+
    
 #ifndef ESP_CONSOLE_NOWIFI
    virtual CxESPConsole* _createInstance(WiFiClient& wifiClient, const char* app = "", const char* ver = "") const override {
@@ -34,13 +42,33 @@ private:
    
 protected:
    virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
+   
+#ifndef ESP_CONSOLE_NOWIFI
+   virtual void __prompt() override {
+      if (__inAPMode()) {
+         __ioStream->print(ESC_CLEAR_LINE);
+         __ioStream->printf(FMT_PROMPT_USER_HOST_APMODE);
+      } else if(!isConnected()) {
+         __ioStream->print(ESC_CLEAR_LINE);
+         __ioStream->printf(FMT_PROMPT_USER_HOST_OFFLINE);
+      } else {
+         CxESPConsole::__prompt();
+      }
+   }
+#ifdef ARDUINO
+   bool __inAPMode() {return (WiFi.getMode() == WIFI_AP || WiFi.getMode() == WIFI_AP_STA);}
+#else
+   bool __inAPMode() {return false;}
+#endif
+#endif
 
 public:
 #ifndef ESP_CONSOLE_NOWIFI
    CxESPConsoleExt(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsoleExt((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 #endif
+ 
+   CxESPConsoleExt(Stream& stream, const char* app = "", const char* ver = "") : Led1(LED_BUILTIN), CxESPConsole(stream, app, ver) {
 
-   CxESPConsoleExt(Stream& stream, const char* app = "", const char* ver = "") : CxESPConsole(stream, app, ver){
 #ifdef ARDUINO
       _strCoreSdkVersion = "core ";
       _strCoreSdkVersion += ESP.getCoreVersion();
@@ -85,7 +113,10 @@ public:
 
    
    virtual void printInfo() override;
+   
+   CxLed Led1;
 
+   void ledAction();
 
 };
 
