@@ -8,25 +8,27 @@
 
 #include "CxESPConsoleLog.hpp"
 
-#ifndef ESP_CONSOLE_NOFS
+#ifdef ESP_CONSOLE_NOFS
+#error "ESP_CONSOLE_NOFS was defined. CxESPConsoleLog requires a FS to work!"
+#endif
+
 void CxESPConsoleLog::begin() {
-   
+   // set the name for this console
+   setConsoleName("Ext+FS+Log");
+   info(F("==== LOG  ===="));
+
 #ifndef ESP_CONSOLE_NOWIFI
    if (!__bIsWiFiClient && !isConnected()) startWiFi();
 #endif
 
-   // set the name for this console
-   setConsoleName("Ext+FS+Log");
-   
    // load specific environments for this class
+   mount();
+   __processCommand("load logserver");
+   __processCommand("load logport");
    if (!__bIsWiFiClient) {
-      mount();
       __processCommand("load log");
-      __processCommand("load logserver");
-      __processCommand("load logport");
-      
-      info(F("log started"));
    }
+   info(F("log started"));
 
    // call the begin() from base class(es)
    CxESPConsoleFS::begin();
@@ -122,7 +124,7 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
             _strLogServer = strValue;
             info(F("Log server set to %s"), _strLogServer.c_str());
             _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
-            _timer60sLogServer.finish(); // force an immidiate check at next log message
+            _timer60sLogServer.makeDue(); // force an immidiate check at next log message
          } else {
             warn(F("Log server env variable (logserver) not found!"));
          }
@@ -131,7 +133,7 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
             _nLogPort = (uint32_t)strValue.toInt();
             info(F("Log port set to %d"), _nLogPort);
             _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
-            _timer60sLogServer.finish(); // force an immidiate check at next log message
+            _timer60sLogServer.makeDue(); // force an immidiate check at next log message
          } else {
             warn(F("Log port env varialbe (logport) not found!"));
          }
@@ -223,5 +225,3 @@ void CxESPConsoleLog::_print2logServer(const char *sz) {
 
 #endif
 }
-
-#endif /*ESP_CONSOLE_NOFS*/

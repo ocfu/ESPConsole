@@ -48,7 +48,7 @@ public:
    virtual void begin() override;
    // specifics for this console class, when needed
    //virtual void end() override {CxESPConsoleFS::end();}
-   //virtual void loop() override {CxESPConsoleFS::loop();}
+   virtual void loop() override {CxESPConsoleFS::loop();}
    
    virtual void printInfo() override;
    
