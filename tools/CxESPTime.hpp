@@ -38,6 +38,7 @@ public:
    }
    
    uint32_t getTime(char* buf, uint32_t lenmax, bool ms = false) {
+      __updateTime();
       if (isValid()) {
          strftime (buf, lenmax, "%H:%M:%S", &_tmLocal);
          if (ms && lenmax > 12) {
@@ -103,12 +104,9 @@ public:
    }
    
    void printFileDateTime(Stream& stream, time_t cr, time_t lw) {
-      __updateTime();
-
       // Dec  4 08:04
       //struct tm *tmcr = localtime(&cr);
       struct tm *tmlw = localtime(&lw);
-      
       
       char buf[80];
       if (_tmLocal.tm_year != tmlw->tm_year) {
