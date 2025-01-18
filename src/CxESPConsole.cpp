@@ -21,6 +21,7 @@ CxESPConsole* CxESPConsole::_pESPConsoleInstance = nullptr;
 ///
 void CxESPConsole::begin() {
    println();println();
+   info(F("==== BASE ===="));
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
@@ -385,23 +386,18 @@ void CxESPConsole::loop() {
          info(F("New client connected."));
          memset(commandBuffer, 0, sizeof(commandBuffer));
          int index = 0;
-         CxTimer timerTO(3000); // set timeout
+         CxTimer timerTO(1000); // set timeout
 
          while (client.connected()) {
             if (timerTO.isDue()) {
+               info(F("timeout waiting for commands"));
                break; // no command received. get into interactive console session.
-               
-               warn(F("Client timeout."));
-               /*
-               client.println("Timeout: No command received.");
-               client.stop();
-                */
             }
 
             while (client.available() > 0) {
                char c = client.read();
                if (c == '\n' || c == '\r' || index >= sizeof(commandBuffer) - 1) {
-                  commandBuffer[index] = '\0'; // Null-Terminierung.
+                  commandBuffer[index] = '\0';
                   commandReceived = true;
                   break;
                }
