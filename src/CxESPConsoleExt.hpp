@@ -94,6 +94,7 @@ public:
    virtual void loop() override;
 
 #ifndef ESP_CONSOLE_NOWIFI
+   bool isHostAvailble(const char* server, uint32_t port);
    void startWiFi(const char* ssid = nullptr, const char* pw = nullptr);
    void stopWiFi();
    

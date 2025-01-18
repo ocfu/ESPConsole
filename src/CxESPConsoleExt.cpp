@@ -106,6 +106,9 @@ CxOta Ota1;
 #endif /* ESP_CONSOLE_NOWIFI */
 
 void CxESPConsoleExt::begin() {
+   // set the name for this console
+   setConsoleName("Ext");
+   info(F("==== EXT  ===="));
 
    Led1.on();
    
@@ -113,8 +116,6 @@ void CxESPConsoleExt::begin() {
    if (!__bIsWiFiClient && !isConnected()) startWiFi();
 #endif
 
-   // set the name for this console
-   setConsoleName("Ext");
 
 #ifndef ESP_CONSOLE_NOWIFI
    if (!__bIsWiFiClient) {
@@ -312,7 +313,18 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("  otapw [<password>]"));
          println(F("  ap"));
       }
-   } else if (cmd == "gpio") {
+   } else if (cmd == "ping") {
+      if (!a && !b) {
+         println(F("usage: ping <host> <port>"));
+      } else {
+         if (isHostAvailble(TKTOCHAR(tkCmd, 1), TKTOINT(tkCmd, 2, 0))) {
+            println(F("ok"));
+         } else {
+            println(F("host not available on this port!"));
+         };
+      }
+   }
+   else if (cmd == "gpio") {
       String strCmd = TKTOCHAR(tkCmd, 1);
       uint8_t nPin = TKTOINT(tkCmd, 2, INVALID_PIN);
       int16_t nValue = TKTOINT(tkCmd, 3, -1);
@@ -845,6 +857,19 @@ void CxESPConsoleExt::_stopAP() {
    webServer.close();
    dnsServer.stop();
 #endif
+}
+
+bool CxESPConsoleExt::isHostAvailble(const char* host, uint32_t port) {
+#ifdef ARDUINO
+   if (isConnected() && port && host) { //Check WiFi connection status
+      WiFiClient client;
+      if (client.connect(host, port)) {
+         client.stop();
+         return true;
+      }
+   }
+#endif
+   return false;
 }
 
 #endif /* ESP_CONSOLE_NOWIFI */
