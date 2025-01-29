@@ -37,8 +37,8 @@ private:
       return new CxESPConsoleMqtt(wifiClient, app, ver);
    }
    
-   void _onMqttMessage(const char*, uint8_t*, unsigned int);
-
+   CxMqttTopic* _pmqttTopicCmd = nullptr;
+   
 protected:
    virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
 
@@ -60,7 +60,22 @@ public:
    void disconnectMqtt();
    bool isConnectedMqtt();
    
+   bool subscribe(const char* topic, CxMqttManager::tCallback callback) {
+      return _mqttManager.subscribe(topic, callback);
+   }
+
+   bool publish(const char* topic, const char* payload, bool retained = false) {
+      return _mqttManager.publish(topic, payload, retained);
+   }
+   bool publish(const FLASHSTRINGHELPER * topicP, const char* payload, bool retained = false) {
+      char buf[256];
+      strncpy_P(buf, (PGM_P)topicP, sizeof(buf));
+      buf[sizeof(buf)-1] = '\0';
+      return publish(buf, payload, retained);
+   };
+
    void publishInfo();
+   
 };
 
 #endif /* CxESPConsoleMqtt_hpp */

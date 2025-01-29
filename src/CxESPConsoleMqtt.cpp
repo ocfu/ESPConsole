@@ -28,15 +28,34 @@ void CxESPConsoleMqtt::begin() {
    __processCommand("load mqtt");
    
    if (!__isWiFiClient()) {
-      startMqtt();
+
+      /// MARK: IDEA: configured subscribtions
+      /// subscribtions defined in a config file
+      ///   <variable>=<topic>
+      ///   subscribe on path. introduce a "tag" using variable
+      ///   compare with the "tag"
+      ///   maintain a map with the pair <variable>:<value>
+      ///   create a method to read the value
+      ///
+      ///
       
-      if (_mqttManager.subscribe("test/cmd", [this](const char* topic, uint8_t* payload, unsigned int length) {
-         this->_onMqttMessage(topic, payload, length);
-      })) {
-         info(F("topic 'cmd' successfully subscribed"));
-      } else {
-         error(F("topic cmd subscribtion failed!"));
-      };
+      _pmqttTopicCmd = new CxMqttTopic("cmd", [this](const char* topic, uint8_t* payload, unsigned int len) {
+         info(("command is %s"), (char*)payload);
+         __processCommand((char*)payload, true);
+      });
+      
+      /*
+      /// Avoid using short living CxMqttTopic objects!!
+      CxMqttTopic mqttTest("my name", "info");
+      mqttTest.publish("hello");
+      
+      /// prefer this
+      this->publish("info", "hello"); // using CxMqttTopic for publish topics makes only sense, if it is used frequently or the name is relevant (e.g. for HA)
+       
+      */
+      
+      startMqtt();
+
       info(F("mqtt started"));
       _timerHeartbeat.start(true); // 1st due immidiately
    }
@@ -71,7 +90,7 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
    if (cmd == "?" || cmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsoleLog::__processCommand(szCmd);
-      println(F("Mqtt commands:" ESC_TEXT_BRIGHT_WHITE "     mqtt" ESC_ATTR_RESET));
+      println(F("Mqtt commands:" ESC_TEXT_BRIGHT_WHITE "    mqtt" ESC_ATTR_RESET));
    } else if (cmd == "mqtt") {
       String strCmd = TKTOCHAR(tkCmd, 1);
       if (strCmd == "connect") {
@@ -250,19 +269,22 @@ void CxESPConsoleMqtt::loop() {
             error(F("mqtt server %s on port %d is not available!"), _mqttManager.getServer(), _mqttManager.getPort());
          }
       }
+      publishInfo();
    }
 }
 
 void CxESPConsoleMqtt::publishInfo() {
    if (isConnectedMqtt()) {
+      publish(F("info/freemem"), getFreeHeap());
+      publish(F("info/fragmentation"), getHeapFragmentation());
+      publish(F("info/uptime"), getUpTimeISO());
+//      publish(F("info/looptime"), Time1.getLoopTimeAvr());
+//      publish(F("info/chip"), CxTools::getChipInfo());
+//      publish(F("info/rssi"), "%d", Wifi1.getRSSI());
+//      publish(F("info/df"), CxSpiffs::df());
+//      publish(F("info/freeota"), CxTools::getFreeOTA());
+
    }
-}
-
-void CxESPConsoleMqtt::_onMqttMessage(const char * topic, uint8_t * payload, unsigned int length) {
-   if (topic && payload)
-   payload[length] = '\0';
-
-   _LOG_DEBUG(F("message received. topic=%s msg=%s len=%d)"), topic, (char*)payload, length);
 }
 
 #endif /*ESP_CONSOLE_NOFS*/
