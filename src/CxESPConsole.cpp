@@ -158,7 +158,7 @@ bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
       String opt = TKTOCHAR(tkCmd, 1);
       
       // force reboot
-      if (opt == "-f") {
+      if (opt == "-f" || bQuiet) {
          reboot();
       } else {
          // TODO: prompt user to be improved
