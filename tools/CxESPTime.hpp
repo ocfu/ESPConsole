@@ -154,7 +154,7 @@ protected:
    void __updateTime() {
       time(&_tNow);                    // read the current time
       _bValid = localtime_r(&_tNow, &_tmLocal);  // make it the local time
-      if (!_tStart) {
+      if (!_tStart && _bValid) {
          _nTimeToBoot = (uint32_t) millis();
          _tStart = _tNow - (_nTimeToBoot / 1000);   // set the start time one time, deduct the time system is running
       }
