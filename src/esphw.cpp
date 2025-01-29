@@ -805,3 +805,27 @@ bool writeOtaPassword(const char* szPassword) {
    return false;
 #endif
 }
+
+const char* getHeapFragmentation() {
+#ifdef ARDUINO
+#ifdef ESP32
+   //TODO: implement getHeapFragmentation for esp32
+#else
+   snprintf(__nst_buffer, sizeof(__nst_buffer), "%lu", ESP.getHeapFragmentation());
+#endif
+#else
+   __nst_buffer[0] = '\0';
+#endif
+   __nst_buffer[sizeof(__nst_buffer)-1] = '\0';
+   return __nst_buffer;
+}
+
+const char* getFreeHeap() {
+#ifdef ARDUINO
+   snprintf(__nst_buffer, sizeof(__nst_buffer), "%lu", ESP.getFreeHeap());
+#else
+   __nst_buffer[0] = '\0';
+#endif
+   __nst_buffer[sizeof(__nst_buffer)-1] = '\0';
+   return __nst_buffer;
+}
