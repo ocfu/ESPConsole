@@ -25,7 +25,7 @@ void CxESPConsoleMqtt::begin() {
 
    // load specific environments for this class
    mount();
-   __processCommand("load mqtt");
+   __processCommand("mqtt load");
    
    if (!__isWiFiClient()) {
 
@@ -78,40 +78,45 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
    if (!tkCmd.count()) return false;
       
    // we have a command, find the action to take
-   String cmd = TKTOCHAR(tkCmd, 0);
+   String strCmd = TKTOCHAR(tkCmd, 0);
    
    // removes heading and trailing white spaces
-   cmd.trim();
+   strCmd.trim();
    
    // expect sz parameter, invalid is nullptr
    const char* a = TKTOCHAR(tkCmd, 1);
    const char* b = TKTOCHAR(tkCmd, 2);
    
-   if (cmd == "?" || cmd == USR_CMD_HELP) {
+   if (strCmd == "?" || strCmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsoleLog::__processCommand(szCmd);
       println(F("Mqtt commands:" ESC_TEXT_BRIGHT_WHITE "    mqtt" ESC_ATTR_RESET));
-   } else if (cmd == "mqtt") {
-      String strCmd = TKTOCHAR(tkCmd, 1);
-      if (strCmd == "connect") {
+   } else if (strCmd == "mqtt") {
+      String strSubCmd = TKTOCHAR(tkCmd, 1);
+      String strEnv = ".mqtt";
+      if (strSubCmd == "connect") {
          startMqtt(TKTOCHAR(tkCmd, 2), TKTOINT(tkCmd, 3, 0));
-      } else if (strCmd == "stop") {
+      } else if (strSubCmd == "stop") {
          info(F("stop mqtt server"));
          stopMqtt();
-      } else if (strCmd == "server") {
+      } else if (strSubCmd == "server") {
          _mqttManager.setServer(TKTOCHAR(tkCmd, 2));
+         _bMqttServerOnline = isHostAvailble(_mqttManager.getServer(), _mqttManager.getPort());
+         if (!_bMqttServerOnline) println(F("server not available!"));
          startMqtt();
-      } else if (strCmd == "port") {
+      } else if (strSubCmd == "port") {
          _mqttManager.setPort(TKTOINT(tkCmd, 2, 0));
+         _bMqttServerOnline = isHostAvailble(_mqttManager.getServer(), _mqttManager.getPort());
+         if (!_bMqttServerOnline) println(F("server not available!"));
          startMqtt();
-      } else if (strCmd == "qos") {
+      } else if (strSubCmd == "qos") {
          _mqttManager.setQoS(TKTOINT(tkCmd, 2, 0));
-      } else if (strCmd == "root") {
+      } else if (strSubCmd == "root") {
          _mqttManager.setRootPath(TKTOCHAR(tkCmd, 2));
-      } else if (strCmd == "heartbeat") {
+      } else if (strSubCmd == "heartbeat") {
          int32_t period = TKTOINT(tkCmd, 2, -1);
          if (period == 0 || period >= 1000) _timerHeartbeat.start(period, true);
-      } else if (strCmd == "will") {
+      } else if (strSubCmd == "will") {
          if (b) {
             int8_t bWill = (int8_t)TKTOINT(tkCmd, 2, -1);
             if (bWill > 0) {
@@ -122,8 +127,36 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
                _mqttManager.setWillTopic(TKTOCHAR(tkCmd, 2));
             }
          }
-      } else if (strCmd == "list") {
+      } else if (strSubCmd == "list") {
          _mqttManager.printSubscribtion(*__ioStream);
+      } else if (strSubCmd == "save") {
+         CxConfigParser Config;
+         Config.addVariable("server", _mqttManager.getServer());
+         Config.addVariable("port", _mqttManager.getPort());
+         Config.addVariable("qos", _mqttManager.getQoS());
+         Config.addVariable("root", _mqttManager.getRootPath());
+         Config.addVariable("will", (uint8_t)_mqttManager.isWill());
+         Config.addVariable("willtopic", _mqttManager.getWillTopic());
+         Config.addVariable("heartbeat", _timerHeartbeat.getPeriod());
+         saveEnv(strEnv, Config.getConfigStr());
+      } else if (strSubCmd == "load") {
+         String strValue;
+         if (loadEnv(strEnv, strValue)) {
+            CxConfigParser Config(strValue);
+            // extract settings and set, if defined. Keep unchanged, if not set.
+            _mqttManager.setServer(Config.getSz("server", _mqttManager.getServer()));
+            _mqttManager.setPort(Config.getInt("port", _mqttManager.getPort()));
+            _mqttManager.setQoS(Config.getInt("qos", _mqttManager.getQoS()));
+            _mqttManager.setRootPath(Config.getSz("root", _mqttManager.getRootPath()));
+            _mqttManager.setWill(Config.getInt("will", _mqttManager.isWill()) > 0);
+            _mqttManager.setWillTopic(Config.getSz("willtopic", _mqttManager.getWillTopic()));
+            int32_t period = Config.getInt("heartbeat", _timerHeartbeat.getPeriod());
+            if (period == 0 || period >= 1000) _timerHeartbeat.setPeriod(period);
+            info(F("Mqtt server set to %s at port %d, qos=%d"), _mqttManager.getServer(), _mqttManager.getPort(), _mqttManager.getQoS());
+            info(F("Mqtt set root path to '%s' and will topic to '%s'"), _mqttManager.getRootPath(), _mqttManager.getWillTopic());
+            info(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
+            _timer60sMqttServer.makeDue(); // make timer due to force an immidiate check
+         }
       } else {
          printf(F(ESC_ATTR_BOLD " Server:      " ESC_ATTR_RESET "%s (%s)\n"), _mqttManager.getServer(), _bMqttServerOnline?"online":"offline");
          printf(F(ESC_ATTR_BOLD " Port:        " ESC_ATTR_RESET "%d\n"), _mqttManager.getPort());
@@ -142,55 +175,8 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("  stop"));
          println(F("  hearbeat <period in ms> (0, 1000...n)"));
          println(F("  list"));
-         println(F("Save setting with 'save mqtt'"));
-      }
-   } else if (cmd == "save") {
-      CxConfigParser Config;
-      
-      String strEnv = ".";
-      strEnv += TKTOCHAR(tkCmd, 1);
-      String strValue;
-      if (strEnv == ".mqtt") {
-         Config.addVariable("server", _mqttManager.getServer());
-         Config.addVariable("port", _mqttManager.getPort());
-         Config.addVariable("qos", _mqttManager.getQoS());
-         Config.addVariable("root", _mqttManager.getRootPath());
-         Config.addVariable("will", (uint8_t)_mqttManager.isWill());
-         Config.addVariable("willtopic", _mqttManager.getWillTopic());
-         Config.addVariable("heartbeat", _timerHeartbeat.getPeriod());
-         saveEnv(strEnv, Config.getConfigStr());
-      } else {
-         // command not handled here, proceed into the base class
-         return CxESPConsoleLog::__processCommand(szCmd, bQuiet);
-      }
-   } else if (cmd == "load") {
-      String strEnv = ".";
-      strEnv += TKTOCHAR(tkCmd, 1);
-      String strValue;
-      if (strEnv == ".mqtt") {
-         if (loadEnv(strEnv, strValue)) {
-            if (strEnv == ".mqtt") {
-               CxConfigParser Config(strValue);
-               // extract settings and set, if defined. Keep unchanged, if not set.
-               _mqttManager.setServer(Config.getSz("server", _mqttManager.getServer()));
-               _mqttManager.setPort(Config.getInt("port", _mqttManager.getPort()));
-               _mqttManager.setQoS(Config.getInt("qos", _mqttManager.getQoS()));
-               _mqttManager.setRootPath(Config.getSz("root", _mqttManager.getRootPath()));
-               _mqttManager.setWill(Config.getInt("will", _mqttManager.isWill()) > 0);
-               _mqttManager.setWillTopic(Config.getSz("willtopic", _mqttManager.getWillTopic()));
-               int32_t period = Config.getInt("heartbeat", _timerHeartbeat.getPeriod());
-               if (period == 0 || period >= 1000) _timerHeartbeat.setPeriod(period);
-               info(F("Mqtt server set to %s at port %d, qos=%d"), _mqttManager.getServer(), _mqttManager.getPort(), _mqttManager.getQoS());
-               info(F("Mqtt set root path to '%s' and will topic to '%s'"), _mqttManager.getRootPath(), _mqttManager.getWillTopic());
-               info(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
-               _timer60sMqttServer.makeDue(); // make timer due to force an immidiate check
-            }
-         } else {
-            warn(F("Mqtt settings not found!"));
-         }
-      } else {
-         // command not handled here, proceed into the base class
-         return CxESPConsoleLog::__processCommand(szCmd, bQuiet);
+         println(F("  save"));
+         println(F("  load"));
       }
    } else {
       // command not handled here, proceed into the base class

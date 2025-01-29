@@ -7,6 +7,7 @@
 //
 
 #include "CxESPConsoleLog.hpp"
+#include "../tools/CxConfigParser.hpp"
 
 #ifdef ESP_CONSOLE_NOFS
 #error "ESP_CONSOLE_NOFS was defined. CxESPConsoleLog requires a FS to work!"
@@ -23,11 +24,7 @@ void CxESPConsoleLog::begin() {
 
    // load specific environments for this class
    mount();
-   __processCommand("load logserver");
-   __processCommand("load logport");
-   if (!__bIsWiFiClient) {
-      __processCommand("load log");
-   }
+   __processCommand("log load");
    info(F("log started"));
 
    // call the begin() from base class(es)
@@ -55,91 +52,63 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
    //ioStream->consoleFormat();
    
    // we have a command, find the action to take
-   String cmd = TKTOCHAR(tkCmd, 0);
+   String strCmd = TKTOCHAR(tkCmd, 0);
    
    // removes heading and trailing white spaces
-   cmd.trim();
+   strCmd.trim();
    
    // expect sz parameter, invalid is nullptr
    const char* a = TKTOCHAR(tkCmd, 1);
    const char* b = TKTOCHAR(tkCmd, 2);
    
-   if (cmd == "?" || cmd == USR_CMD_HELP) {
+   if (strCmd == "?" || strCmd == USR_CMD_HELP) {
       // show help first from base class(es)
       CxESPConsoleFS::__processCommand(szCmd);
       println(F("Log commands:" ESC_TEXT_BRIGHT_WHITE "     log, usr" ESC_ATTR_RESET));
-   } else if (cmd == "log") {
-      printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), __nLogLevel);printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), __nUsrLogLevel);
-      printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __nExtDebugFlag);
-      printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
-      printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
-      info(F("test log message"));
-   } else if (cmd == "set") {
-      ///
-      /// known env variables:
-      /// - log <level>
-      /// - logserver <server>
-      /// - logport <port>
-      
-      String strVar = TKTOCHAR(tkCmd, 1);
-      if (strVar == "log") {
-         __nLogLevel = TKTOINT(tkCmd, 2, __nLogLevel);
-      } else if (strVar == "logserver") {
+   } else if (strCmd == "log") {
+      String strSubCmd = TKTOCHAR(tkCmd, 1);
+      String strEnv = ".log";
+      if (strSubCmd == "server") {
          _strLogServer = TKTOCHAR(tkCmd, 2);
-      } else if (strVar == "logport") {
+         _bLogServerAvailable = isHostAvailable(_strLogServer.c_str(), _nLogPort);
+         if (!_bLogServerAvailable) println(F("server not available!"));
+      } else if (strSubCmd == "port") {
          _nLogPort = TKTOINT(tkCmd, 2, 0);
-      } else {
-         // command not handled here, proceed into the base class
-         return CxESPConsoleFS::__processCommand(szCmd, bQuiet);
-      }
-   } else if (cmd == "save") {
-      String strEnv = ".";
-      strEnv += TKTOCHAR(tkCmd, 1);
-      String strValue;
-      if (strEnv == ".log") {
-         strValue = __nLogLevel;
-         saveEnv(strEnv, strValue);
-      } else if (strEnv == ".logserver") {
-         saveEnv(strEnv, _strLogServer);
-      } else if (strEnv == ".logport") {
-         strValue = _nLogPort;
-         saveEnv(strEnv, strValue);
-      } else {
-         // command not handled here, proceed into the base class
-         return CxESPConsoleFS::__processCommand(szCmd, bQuiet);
-      }
-   } else if (cmd == "load") {
-      String strEnv = ".";
-      strEnv += TKTOCHAR(tkCmd, 1);
-      String strValue;
-      if (strEnv == ".log") {
+         _bLogServerAvailable = isHostAvailable(_strLogServer.c_str(), _nLogPort);
+         if (!_bLogServerAvailable) println(F("server not available!"));
+      } else if (strSubCmd == "level") {
+         __nLogLevel = TKTOINT(tkCmd, 2, __nLogLevel);
+      } else if (strSubCmd == "save") {
+         CxConfigParser Config;
+         Config.addVariable("level", __nLogLevel);
+         Config.addVariable("server", _strLogServer);
+         Config.addVariable("port", _nLogPort);
+         saveEnv(strEnv, Config.getConfigStr());
+      } else if (strSubCmd == "load") {
+         String strValue;
          if (loadEnv(strEnv, strValue)) {
-            __nLogLevel = (uint32_t)strValue.toInt();
-            info(F("Log level set to %d"), __nLogLevel);
-         } else {
-            warn(F("Log level env variable (log) not found!"));
-         }
-      } else if (strEnv == ".logserver") {
-         if (loadEnv(strEnv, strValue)) {
-            _strLogServer = strValue;
-            info(F("Log server set to %s"), _strLogServer.c_str());
-            _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
-            _timer60sLogServer.makeDue(); // force an immidiate check at next log message
-         } else {
-            warn(F("Log server env variable (logserver) not found!"));
-         }
-      } else if (strEnv == ".logport") {
-         if (loadEnv(strEnv, strValue)) {
-            _nLogPort = (uint32_t)strValue.toInt();
-            info(F("Log port set to %d"), _nLogPort);
-            _bLogServerAvailable = (_strLogServer.length() > 0 && _nLogPort > 0); // optimistic
-            _timer60sLogServer.makeDue(); // force an immidiate check at next log message
-         } else {
-            warn(F("Log port env varialbe (logport) not found!"));
+            CxConfigParser Config(strValue);
+            // extract settings and set, if defined. Keep unchanged, if not set.
+            __nLogLevel = Config.getInt("level", __nLogLevel);
+            _strLogServer = Config.getSz("server", _strLogServer.c_str());
+            _nLogPort = Config.getInt("port", _nLogPort);
+            if (_strLogServer.length() && _nLogPort > 0) {
+               _bLogServerAvailable = true;
+               _timer60sLogServer.makeDue();
+            }
          }
       } else {
-         // command not handled here, proceed into the base class
-         return CxESPConsoleFS::__processCommand(szCmd, bQuiet);
+         printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), __nLogLevel);printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), __nUsrLogLevel);
+         printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __nExtDebugFlag);
+         printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
+         printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
+         println(F("log commands:"));
+         println(F("  server <server>"));
+         println(F("  port <port>"));
+         println(F("  level <level>"));
+         println(F("  save"));
+         println(F("  load"));
+         info(F("test log message"));
       }
    } else {
       // command not handled here, proceed into the base class
@@ -195,6 +164,7 @@ void CxESPConsoleLog::__error(const char *buf) {
 
 void CxESPConsoleLog::_print2logServer(const char *sz) {
    if (__bIsWiFiClient) return; // only serial console will log to server
+   if (!_strLogServer.length() || _nLogPort < 1) return;
    
 #ifdef ARDUINO
    bool bAvailable = _bLogServerAvailable;
