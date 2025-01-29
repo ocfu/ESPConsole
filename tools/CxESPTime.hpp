@@ -118,6 +118,11 @@ public:
    }
    
    void printUpTimeISO(Stream& stream, bool sec = true) {
+      stream.print(getUpTimeISO(sec));
+   }
+   
+   const char* getUpTimeISO(bool sec = true) {
+      static char buf[32];
       uint32_t seconds = uint32_t (millis() / 1000);
       uint32_t days = seconds / 86400;
       seconds %= 86400;
@@ -126,10 +131,11 @@ public:
       uint32_t minutes = seconds / 60;
       seconds %= 60;
       if (sec) {
-         stream.printf("%dT:%02d:%02d:%02d", days, hours, minutes, seconds);
+         snprintf(buf, sizeof(buf), "%dT:%02d:%02d:%02d", days, hours, minutes, seconds);
       } else {
-         stream.printf("%dT:%02d:%02d", days, hours, minutes);
+         snprintf(buf, sizeof(buf), "%dT:%02d:%02d", days, hours, minutes);
       }
+      return buf;
    }
    
    void printTimeToBoot(Stream& stream) {
