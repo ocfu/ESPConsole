@@ -107,6 +107,14 @@
 #  define _LOG_DEBUG_EXT(...) ((void)0)
 #endif
 
+#ifndef debug
+#ifdef DEBUG_BUILD
+#define _CONSOLE_DEBUG(...) if (_consoleInstance) _consoleInstance->debug(__VA_ARGS__)
+#else
+#define _CONSOLE_DEBUG(...) ((void)0)
+#endif
+#endif
+
 
 #define LOGLEVEL_OFF       0
 #define LOGLEVEL_ERROR     1
