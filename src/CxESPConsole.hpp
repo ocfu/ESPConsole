@@ -11,10 +11,14 @@
 
 #include "Arduino.h"
 
-#include "../tools/CxESPHeapTracker.hpp"
-#include "../tools/CxESPTime.hpp"
-#include "../tools/CxStrToken.hpp"
-#include "../tools/CxTimer.hpp"
+// include some generic defines, such as ESC sequences, format for prompts, debug macros etc.
+#include "defines.h"
+
+#include "CxCommandHandler.hpp"
+#include "CxESPHeapTracker.hpp"
+#include "CxESPTime.hpp"
+#include "CxStrToken.hpp"
+#include "CxTimer.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
@@ -31,7 +35,7 @@
  #include "devenv.h"
 #endif // end ARDUINO
 
-// include some generic defines, such as ESC sequences, format for prompts etc.
+// include some generic defines, such as ESC sequences, format for prompts, debug macros etc.
 #include "defines.h"
 
 
@@ -41,9 +45,99 @@
 /// CxESPConsoleBase class
 /// pure virtual base class to force instanziation of the virtual __processCommand
 ///
-class CxESPConsoleBase  {
+/// and to implement print methods.
+///
+class CxESPConsoleBase : public Print  {
+
+public:
+   CxESPConsoleBase(Stream& stream) {
+      __ioStream = &stream;
+      
+      // load command set directly into RAM, not using flash strings as these commands
+      // always need to be available
+      commandHandler.registerCommandSet("Help", [this](const char* szCmd, bool bQuiet)->bool {
+         // validate the call
+         if (!szCmd) return false;
+         
+         // get the command and arguments into the token buffer
+         CxStrToken tkCmd(szCmd, " ");
+         
+         // validate again
+         if (!tkCmd.count()) return false;
+         
+         // we have a command, find the action to take
+         String cmd = TKTOCHAR(tkCmd, 0);
+         
+         // removes heading and trailing white spaces
+         cmd.trim();
+         
+         if (cmd == "?" || cmd == "help") {
+            if (__ioStream && !bQuiet) commandHandler.printHelp(*__ioStream);
+            return true;
+         } else {
+            return false;
+         }
+      }, "help, ?", "Help commands");
+   }
+   CxESPConsoleBase() : __ioStream(nullptr) {}
+   
+   virtual ~CxESPConsoleBase() {}
+   
+   void setStream(Stream& stream) {__ioStream = &stream;}
+   Stream* getStream() {return __ioStream;}
+   
 protected:
-   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) = 0;
+   Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
+   
+   CxCommandHandler& commandHandler = CxCommandHandler::getInstance();
+   
+   //virtual bool __processCommand(const char* szCmd, bool bQuiet = false) = 0;
+   
+   // Implement the required write function
+   virtual size_t write(uint8_t c) override {
+      if(__ioStream) {
+         __ioStream->write(c);
+         return 1;
+      } else {
+         return 0;
+      }
+   }
+   
+   // Optional: Override write() for string buffers (better efficiency)
+   virtual size_t write(const uint8_t *buffer, size_t size) override {
+      if (__ioStream) {
+         return __ioStream->write(buffer, size);
+      } else {
+         return 0;
+      }
+   }
+   
+   // Universal printf() that supports both Flash and RAM strings
+   void printf(const char *format, ...) {
+      char buffer[128];  // Temporary buffer for formatted string
+      va_list args;
+      va_start(args, format);
+      vsnprintf(buffer, sizeof(buffer), format, args);
+      va_end(args);
+      print(buffer);  // Use Print's built-in print()
+   }
+   
+   // Overloaded printf() for Flash (PROGMEM) strings
+   void printf(const __FlashStringHelper *format, ...) {
+      char buffer[128];  // Temporary buffer for formatted string
+      va_list args;
+      va_start(args, format);
+      vsnprintf_P(buffer, sizeof(buffer), (PGM_P)format, args);
+      va_end(args);
+      print(buffer);  // Use Print's built-in print()
+   }
+   
+   virtual void __debug(const char* sz) {println(sz);}
+   virtual void __debug_ext(uint32_t flang, const char* sz) {println(sz);}
+   virtual void __info(const char* sz) {println(sz);}
+   virtual void __warn(const char* sz) {println(sz);}
+   virtual void __error(const char* sz) {println(sz);}
+
 };
 
 ///
@@ -71,11 +165,15 @@ public:
    /// Constructor needed to differenciate between serial and wifi clients to abort the the session, if needed, properly.
    ///
 #ifndef ESP_CONSOLE_NOWIFI
-   CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;__nUsrLogLevel = 0;}
+   CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 #endif
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
-   : CxESPTime(), __ioStream(&stream), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
-      
+   : CxESPConsoleBase(stream), CxESPTime(), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
+
+      // load command set directly into RAM, not using flash strings as these commands
+      // always should be available
+      commandHandler.registerCommandSet(F("General"), [this](const char* cmd, bool bQuiet)->bool {return _processCommand(cmd, bQuiet);}, F("reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid"), F("General commands"));
+
       if (!_pESPConsoleInstance) _pESPConsoleInstance = this;
       
       _nLastMeasurement = (uint32_t) micros(); // Startzeit initialisieren
@@ -134,23 +232,6 @@ public:
    bool isHostAvailable(const char* szHost, int nPort);
 #endif
 
-   ///
-   /// print to stream methods
-   ///
-   
-   void printf(const char* sz...); // limited to 127 chars (stream class has no vprintf)
-   void printf(const FLASHSTRINGHELPER * szP...);
-   void printf() {printf("");}
-   
-   void println(const char* sz) {__ioStream->println(sz);}
-   void println(const FLASHSTRINGHELPER * szP) {/*__ioStream->println((PGM_P)szP);*/ __ioStream->printf((PGM_P)szP);println();}
-   void println() {println("");} // WiFiClient->println chrashes with flash strings
-   
-   void print(const char* sz) {__ioStream->print(sz);}
-   void print(const FLASHSTRINGHELPER * szP) {/*__ioStream->print((PGM_P)szP);*/ __ioStream->printf((PGM_P)szP);} // WiFiClient->print chrashes with flash strings
-   void print() {print("");}
-   void print(const char c){__ioStream->print(c);}
-
    void printUptimeExt();
 
    void printHeap();
@@ -187,6 +268,8 @@ public:
    float load() {return _fLoad;}
    float avgload() {return _fAvgLoad;}
    uint32_t avglooptime() {return _navgLoopTime;}
+   
+   // TODO: move these methods to the base class
    
    // basic logging functions
    void debug(const char* fmt...);
@@ -235,7 +318,6 @@ public:
    /// protected members and methods
    ///
 protected:
-   Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    bool __bIsWiFiClient = false;
    
    CxESPConsole* __espConsoleWiFiClient = nullptr;
@@ -254,7 +336,7 @@ protected:
    ///  4: debug
    ///  5: ext. debug (controlled by _nDebugFlag)
    ///
-   uint32_t __nLogLevel  = 0;
+   uint32_t __nLogLevel  = 4;
    uint32_t __nUsrLogLevel = 4;
    
    ///
@@ -276,11 +358,10 @@ protected:
    /// protected virtual methods
    ///
 protected:   
-   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
    
    virtual void __prompt() {
-      __ioStream->print(ESC_CLEAR_LINE);
-      __ioStream->printf(FMT_PROMPT_DEFAULT);
+      print(ESC_CLEAR_LINE);
+      printf(FMT_PROMPT_DEFAULT);
    }
    
    ///
@@ -294,18 +375,12 @@ protected:
    /// - Parameter message: message presented at the prompt
    /// - Parameter callback: callback function to the reaction
    void __promptUserYN(const char* message, void (*responseCallback)(bool)) {
-      __ioStream->print(ESC_CLEAR_LINE);
-      __ioStream->printf(FMT_PROMPT_USER_YN, message);
-      __ioStream->print(" \b");        // position the cursor behind the command
+      print(ESC_CLEAR_LINE);
+      printf(FMT_PROMPT_USER_YN, message);
+      print(" \b");        // position the cursor behind the command
       _bWaitingForUsrResponseYN = true;
       _cbUsrResponse = responseCallback;
    }
-   
-   virtual void __debug(const char* sz) {println(sz);}
-   virtual void __debug_ext(uint32_t flang, const char* sz) {println(sz);}
-   virtual void __info(const char* sz) {println(sz);}
-   virtual void __warn(const char* sz) {println(sz);}
-   virtual void __error(const char* sz) {println(sz);}
    
    ///
    /// private virtual methods
@@ -371,6 +446,9 @@ private:
       return new CxESPConsole(wifiClient, app, ver);
    }
 #endif
+   
+   bool _processCommand(const char* szCmd, bool bQuiet = false);
+
 
    void _clearCmdBuffer() {
       memset(_szCmdBuffer, 0, _nMAXLENGTH);
@@ -420,22 +498,22 @@ private:
       
    void _redrawCmd() {
       __prompt();
-      __ioStream->print(_szCmdBuffer); // output the command from the buffer
-      __ioStream->print(" \b");        // position the cursor behind the command
+      print(_szCmdBuffer); // output the command from the buffer
+      print(" \b");        // position the cursor behind the command
    }
          
    void _handleUserResponse(char c) {
       if (_bWaitingForUsrResponseYN) {
          if (c == 'y' || c == 'Y') {
-            __ioStream->printf("Yes");
+            printf("Yes");
             _bWaitingForUsrResponseYN = false;
             if (_cbUsrResponse) _cbUsrResponse(true);
          } else if (c == 'n' || c == 'N') {
-            __ioStream->println("No");
+            println("No");
             _bWaitingForUsrResponseYN = false;
             if (_cbUsrResponse) _cbUsrResponse(false);
          } else {
-            __ioStream->println("Invalid input. Please type 'y' or 'n'.");
+            println("Invalid input. Please type 'y' or 'n'.");
          }
          println();
       }

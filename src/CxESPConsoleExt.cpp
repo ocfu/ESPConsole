@@ -7,11 +7,11 @@
 //
 
 #include "CxESPConsoleExt.hpp"
-#include "../tools/CxGpio.hpp"
+#include "CxGpioTracker.hpp"
 #include "esphw.h"
 
 #ifndef ESP_CONSOLE_NOWIFI
-#include "../tools/CxOta.hpp"
+#include "CxOta.hpp"
 #ifdef ARDUINO
 #ifdef ESP32
 #include <WebServer.h>
@@ -189,7 +189,7 @@ void CxESPConsoleExt::loop() {
    }
 }
 
-bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
+bool CxESPConsoleExt::_processCommand(const char *szCmd, bool bQuiet) {
    // validate the call
    if (!szCmd) return false;
    
@@ -213,11 +213,7 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
    int32_t x = TKTOINT(tkCmd, 1, -1);
    
    
-   if (cmd == "?" || cmd == USR_CMD_HELP) {
-      // show help first from base class(es)
-      CxESPConsole::__processCommand(szCmd);
-      println(F("Ext commands:" ESC_TEXT_BRIGHT_WHITE "     hw, sw, net, esp, flash, net, set, eeprom, wifi, gpio, led" ESC_ATTR_RESET));
-   } else if (cmd == "hw") {
+   if (cmd == "hw") {
       printHW();
    } else if (cmd == "sw") {
       printSW();
@@ -447,8 +443,7 @@ bool CxESPConsoleExt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("  set <pin> [0|1] (1: inverted)"));
       }
    } else {
-      // command not handled here, proceed into the base class(es)
-      return CxESPConsole::__processCommand(szCmd, bQuiet);
+      return false;
    }
    return true;
 }

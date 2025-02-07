@@ -7,7 +7,7 @@
 //
 
 #include "CxESPConsoleMqtt.hpp"
-#include "../tools/CxConfigParser.hpp"
+#include "CxConfigParser.hpp"
 
 #ifndef ESP_CONSOLE_NOFS
 void CxESPConsoleMqtt::begin() {
@@ -25,7 +25,7 @@ void CxESPConsoleMqtt::begin() {
 
    // load specific environments for this class
    mount();
-   __processCommand("mqtt load");
+   _processCommand("mqtt load");
    
    if (!__isWiFiClient()) {
 
@@ -41,7 +41,7 @@ void CxESPConsoleMqtt::begin() {
       
       _pmqttTopicCmd = new CxMqttTopic("cmd", [this](const char* topic, uint8_t* payload, unsigned int len) {
          info(("command is %s"), (char*)payload);
-         __processCommand((char*)payload, true);
+         _processCommand((char*)payload, true);
       });
       
       /*
@@ -67,7 +67,7 @@ void CxESPConsoleMqtt::printInfo() {
    // specific for this console
 }
 
-bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
+bool CxESPConsoleMqtt::_processCommand(const char *szCmd, bool bQuiet) {
    // validate the call
    if (!szCmd) return false;
    
@@ -87,11 +87,7 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
    const char* a = TKTOCHAR(tkCmd, 1);
    const char* b = TKTOCHAR(tkCmd, 2);
    
-   if (strCmd == "?" || strCmd == USR_CMD_HELP) {
-      // show help first from base class(es)
-      CxESPConsoleLog::__processCommand(szCmd);
-      println(F("Mqtt commands:" ESC_TEXT_BRIGHT_WHITE "    mqtt" ESC_ATTR_RESET));
-   } else if (strCmd == "mqtt") {
+   if (strCmd == "mqtt") {
       String strSubCmd = TKTOCHAR(tkCmd, 1);
       String strEnv = ".mqtt";
       if (strSubCmd == "connect") {
@@ -100,19 +96,19 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
          info(F("stop mqtt server"));
          stopMqtt();
       } else if (strSubCmd == "server") {
-         _mqttManager.setServer(TKTOCHAR(tkCmd, 2));
-         _bMqttServerOnline = isHostAvailble(_mqttManager.getServer(), _mqttManager.getPort());
+         __mqttManager.setServer(TKTOCHAR(tkCmd, 2));
+         _bMqttServerOnline = isHostAvailble(__mqttManager.getServer(), __mqttManager.getPort());
          if (!_bMqttServerOnline) println(F("server not available!"));
          startMqtt();
       } else if (strSubCmd == "port") {
-         _mqttManager.setPort(TKTOINT(tkCmd, 2, 0));
-         _bMqttServerOnline = isHostAvailble(_mqttManager.getServer(), _mqttManager.getPort());
+         __mqttManager.setPort(TKTOINT(tkCmd, 2, 0));
+         _bMqttServerOnline = isHostAvailble(__mqttManager.getServer(), __mqttManager.getPort());
          if (!_bMqttServerOnline) println(F("server not available!"));
          startMqtt();
       } else if (strSubCmd == "qos") {
-         _mqttManager.setQoS(TKTOINT(tkCmd, 2, 0));
+         __mqttManager.setQoS(TKTOINT(tkCmd, 2, 0));
       } else if (strSubCmd == "root") {
-         _mqttManager.setRootPath(TKTOCHAR(tkCmd, 2));
+         __mqttManager.setRootPath(TKTOCHAR(tkCmd, 2));
       } else if (strSubCmd == "heartbeat") {
          int32_t period = TKTOINT(tkCmd, 2, -1);
          if (period == 0 || period >= 1000) _timerHeartbeat.start(period, true);
@@ -121,22 +117,22 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
             int8_t bWill = (int8_t)TKTOINT(tkCmd, 2, -1);
             if (bWill > 0) {
                // disable or enable will behaviour. In case to will topic was set, the will topic is the rootPath
-               _mqttManager.setWill(bWill);
+               __mqttManager.setWill(bWill);
             } else {
                // set topic. will behaviour implicitly enabled, if topic length > 0.
-               _mqttManager.setWillTopic(TKTOCHAR(tkCmd, 2));
+               __mqttManager.setWillTopic(TKTOCHAR(tkCmd, 2));
             }
          }
       } else if (strSubCmd == "list") {
-         _mqttManager.printSubscribtion(*__ioStream);
+         __mqttManager.printSubscribtion(*__ioStream);
       } else if (strSubCmd == "save") {
          CxConfigParser Config;
-         Config.addVariable("server", _mqttManager.getServer());
-         Config.addVariable("port", _mqttManager.getPort());
-         Config.addVariable("qos", _mqttManager.getQoS());
-         Config.addVariable("root", _mqttManager.getRootPath());
-         Config.addVariable("will", (uint8_t)_mqttManager.isWill());
-         Config.addVariable("willtopic", _mqttManager.getWillTopic());
+         Config.addVariable("server", __mqttManager.getServer());
+         Config.addVariable("port", __mqttManager.getPort());
+         Config.addVariable("qos", __mqttManager.getQoS());
+         Config.addVariable("root", __mqttManager.getRootPath());
+         Config.addVariable("will", (uint8_t)__mqttManager.isWill());
+         Config.addVariable("willtopic", __mqttManager.getWillTopic());
          Config.addVariable("heartbeat", _timerHeartbeat.getPeriod());
          saveEnv(strEnv, Config.getConfigStr());
       } else if (strSubCmd == "load") {
@@ -144,26 +140,26 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
          if (loadEnv(strEnv, strValue)) {
             CxConfigParser Config(strValue);
             // extract settings and set, if defined. Keep unchanged, if not set.
-            _mqttManager.setServer(Config.getSz("server", _mqttManager.getServer()));
-            _mqttManager.setPort(Config.getInt("port", _mqttManager.getPort()));
-            _mqttManager.setQoS(Config.getInt("qos", _mqttManager.getQoS()));
-            _mqttManager.setRootPath(Config.getSz("root", _mqttManager.getRootPath()));
-            _mqttManager.setWill(Config.getInt("will", _mqttManager.isWill()) > 0);
-            _mqttManager.setWillTopic(Config.getSz("willtopic", _mqttManager.getWillTopic()));
+            __mqttManager.setServer(Config.getSz("server", __mqttManager.getServer()));
+            __mqttManager.setPort(Config.getInt("port", __mqttManager.getPort()));
+            __mqttManager.setQoS(Config.getInt("qos", __mqttManager.getQoS()));
+            __mqttManager.setRootPath(Config.getSz("root", __mqttManager.getRootPath()));
+            __mqttManager.setWill(Config.getInt("will", __mqttManager.isWill()) > 0);
+            __mqttManager.setWillTopic(Config.getSz("willtopic", __mqttManager.getWillTopic()));
             int32_t period = Config.getInt("heartbeat", _timerHeartbeat.getPeriod());
             if (period == 0 || period >= 1000) _timerHeartbeat.setPeriod(period);
-            info(F("Mqtt server set to %s at port %d, qos=%d"), _mqttManager.getServer(), _mqttManager.getPort(), _mqttManager.getQoS());
-            info(F("Mqtt set root path to '%s' and will topic to '%s'"), _mqttManager.getRootPath(), _mqttManager.getWillTopic());
+            info(F("Mqtt server set to %s at port %d, qos=%d"), __mqttManager.getServer(), __mqttManager.getPort(), __mqttManager.getQoS());
+            info(F("Mqtt set root path to '%s' and will topic to '%s'"), __mqttManager.getRootPath(), __mqttManager.getWillTopic());
             info(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
             _timer60sMqttServer.makeDue(); // make timer due to force an immidiate check
          }
       } else {
-         printf(F(ESC_ATTR_BOLD " Server:      " ESC_ATTR_RESET "%s (%s)\n"), _mqttManager.getServer(), _bMqttServerOnline?"online":"offline");
-         printf(F(ESC_ATTR_BOLD " Port:        " ESC_ATTR_RESET "%d\n"), _mqttManager.getPort());
-         printf(F(ESC_ATTR_BOLD " QoS:         " ESC_ATTR_RESET "%d\n"), _mqttManager.getQoS());
-         printf(F(ESC_ATTR_BOLD " Root path:   " ESC_ATTR_RESET "%s\n"), _mqttManager.getRootPath());
-         printf(F(ESC_ATTR_BOLD " Will:        " ESC_ATTR_RESET "%d\n"), _mqttManager.isWill());
-         printf(F(ESC_ATTR_BOLD " Will topic:  " ESC_ATTR_RESET "%s\n"), _mqttManager.getWillTopic());
+         printf(F(ESC_ATTR_BOLD " Server:      " ESC_ATTR_RESET "%s (%s)\n"), __mqttManager.getServer(), _bMqttServerOnline?"online":"offline");
+         printf(F(ESC_ATTR_BOLD " Port:        " ESC_ATTR_RESET "%d\n"), __mqttManager.getPort());
+         printf(F(ESC_ATTR_BOLD " QoS:         " ESC_ATTR_RESET "%d\n"), __mqttManager.getQoS());
+         printf(F(ESC_ATTR_BOLD " Root path:   " ESC_ATTR_RESET "%s\n"), __mqttManager.getRootPath());
+         printf(F(ESC_ATTR_BOLD " Will:        " ESC_ATTR_RESET "%d\n"), __mqttManager.isWill());
+         printf(F(ESC_ATTR_BOLD " Will topic:  " ESC_ATTR_RESET "%s\n"), __mqttManager.getWillTopic());
          printf(F(ESC_ATTR_BOLD " Heatb. per.: " ESC_ATTR_RESET "%d\n"), _timerHeartbeat.getPeriod());
          println(F("mqtt commands:"));
          println(F("  server <server>"));
@@ -179,8 +175,7 @@ bool CxESPConsoleMqtt::__processCommand(const char *szCmd, bool bQuiet) {
          println(F("  load"));
       }
    } else {
-      // command not handled here, proceed into the base class
-      return CxESPConsoleLog::__processCommand(szCmd, bQuiet);
+      return false;
    }
    return true;
 }
@@ -191,32 +186,32 @@ bool CxESPConsoleMqtt::startMqtt(const char* server, uint32_t port) {
    // start timer to regular server check.
    _timer60sMqttServer.start();
    
-   if (server) _mqttManager.setServer(server);
-   if (port > 0) _mqttManager.setPort(port);
-   if (isHostAvailble(_mqttManager.getServer(), _mqttManager.getPort())) {
+   if (server) __mqttManager.setServer(server);
+   if (port > 0) __mqttManager.setPort(port);
+   if (isHostAvailble(__mqttManager.getServer(), __mqttManager.getPort())) {
       info(F("start mqtt service"));
-      info(F("connecting mqtt server %s on port %d"), _mqttManager.getServer(), _mqttManager.getPort());
-      if (_mqttManager.getRootPath()) {
-         info(F("root path is '%s'"), _mqttManager.getRootPath() ? _mqttManager.getRootPath() : "");
+      info(F("connecting mqtt server %s on port %d"), __mqttManager.getServer(), __mqttManager.getPort());
+      if (__mqttManager.getRootPath()) {
+         info(F("root path is '%s'"), __mqttManager.getRootPath() ? __mqttManager.getRootPath() : "");
       }
-      if (_mqttManager.isWill()) {
-         if (_mqttManager.getWillTopic() && _mqttManager.getWillMessage()) {
-            info(F("last will message is '%s' on topic '%s'"), _mqttManager.getWillMessage(), _mqttManager.getWillTopic());
+      if (__mqttManager.isWill()) {
+         if (__mqttManager.getWillTopic() && __mqttManager.getWillMessage()) {
+            info(F("last will message is '%s' on topic '%s'"), __mqttManager.getWillMessage(), __mqttManager.getWillTopic());
          }
       } else {
          info(F("no last will was set."));
       }
-      _bMqttServerOnline = _mqttManager.begin();
+      _bMqttServerOnline = __mqttManager.begin();
       if (!_bMqttServerOnline) {
          error(F("connecting mqtt server failed!"));
       }
       // still needed?
       else {
          info(F("mqtt server is online!"));
-         _mqttManager.publishWill("online");
+         __mqttManager.publishWill("online");
       }
    } else {
-      error(F("mqtt server %s on port %d is not available!"), _mqttManager.getServer(), _mqttManager.getPort());
+      error(F("mqtt server %s on port %d is not available!"), __mqttManager.getServer(), __mqttManager.getPort());
       _bMqttServerOnline = false;
    }
    return _bMqttServerOnline;
@@ -228,31 +223,31 @@ void CxESPConsoleMqtt::stopMqtt() {
    // stop timer to regular server check.
    _timer60sMqttServer.stop();
    
-    _mqttManager.end();
+    __mqttManager.end();
    _bMqttServerOnline = false;
 }
 
 bool CxESPConsoleMqtt::isConnectedMqtt() {
-   return isConnected() && _mqttManager.isConnected();
+   return isConnected() && __mqttManager.isConnected();
 }
 
 void CxESPConsoleMqtt::loop() {
    CxESPConsoleLog::loop();
    if (isConnected()) {      
       if (_timerHeartbeat.isDue()) {
-         _mqttManager.publish("heartbeat", String((uint32_t)millis()).c_str());
+         __mqttManager.publish("heartbeat", String((uint32_t)millis()).c_str());
       }
-      _mqttManager.loop();
+      __mqttManager.loop();
    }
    if (_timer60sMqttServer.isDue()) {
       bool bOnline = _bMqttServerOnline;
-      _bMqttServerOnline = isHostAvailble(_mqttManager.getServer(), _mqttManager.getPort());
+      _bMqttServerOnline = isHostAvailble(__mqttManager.getServer(), __mqttManager.getPort());
       if (_bMqttServerOnline != bOnline) {
          if (bOnline) {
             info(F("mqtt server is online!"));
-            _mqttManager.publishWill("online");
+            __mqttManager.publishWill("online");
          } else {
-            error(F("mqtt server %s on port %d is not available!"), _mqttManager.getServer(), _mqttManager.getPort());
+            error(F("mqtt server %s on port %d is not available!"), __mqttManager.getServer(), __mqttManager.getPort());
          }
       }
       publishInfo();

@@ -20,9 +20,9 @@ void CxESPConsoleFS::begin() {
 
    // load specific environments for this class
    mount();
-   __processCommand("load ntp");
-   __processCommand("load tz");
-   __processCommand("load led");
+   _processCommand("load ntp");
+   _processCommand("load tz");
+   _processCommand("load led");
 
    __updateTime();
    
@@ -195,7 +195,7 @@ void CxESPConsoleFS::cat(const char* szFn) {
       File file = LittleFS.open(szFn, "r");
       if (file) {
          while (file.available()) {
-            print(file.read());
+            print((char)file.read());
          }
          println();
       } else {
@@ -346,7 +346,7 @@ void CxESPConsoleFS::format() {
    }
 }
 
-bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
+bool CxESPConsoleFS::_processCommand(const char *szCmd, bool bQuiet) {
    // validate the call
    if (!szCmd) return false;
    
@@ -370,11 +370,7 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
    const char* a = TKTOCHAR(tkCmd, 1);
    const char* b = TKTOCHAR(tkCmd, 2);
    
-   if (cmd == "?" || cmd == USR_CMD_HELP) {
-      // show help first from base class(es)
-      CxESPConsoleExt::__processCommand(szCmd);
-      println(F("FS commands:" ESC_TEXT_BRIGHT_WHITE "      du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save, load" ESC_ATTR_RESET));
-   } else if (cmd == "du") {printDu(a);a ? println() : println(" .");
+   if (cmd == "du") {printDu(a);a ? println() : println(" .");
    } else if (cmd == "df") {printDf();println(F(" bytes"));
    } else if (cmd == "size") {printSize();println(F(" bytes"));
    } else if (cmd == "ls") {
@@ -478,8 +474,7 @@ bool CxESPConsoleFS::__processCommand(const char *szCmd, bool bQuiet) {
    } else if (cmd == "$DOWNLOAD$") {
       _handleFile();
    } else {
-      // command not handled here, proceed into the base class
-      return CxESPConsoleExt::__processCommand(szCmd, bQuiet);
+      return false;
    }
    return true;
 }

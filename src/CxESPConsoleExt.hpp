@@ -10,7 +10,7 @@
 #define CxESPConsoleExt_hpp
 
 #include "CxESPConsole.hpp"
-#include "../tools/CxLed.hpp"
+#include "CxLed.hpp"
 
 #ifdef ARDUINO
 #ifdef ESP32
@@ -35,22 +35,23 @@ private:
    }
 #endif
    
+   bool _processCommand(const char* szCmd, bool bQuiet = false);
+
    static void _handleRoot();
    static void _handleConnect();
    void _beginAP();
    void _stopAP();
    
 protected:
-   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
    
 #ifndef ESP_CONSOLE_NOWIFI
    virtual void __prompt() override {
       if (__inAPMode()) {
-         __ioStream->print(ESC_CLEAR_LINE);
-         __ioStream->printf(FMT_PROMPT_USER_HOST_APMODE);
+         print(ESC_CLEAR_LINE);
+         printf(FMT_PROMPT_USER_HOST_APMODE);
       } else if(!isConnected()) {
-         __ioStream->print(ESC_CLEAR_LINE);
-         __ioStream->printf(FMT_PROMPT_USER_HOST_OFFLINE);
+         print(ESC_CLEAR_LINE);
+         printf(FMT_PROMPT_USER_HOST_OFFLINE);
       } else {
          CxESPConsole::__prompt();
       }
@@ -68,6 +69,9 @@ public:
 #endif
  
    CxESPConsoleExt(Stream& stream, const char* app = "", const char* ver = "") : Led1(LED_BUILTIN), CxESPConsole(stream, app, ver) {
+
+      // register commmand set for this class
+      commandHandler.registerCommandSet(F("Extended"), [this](const char* cmd, bool bQuiet)->bool {return _processCommand(cmd, bQuiet);}, F("hw, sw, net, esp, flash, net, set, eeprom, wifi, gpio, led"), F("Extended commands"));
 
 #ifdef ARDUINO
       _strCoreSdkVersion = "core ";

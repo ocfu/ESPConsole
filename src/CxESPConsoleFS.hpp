@@ -52,12 +52,13 @@ private:
    }
 #endif
    
+   bool _processCommand(const char* szCmd, bool bQuiet = false);
+
    bool _handleFile();
    bool _sendFile(WiFiClient* client, const char* filename);
 
    
 protected:
-   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
 
    void __printNoFS() {
       println(F("file system not mounted!"));
@@ -72,8 +73,12 @@ public:
 #ifndef ESP_CONSOLE_NOWIFI
    CxESPConsoleFS(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsoleFS((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 #endif
-   CxESPConsoleFS(Stream& stream, const char* app = "", const char* ver = "") : CxESPConsoleExt(stream, app, ver){}
-
+   CxESPConsoleFS(Stream& stream, const char* app = "", const char* ver = "") : CxESPConsoleExt(stream, app, ver) {
+      
+      // register commmand set for this class
+      commandHandler.registerCommandSet(F("File System"), [this](const char* cmd, bool bQuiet)->bool {return _processCommand(cmd, bQuiet);}, F("du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save, load"), F("File System commands"));
+      
+   }
 
    using CxESPConsole::begin;
    virtual void begin() override;

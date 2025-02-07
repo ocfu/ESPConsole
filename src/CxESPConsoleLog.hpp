@@ -33,16 +33,22 @@ private:
    }
 #endif
    
+   bool _processCommand(const char* szCmd, bool bQuiet = false);
+
    void _print2logServer(const char* sz);
 
 protected:
-   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
 
 public:
 #ifndef ESP_CONSOLE_NOWIFI
    CxESPConsoleLog(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsoleLog((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 #endif
-   CxESPConsoleLog(Stream& stream, const char* app = "", const char* ver = "") : CxESPConsoleFS(stream, app, ver){}
+   CxESPConsoleLog(Stream& stream, const char* app = "", const char* ver = "") : CxESPConsoleFS(stream, app, ver) {
+
+      // register commmand set for this class
+      commandHandler.registerCommandSet(F("Log"), [this](const char* cmd, bool bQuiet)->bool {return _processCommand(cmd, bQuiet);}, F("log"), F("Log commands"));
+
+   }
 
    using CxESPConsole::begin;
    virtual void begin() override;

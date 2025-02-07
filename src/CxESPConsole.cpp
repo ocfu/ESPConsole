@@ -37,10 +37,9 @@ void CxESPConsole::begin() {
       warn(F("Connection will be closed, max. number of clients reached."));
       _abortClient();
    }
-#endif
-   
    // silence the log messages on the console by default
    __nUsrLogLevel = 0;
+#endif
    
    _nUsers++;
    setConsoleName(""); // shall be set by the last derived class
@@ -68,24 +67,6 @@ void CxESPConsole::printInfo() {
    print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));printUpTimeISO(*__ioStream);printf(F(" - %d user(s)"), _nUsers);    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));printStartTime(*__ioStream);println();
    printHeap();println();
 }
-
-void CxESPConsole::printf(const char *fmt...) {
-   char buffer[128]; // Temporärer Puffer für die formatierte Ausgabe
-   va_list args;
-   va_start(args, fmt);
-   vsnprintf(buffer, sizeof(buffer), fmt, args); // Formatierte Zeichenkette erzeugen
-   va_end(args);
-   __ioStream->print(buffer); // Formatierte Zeichenkette ausgeben
-}
-
-void CxESPConsole::printf(const FLASHSTRINGHELPER * fmt...) {
-   char buffer[128]; // Temporärer Puffer für die formatierte Ausgabe
-   va_list args;
-   va_start(args, fmt);
-   vsnprintf(buffer, sizeof(buffer), (PGM_P)fmt, args); // Formatierte Zeichenkette erzeugen
-   va_end(args);
-   __ioStream->print(buffer); // Formatierte Zeichenkette ausgeben
-};
 
 void CxESPConsole::printUptimeExt() {
    // should be "hh:mm:ss up <days> days, hh:mm,  <users> user,  load average: <load>"
@@ -138,7 +119,7 @@ void CxESPConsole::printHeapUsed(bool fmt) {
    }
 }
 
-bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
+bool CxESPConsole::_processCommand(const char *szCmd, bool bQuiet) {   
    // validate the call
    if (!szCmd) return false;
    
@@ -209,8 +190,6 @@ bool CxESPConsole::__processCommand(const char *szCmd, bool bQuiet) {
 #endif
    } else if (cmd == "users") {
       printf(F("%d users (max: %d)\n"), _nUsers, _nMaxUsers);
-   }  else if (cmd == "?" || cmd == USR_CMD_HELP) {
-      println(F("General commands:" ESC_TEXT_BRIGHT_WHITE " ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid " ESC_ATTR_RESET));
    } else if (cmd == "usr") {
       // set user specific commands here. The first parameter is the command number, the second the flag
       // and the optional third how to set/clear. (0: clear flag, 1: set flag, default (-1): set the flag as value.)
@@ -276,12 +255,13 @@ void CxESPConsole::__handleConsoleInputs() {
       
       if (c == '\n') { // Kommando abgeschlossen
          _szCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
-         __ioStream->println();
-         if (!__processCommand(_szCmdBuffer)) {
-            if (_szCmdBuffer[0]) {
-               println(F("command was not valid!"));
-            }
-         }
+         println();
+         commandHandler.processCommand(*__ioStream, _szCmdBuffer);
+//         if (!__processCommand(_szCmdBuffer)) {
+//            if (_szCmdBuffer[0]) {
+//               println(F("command was not valid!"));
+//            }
+//         }
          _storeCmd(_szCmdBuffer);
          _clearCmdBuffer();
          __prompt();
@@ -311,7 +291,7 @@ void CxESPConsole::__handleConsoleInputs() {
       } else if (_iCmdBufferIndex < _nMAXLENGTH - 1) { // Zeichen hinzufügen
          _szCmdBuffer[_iCmdBufferIndex++] = c;
          _szCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
-         __ioStream->print(c); // Zeichen anzeigen
+         print(c); // Zeichen anzeigen
       }
    }
 }
@@ -364,7 +344,7 @@ void CxESPConsole::_abortClient() {
    WiFiClient* client = reinterpret_cast<WiFiClient*>(__ioStream);
    
    if (client && client->connected()) {
-      client->abort(); // Verbindung für WiFiClient beenden
+      client->abort(); // abort WiFiClient
    }
 #endif
 }
@@ -409,9 +389,10 @@ void CxESPConsole::loop() {
                // redirect stream to client
                Stream* pStream = __ioStream;
                __ioStream = &client;
-               if ( !__processCommand(commandBuffer)) {
-                  println(F("command was not valid!"));
-               };
+               commandHandler.processCommand(*__ioStream, commandBuffer);
+//               if ( !__processCommand(commandBuffer)) {
+//                  println(F("command was not valid!"));
+//               };
                // restore stream
                __ioStream = pStream;
                client.stop();
@@ -544,7 +525,7 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
    
    uint32_t len = _addPrefix('D', buf, sizeof(buf));
    
-   vsnprintf(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
    __debug(buf);
    
@@ -585,7 +566,7 @@ void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
    
    uint32_t len = _addPrefix('X', buf, sizeof(buf));
    
-   vsnprintf(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
    __debug_ext(flag, buf);
    
@@ -626,7 +607,7 @@ void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
    
    uint32_t len = _addPrefix('I', buf, sizeof(buf));
    
-   vsnprintf(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
    __info(buf);
    
@@ -666,7 +647,7 @@ void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
    
    uint32_t len = _addPrefix('W', buf, sizeof(buf));
    
-   vsnprintf(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
    __warn(buf);
    
@@ -706,7 +687,7 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
    
    uint32_t len = _addPrefix('E', buf, sizeof(buf));
    
-   vsnprintf(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
 
    __error(buf);
    

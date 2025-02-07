@@ -7,7 +7,7 @@
 //
 
 #include "CxESPConsoleLog.hpp"
-#include "../tools/CxConfigParser.hpp"
+#include "CxConfigParser.hpp"
 
 #ifdef ESP_CONSOLE_NOFS
 #error "ESP_CONSOLE_NOFS was defined. CxESPConsoleLog requires a FS to work!"
@@ -24,7 +24,7 @@ void CxESPConsoleLog::begin() {
 
    // load specific environments for this class
    mount();
-   __processCommand("log load");
+   _processCommand("log load");
    info(F("log started"));
 
    // call the begin() from base class(es)
@@ -37,7 +37,7 @@ void CxESPConsoleLog::printInfo() {
    // specific for this console
 }
 
-bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
+bool CxESPConsoleLog::_processCommand(const char *szCmd, bool bQuiet) {
    // validate the call
    if (!szCmd) return false;
    
@@ -61,11 +61,7 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
    const char* a = TKTOCHAR(tkCmd, 1);
    const char* b = TKTOCHAR(tkCmd, 2);
    
-   if (strCmd == "?" || strCmd == USR_CMD_HELP) {
-      // show help first from base class(es)
-      CxESPConsoleFS::__processCommand(szCmd);
-      println(F("Log commands:" ESC_TEXT_BRIGHT_WHITE "     log, usr" ESC_ATTR_RESET));
-   } else if (strCmd == "log") {
+   if (strCmd == "log") {
       String strSubCmd = TKTOCHAR(tkCmd, 1);
       String strEnv = ".log";
       if (strSubCmd == "server") {
@@ -111,8 +107,7 @@ bool CxESPConsoleLog::__processCommand(const char *szCmd, bool bQuiet) {
          info(F("test log message"));
       }
    } else {
-      // command not handled here, proceed into the base class
-      return CxESPConsoleFS::__processCommand(szCmd, bQuiet);
+      return false;
    }
    return true;
 }

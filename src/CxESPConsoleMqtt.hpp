@@ -14,7 +14,7 @@
 #endif
 
 #include "CxESPConsoleLog.hpp"
-#include "../tools/CxMqttManager.hpp"
+#include "CxMqttManager.hpp"
 
 #ifdef ARDUINO
 #include <PubSubClient.h>
@@ -26,7 +26,6 @@
 
 class CxESPConsoleMqtt : public CxESPConsoleLog {
 private:
-   CxMqttManager& _mqttManager = CxMqttManager::getInstance();
 
    bool _bMqttServerOnline = false;
    
@@ -39,12 +38,20 @@ private:
    
    CxMqttTopic* _pmqttTopicCmd = nullptr;
    
+   bool _processCommand(const char* szCmd, bool bQuiet = false);
+   
 protected:
-   virtual bool __processCommand(const char* szCmd, bool bQuiet = false) override;
+   CxMqttManager& __mqttManager = CxMqttManager::getInstance();
+   
 
 public:
    CxESPConsoleMqtt(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsoleMqtt((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
-   CxESPConsoleMqtt(Stream& stream, const char* app = "", const char* ver = "") : CxESPConsoleLog(stream, app, ver), _timer60sMqttServer(true), _timerHeartbeat(0) {} // put timer on hold
+   CxESPConsoleMqtt(Stream& stream, const char* app = "", const char* ver = "") : CxESPConsoleLog(stream, app, ver), _timer60sMqttServer(true), _timerHeartbeat(0) {
+
+      // register commmand set for this class
+      commandHandler.registerCommandSet(F("Mqtt"), [this](const char* cmd, bool bQuiet)->bool {return _processCommand(cmd, bQuiet);}, F("mqtt"), F("Mqtt commands"));
+
+   } // put timer on hold
 
    using CxESPConsole::begin;
    virtual void begin() override;
@@ -61,11 +68,11 @@ public:
    bool isConnectedMqtt();
    
    bool subscribe(const char* topic, CxMqttManager::tCallback callback) {
-      return _mqttManager.subscribe(topic, callback);
+      return __mqttManager.subscribe(topic, callback);
    }
 
    bool publish(const char* topic, const char* payload, bool retained = false) {
-      return _mqttManager.publish(topic, payload, retained);
+      return __mqttManager.publish(topic, payload, retained);
    }
    bool publish(const FLASHSTRINGHELPER * topicP, const char* payload, bool retained = false) {
       char buf[256];
