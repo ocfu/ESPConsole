@@ -105,8 +105,8 @@ public:
    void umount();
    void format();
    
-   void saveEnv(String& strEnv, String& strValue);
-   bool loadEnv(String& strEnv, String& strValue);
+   virtual void saveEnv(String& strEnv, String& strValue) override;
+   virtual bool loadEnv(String& strEnv, String& strValue) override;
 
 
 };

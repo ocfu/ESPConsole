@@ -268,9 +268,7 @@ public:
    float load() {return _fLoad;}
    float avgload() {return _fAvgLoad;}
    uint32_t avglooptime() {return _navgLoopTime;}
-   
-   // TODO: move these methods to the base class
-   
+      
    // basic logging functions
    void debug(const char* fmt...);
    void debug(String& str) {debug(str.c_str());}
@@ -313,6 +311,10 @@ public:
    void cls() {print(F(ESC_CLEAR_SCREEN));}
    
    virtual void printInfo();
+   
+   virtual void saveEnv(String& strEnv, String& strValue) {};
+   virtual bool loadEnv(String& strEnv, String& strValue) {return false;};
+
    
    ///
    /// protected members and methods
