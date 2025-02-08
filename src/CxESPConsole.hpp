@@ -86,8 +86,17 @@ public:
    void setStream(Stream& stream) {__ioStream = &stream;}
    Stream* getStream() {return __ioStream;}
    
+   void addComponent(CxESPConsoleBase& comp) {
+      __comp = &comp;
+   }
+   void addComponent(CxESPConsoleBase* comp) {
+      __comp = comp;
+   }
+
 protected:
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
+   CxESPConsoleBase* __comp = nullptr;
+
    
    CxCommandHandler& commandHandler = CxCommandHandler::getInstance();
    

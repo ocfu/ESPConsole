@@ -41,6 +41,8 @@ void CxESPConsole::begin() {
    __nUsrLogLevel = 0;
 #endif
    
+   if (__comp) __comp->setStream(*__ioStream);
+
    _nUsers++;
    setConsoleName(""); // shall be set by the last derived class
    cls();
@@ -412,6 +414,7 @@ void CxESPConsole::loop() {
             __espConsoleWiFiClient = _createInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
             if (__espConsoleWiFiClient) {
                __espConsoleWiFiClient->setHostName(getHostName());
+               __espConsoleWiFiClient->addComponent(__comp);
                __espConsoleWiFiClient->begin();
             } else {
                error(F("*** error: _createInstance() for new wifi client failed!"));
