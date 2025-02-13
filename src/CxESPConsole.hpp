@@ -14,11 +14,12 @@
 // include some generic defines, such as ESC sequences, format for prompts, debug macros etc.
 #include "defines.h"
 
-#include "CxCommandHandler.hpp"
-#include "CxESPHeapTracker.hpp"
-#include "CxESPTime.hpp"
-#include "CxStrToken.hpp"
-#include "CxTimer.hpp"
+#include "CxCapability.hpp"
+
+#include "../tools/CxESPHeapTracker.hpp"
+#include "../tools/CxESPTime.hpp"
+#include "../tools/CxStrToken.hpp"
+#include "../tools/CxTimer.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
@@ -35,10 +36,8 @@
  #include "devenv.h"
 #endif // end ARDUINO
 
-// include some generic defines, such as ESC sequences, format for prompts, debug macros etc.
-#include "defines.h"
-
-
+#include <map>
+#include <vector>
 
 
 ///
@@ -48,60 +47,124 @@
 /// and to implement print methods.
 ///
 class CxESPConsoleBase : public Print  {
+   
+   std::map<String, std::unique_ptr<CxCapability> (*)(CxESPConsole&, const char*)> _mapCapRegistry;  // Function pointers for constructors
+   std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
 
 public:
-   CxESPConsoleBase(Stream& stream) {
-      __ioStream = &stream;
-      
-      // load command set directly into RAM, not using flash strings as these commands
-      // always need to be available
-      commandHandler.registerCommandSet("Help", [this](const char* szCmd, bool bQuiet)->bool {
-         // validate the call
-         if (!szCmd) return false;
-         
-         // get the command and arguments into the token buffer
-         CxStrToken tkCmd(szCmd, " ");
-         
-         // validate again
-         if (!tkCmd.count()) return false;
-         
-         // we have a command, find the action to take
-         String cmd = TKTOCHAR(tkCmd, 0);
-         
-         // removes heading and trailing white spaces
-         cmd.trim();
-         
-         if (cmd == "?" || cmd == "help") {
-            if (__ioStream && !bQuiet) commandHandler.printHelp(*__ioStream);
-            return true;
-         } else {
-            return false;
-         }
-      }, "help, ?", "Help commands");
-   }
+   explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream) {}
    CxESPConsoleBase() : __ioStream(nullptr) {}
    
    virtual ~CxESPConsoleBase() {}
    
+   // Register constructor method (Prevent duplicates)
+   bool regCap(const char* name, std::unique_ptr<CxCapability> (*constructor)(CxESPConsole&, const char*)) {
+      if (_mapCapRegistry.find(name) != _mapCapRegistry.end()) {
+         print(F("Capability '")); print(name); println(F("' already listed."));
+         return false;  // Registration failed
+      }
+      _mapCapRegistry[name] = constructor;
+      return true;  // Registration successful
+   }
+   
+   // Unregister a constructor method and remove instance
+   void unregCap(const char* name) {
+      _mapCapRegistry.erase(name);
+      _mapCapInstances.erase(name);
+   }
+   
+   // Create an instance or return existing one (copy pointer)
+   std::unique_ptr<CxCapability> createCapInstanceCpy(const char* name, const char* param) {
+      // If an instance already exists, return a new copy
+      auto itInstance = _mapCapInstances.find(name);
+      if (itInstance != _mapCapInstances.end()) {
+         return std::make_unique<CxCapability>(*itInstance->second);  // Copy existing instance
+      }
+      
+      // If a constructor exists, create and store the instance
+      auto it = _mapCapRegistry.find(name);
+      if (it != _mapCapRegistry.end()) {
+         std::unique_ptr<CxCapability> newInstance = it->second(*((CxESPConsole*) this), param); // could be improved?
+         _mapCapInstances[name] = std::make_unique<CxCapability>(*newInstance);  // Store copy
+         return newInstance;  // Return newly created instance
+      }
+      
+      return nullptr;  // Constructor not found
+   }
+   
+   // Create an instance or return existing one
+   CxCapability* createCapInstance(const char* name, const char* param) {
+      // If an instance already exists, return the same pointer
+      auto itInstance = _mapCapInstances.find(name);
+      if (itInstance != _mapCapInstances.end()) {
+         print(F("Capability '")); print(name); println(F("' already exists."));
+         return itInstance->second.get();
+      }
+      
+      // If a constructor exists, create and store the instance
+      auto it = _mapCapRegistry.find(name);
+      if (it != _mapCapRegistry.end()) {
+         size_t mem = g_Heap.available();
+         std::unique_ptr<CxCapability> instance = it->second(*((CxESPConsole*) this), name); // could be improved?
+         if (instance) {
+            instance->setup();
+            _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
+            _mapCapInstances[name].get()->setMemAllocation(mem - g_Heap.available());
+            print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD));
+            print(_mapCapInstances[name].get()->getMemAllocation()); print(F(ESC_ATTR_RESET" bytes allocated. " ESC_ATTR_BOLD));
+            print(_mapCapInstances[name].get()->getCommandsCount()); println(F(ESC_ATTR_RESET" commands added."));
+         } else {
+            return nullptr;
+         }
+         return _mapCapInstances[name].get();
+      }
+      print(F("Capability '")); print(name); println(F("' not found."));
+      return nullptr;  // Constructor not found
+   }
+   
+   void deleteCapInstance(const char* name) {
+      auto it = _mapCapInstances.find(name);
+      if (it != _mapCapInstances.end()) {
+         if (!it->second.get()->isLocked()) {
+            _mapCapInstances.erase(it);  // Unique_ptr automatically deletes the object
+            print(F("Capability '")); print(name); println(F("' deleted."));
+         } else {
+            print(F("Capability '")); print(name); println(F("' is locked!"));
+         }
+      } else {
+         print(F("Capability '")); print(name); println(F("' not found."));
+      }
+   }
+   
+   // Print all registered constructors
+   void listCap() {
+      println(F("Available Capabilities: "));
+      for (const auto& entry : _mapCapRegistry) {
+         print("- "); print(entry.first.c_str());
+         if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
+            print(F(" (loaded"));
+            if (_mapCapInstances[entry.first].get()->isLocked()) {
+               print(F(" and locked"));
+            }
+            print(F(", "));
+            print(_mapCapInstances[entry.first].get()->getMemAllocation());
+            print(F(" bytes allocated, "));
+            print(_mapCapInstances[entry.first].get()->getCommandsCount());
+            print(F(" commands)"));
+            println();
+         } else {
+            println();
+         }
+      }
+   }
+   
+   bool processCmd(const char* cmd);
+   
    void setStream(Stream& stream) {__ioStream = &stream;}
    Stream* getStream() {return __ioStream;}
-   
-   void addComponent(CxESPConsoleBase& comp) {
-      __comp = &comp;
-   }
-   void addComponent(CxESPConsoleBase* comp) {
-      __comp = comp;
-   }
+      
+   void flush() {__ioStream->flush();}
 
-protected:
-   Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
-   CxESPConsoleBase* __comp = nullptr;
-
-   
-   CxCommandHandler& commandHandler = CxCommandHandler::getInstance();
-   
-   //virtual bool __processCommand(const char* szCmd, bool bQuiet = false) = 0;
-   
    // Implement the required write function
    virtual size_t write(uint8_t c) override {
       if(__ioStream) {
@@ -120,7 +183,11 @@ protected:
          return 0;
       }
    }
+
+protected:
    
+   Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
+
    // Universal printf() that supports both Flash and RAM strings
    void printf(const char *format, ...) {
       char buffer[128];  // Temporary buffer for formatted string
@@ -146,8 +213,12 @@ protected:
    virtual void __info(const char* sz) {println(sz);}
    virtual void __warn(const char* sz) {println(sz);}
    virtual void __error(const char* sz) {println(sz);}
+   
 
 };
+
+
+
 
 ///
 /// CxESPConsole class
@@ -161,12 +232,6 @@ protected:
 class CxESPConsole : public CxESPConsoleBase, public CxESPTime {
 
    ///
-   /// public typedefs
-   ///
-public:
-   
-
-   ///
    /// public constructors and destructors
    ///
 public:
@@ -178,10 +243,10 @@ public:
 #endif
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
    : CxESPConsoleBase(stream), CxESPTime(), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
-
-      // load command set directly into RAM, not using flash strings as these commands
-      // always should be available
-      commandHandler.registerCommandSet(F("General"), [this](const char* cmd, bool bQuiet)->bool {return _processCommand(cmd, bQuiet);}, F("reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid"), F("General commands"));
+      
+      regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
+      
+      createCapInstance(CxCapabilityBasic::getName(), "");
 
       if (!_pESPConsoleInstance) _pESPConsoleInstance = this;
       
@@ -199,7 +264,6 @@ public:
          _aszCmdHistory[i] = new char[_nMAXLENGTH]();
       }
    }
-   
    
    // virtual destructor as the object might be created by a inherited class
    virtual ~CxESPConsole() {
@@ -247,6 +311,7 @@ public:
    void printHeapAvailable(bool fmt = false);
    void printHeapSize(bool fmt = false);
    void printHeapUsed(bool fmt = false);
+   void printHeapFragmentation(bool fmt = false);
 #ifndef ESP_CONSOLE_NOWIFI
    void printHostName();
    void printIp();
@@ -323,8 +388,17 @@ public:
    
    virtual void saveEnv(String& strEnv, String& strValue) {};
    virtual bool loadEnv(String& strEnv, String& strValue) {return false;};
-
    
+   void setLogLevel(uint32_t set) {__nLogLevel = set;}
+   uint32_t getLogLevel() {return __nLogLevel;}
+   
+   void setUsrLogLevel(uint32_t set) {__nUsrLogLevel = set;}
+   uint32_t getUsrLogLevel() {return __nUsrLogLevel;}
+
+   void setDebugFlag(uint32_t set) {__nExtDebugFlag = set;}
+   void resetDebugFlag(uint32_t set) {__nExtDebugFlag &= ~set;}
+   uint32_t getDebugFlag() {return __nExtDebugFlag;}
+
    ///
    /// protected members and methods
    ///
@@ -356,11 +430,8 @@ protected:
    ///
    ///
    uint32_t __nExtDebugFlag = 0x0;
-   
-
 
    void __handleConsoleInputs();
-   void __flush() {__ioStream->flush();}
    
    bool __isWiFiClient() {return __bIsWiFiClient;}
 
@@ -380,7 +451,8 @@ protected:
    /// Each usr query function must be non-blocking, means the process will not stop to wait for the answer.
    /// This will be realsied with a state _bWaitingForUsrResponse and a query related callback function.
    ///
-   
+
+public:
    ///
    /// Yes/No user response query
    /// - Parameter message: message presented at the prompt
@@ -458,9 +530,6 @@ private:
    }
 #endif
    
-   bool _processCommand(const char* szCmd, bool bQuiet = false);
-
-
    void _clearCmdBuffer() {
       memset(_szCmdBuffer, 0, _nMAXLENGTH);
       _iCmdBufferIndex = 0;

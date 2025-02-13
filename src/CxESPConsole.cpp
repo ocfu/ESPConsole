@@ -15,6 +15,25 @@ uint8_t CxESPConsole::_nUsers = 0;
 CxESPConsole* CxESPConsole::_pESPConsoleInstance = nullptr;
 
 
+bool CxESPConsoleBase::processCmd(const char* cmd) {
+   if (!cmd) return false;
+   
+   for (auto& entry : _mapCapInstances) {
+      if (cmd[0] == '?') {
+         entry.second->printCommands();
+      } else if (entry.second->processCmd(cmd)) {
+         return true;
+      }
+   }
+   
+   if (strlen(cmd) > 0 && cmd[0] != '?') {
+      println("Unknown command: ");
+      println(cmd);
+   }
+   return false;
+}
+
+
 ///
 /// begin() shall be overridden by the last derived class. The begin()s of the
 /// inherited classes shall be called first.
@@ -41,8 +60,6 @@ void CxESPConsole::begin() {
    __nUsrLogLevel = 0;
 #endif
    
-   if (__comp) __comp->setStream(*__ioStream);
-
    _nUsers++;
    setConsoleName(""); // shall be set by the last derived class
    cls();
@@ -92,6 +109,7 @@ void CxESPConsole::printHeap() {
    print(F(ESC_ATTR_BOLD " Heap Size: " ESC_ATTR_RESET));printHeapSize();print(F(" bytes"));
    print(F(ESC_ATTR_BOLD " Used: " ESC_ATTR_RESET));printHeapUsed();print(F(" bytes"));
    print(F(ESC_ATTR_BOLD " Free: " ESC_ATTR_RESET));printHeapAvailable();print(F(" bytes"));
+   print(F(ESC_ATTR_BOLD " Fragm.: " ESC_ATTR_RESET));printHeapFragmentation();print(F(" %"));
 }
 
 void CxESPConsole::printHeapAvailable(bool fmt) {
@@ -121,127 +139,12 @@ void CxESPConsole::printHeapUsed(bool fmt) {
    }
 }
 
-bool CxESPConsole::_processCommand(const char *szCmd, bool bQuiet) {   
-   // validate the call
-   if (!szCmd) return false;
-   
-   // get the command and arguments into the token buffer
-   CxStrToken tkCmd(szCmd, " ");
-   
-   // validate again
-   if (!tkCmd.count()) return false;
-   
-   // we have a command, find the action to take
-   String cmd = TKTOCHAR(tkCmd, 0);
-   
-   // removes heading and trailing white spaces
-   cmd.trim();
-   
-   if (cmd == "reboot") {
-      String opt = TKTOCHAR(tkCmd, 1);
-      
-      // force reboot
-      if (opt == "-f" || bQuiet) {
-         reboot();
-      } else {
-         // TODO: prompt user to be improved
-         __promptUserYN("Are you sure you want to reboot?", [](bool confirmed) {
-            if (confirmed) {
-               if (CxESPConsole::getInstance()) CxESPConsole::getInstance()->reboot();
-            }
-         });
-      }
-   } else if (cmd == "cls") {
-      cls();
-   } else if (cmd == "info") {
-      printInfo();
-      println();
-   } else if (cmd == "uptime") {
-      printUptimeExt();
-      println();
-   } else if (cmd == "time") {
-      printTime(*__ioStream);
-      println();
-   } else if (cmd == "date") {
-      printDate(*__ioStream);
-      println();
-   } else if (cmd == "heap") {
-      printHeap();
-      println();
-   } else if (cmd == "hostname") {
-#ifndef ESP_CONSOLE_NOWIFI
-      printHostName();
-      println();
-#endif
-   } else if (cmd == "ip") {
-#ifndef ESP_CONSOLE_NOWIFI
-      printIp();
-      println();
-#endif
-   } else if (cmd == "ssid") {
-#ifndef ESP_CONSOLE_NOWIFI
-      printSSID();
-      println();
-#endif
-   } else if (cmd == "exit") {
-#ifndef ESP_CONSOLE_NOWIFI
-      info(F("exit wifi client"));
-      _abortClient();
-#else
-      printf(F("exit has no function!"));
-#endif
-   } else if (cmd == "users") {
-      printf(F("%d users (max: %d)\n"), _nUsers, _nMaxUsers);
-   } else if (cmd == "usr") {
-      // set user specific commands here. The first parameter is the command number, the second the flag
-      // and the optional third how to set/clear. (0: clear flag, 1: set flag, default (-1): set the flag as value.)
-      // usr <cmd> [<flag/value> [<0|1>]]
-      int32_t nCmd = TKTOINT(tkCmd, 1, -1);
-      uint32_t nValue = TKTOINT(tkCmd, 2, 0);
-      int8_t set = TKTOINT(tkCmd, 3, -1);
-      
-      switch (nCmd) {
-            // usr 0: be quite, switch all loggings off on the console. log to server/file remains
-         case 0:
-            __nUsrLogLevel = LOGLEVEL_OFF;
-            break;
-            
-            // usr 1: set the usr log level to show logs on the console
-         case 1:
-            if (nValue) {
-               __nUsrLogLevel = (nValue>LOGLEVEL_MAX) ? LOGLEVEL_MAX : nValue;
-            } else {
-               printf(F("usr log level: %d\n"), __nUsrLogLevel);
-            }
-            break;
-            
-            // usr 2: set extended debug flag
-         case 2:
-            if (set < 0) {
-               __nExtDebugFlag = nValue;
-            } else if (set == 0) {
-               __nExtDebugFlag &= ~nValue;
-            } else {
-               __nExtDebugFlag |= nValue;
-            }
-            if (__nExtDebugFlag) {
-               __nLogLevel = LOGLEVEL_DEBUG_EXT;
-            }
-            break;
-            
-         default:
-            println(F("usage: usr <cmd> [<flag/value> [<0|1>]]"));
-            println(F(" 0           be quite, switch all log messages off on the console."));
-            println(F(" 1  <1..5>   set the log level to show log messages on the console."));
-            println(F(" 2  <flag>   set the extended debug flag(s) to the value."));
-            println(F(" 2  <flag> 0 clear an extended debug flag."));
-            println(F(" 2  <flag> 1 add an extended debug flag."));
-            break;
-      }
+void CxESPConsole::printHeapFragmentation(bool fmt) {
+   if (fmt) {
+      printf(F("%7lu"), g_Heap.fragmentation());
    } else {
-      return false;
+      printf(F("%lu"), g_Heap.fragmentation());
    }
-   return true;
 }
 
 void CxESPConsole::__handleConsoleInputs() {
@@ -258,7 +161,8 @@ void CxESPConsole::__handleConsoleInputs() {
       if (c == '\n') { // Kommando abgeschlossen
          _szCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
          println();
-         commandHandler.processCommand(*__ioStream, _szCmdBuffer);
+         processCmd(_szCmdBuffer);
+         //commandHandler.processCommand(*__ioStream, _szCmdBuffer);
 //         if (!__processCommand(_szCmdBuffer)) {
 //            if (_szCmdBuffer[0]) {
 //               println(F("command was not valid!"));
@@ -391,7 +295,9 @@ void CxESPConsole::loop() {
                // redirect stream to client
                Stream* pStream = __ioStream;
                __ioStream = &client;
-               commandHandler.processCommand(*__ioStream, commandBuffer);
+               processCmd(_szCmdBuffer);
+
+               //commandHandler.processCommand(*__ioStream, commandBuffer);
 //               if ( !__processCommand(commandBuffer)) {
 //                  println(F("command was not valid!"));
 //               };
@@ -414,7 +320,6 @@ void CxESPConsole::loop() {
             __espConsoleWiFiClient = _createInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
             if (__espConsoleWiFiClient) {
                __espConsoleWiFiClient->setHostName(getHostName());
-               __espConsoleWiFiClient->addComponent(__comp);
                __espConsoleWiFiClient->begin();
             } else {
                error(F("*** error: _createInstance() for new wifi client failed!"));
