@@ -26,28 +26,24 @@
 #define CXCAPABILITY(className, capName, ...) \
 class className : public CxCapability { \
 public: \
-   explicit className(CxESPConsole& console) \
-      : CxCapability(console, capName, getCmds()) {} \
+   explicit className() \
+      : CxCapability(capName, getCmds()) {} \
    static constexpr const char* getName() { return capName; } \
    static const std::vector<const char*>& getCmds() { \
       static std::vector<const char*> commands = { __VA_ARGS__ }; \
       return commands; \
    } \
-   static std::unique_ptr<CxCapability> construct(CxESPConsole& console, const char* param) { \
-      return std::make_unique<className>(console); \
+   static std::unique_ptr<CxCapability> construct(const char* param) { \
+      return std::make_unique<className>(); \
    } \
    virtual void setup() override; \
    virtual void loop() override; \
    virtual bool execute(const char* cmd, const char* args) override; \
 }; \
 
-class CxESPConsole;
-
 class CxCapability : public Print {
 
-
 protected:
-   CxESPConsole& console;
    bool __bLocked;
    size_t __nMemAllocation = 0;
 
@@ -58,7 +54,7 @@ protected:
    virtual const std::vector<const char*>& getCommands() {return commands;}
 
 public:
-   explicit CxCapability(CxESPConsole& c, const char* setName, const std::vector<const char*>& cmds) : console(c), name(setName?setName:"unknown"), commands(cmds), __bLocked(false) {
+   explicit CxCapability(const char* setName, const std::vector<const char*>& cmds) : name(setName?setName:"unknown"), commands(cmds), __bLocked(false) {
    }
    virtual ~CxCapability() {}
    
@@ -117,9 +113,6 @@ public:
       println(ESC_ATTR_RESET);
    }
 };
-
-CXCAPABILITY(CxCapabilityBasic, "basic", "reboot", "cls", "info", "uptime", "time", "date", "heap",
-             "hostname", "ip", "ssid", "exit", "users", "usr", "list", "cap");
 
 
 #endif /* CxCapability */

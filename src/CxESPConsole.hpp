@@ -20,6 +20,7 @@
 #include "../tools/CxESPTime.hpp"
 #include "../tools/CxStrToken.hpp"
 #include "../tools/CxTimer.hpp"
+//#include "../capabilities/CxCapabilityBasic.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
@@ -48,7 +49,7 @@
 ///
 class CxESPConsoleBase : public Print  {
    
-   std::map<String, std::unique_ptr<CxCapability> (*)(CxESPConsole&, const char*)> _mapCapRegistry;  // Function pointers for constructors
+   std::map<String, std::unique_ptr<CxCapability> (*)(const char*)> _mapCapRegistry;  // Function pointers for constructors
    std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
 
 public:
@@ -58,7 +59,7 @@ public:
    virtual ~CxESPConsoleBase() {}
    
    // Register constructor method (Prevent duplicates)
-   bool regCap(const char* name, std::unique_ptr<CxCapability> (*constructor)(CxESPConsole&, const char*)) {
+   bool regCap(const char* name, std::unique_ptr<CxCapability> (*constructor)(const char*)) {
       if (_mapCapRegistry.find(name) != _mapCapRegistry.end()) {
          print(F("Capability '")); print(name); println(F("' already listed."));
          return false;  // Registration failed
@@ -84,7 +85,7 @@ public:
       // If a constructor exists, create and store the instance
       auto it = _mapCapRegistry.find(name);
       if (it != _mapCapRegistry.end()) {
-         std::unique_ptr<CxCapability> newInstance = it->second(*((CxESPConsole*) this), param); // could be improved?
+         std::unique_ptr<CxCapability> newInstance = it->second(param); // could be improved?
          _mapCapInstances[name] = std::make_unique<CxCapability>(*newInstance);  // Store copy
          return newInstance;  // Return newly created instance
       }
@@ -105,7 +106,7 @@ public:
       auto it = _mapCapRegistry.find(name);
       if (it != _mapCapRegistry.end()) {
          size_t mem = g_Heap.available();
-         std::unique_ptr<CxCapability> instance = it->second(*((CxESPConsole*) this), name); // could be improved?
+         std::unique_ptr<CxCapability> instance = it->second(name); // could be improved?
          if (instance) {
             instance->setup();
             _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
@@ -243,10 +244,6 @@ public:
 #endif
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
    : CxESPConsoleBase(stream), CxESPTime(), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
-      
-      regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
-      
-      createCapInstance(CxCapabilityBasic::getName(), "");
 
       if (!_pESPConsoleInstance) _pESPConsoleInstance = this;
       

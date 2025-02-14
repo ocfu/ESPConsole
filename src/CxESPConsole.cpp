@@ -7,6 +7,7 @@
 //
 
 #include "CxESPConsole.hpp"
+#include "../capabilities/CxCapabilityBasic.hpp"
 
 CxESPHeapTracker g_Heap; // init as early as possible...
 
@@ -39,6 +40,10 @@ bool CxESPConsoleBase::processCmd(const char* cmd) {
 /// inherited classes shall be called first.
 ///
 void CxESPConsole::begin() {
+   
+   regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
+   createCapInstance(CxCapabilityBasic::getName(), "");
+
    println();println();
    info(F("==== BASE ===="));
 
