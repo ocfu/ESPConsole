@@ -10,13 +10,17 @@
 #include "CxESPConsole.hpp"
 
 size_t CxCapability::write(uint8_t c) {
-   CxESPConsole& console = *CxESPConsole::getInstance();
-   return console.write(c);
+   if (_ioStream) {
+      return _ioStream->write(c);
+   }
+   return 0;
 }
 
 size_t CxCapability::write(const uint8_t *buffer, size_t size) {
-   CxESPConsole& console = *CxESPConsole::getInstance();
-   return console.write(buffer, size);
+   if (_ioStream) {
+      return _ioStream->write(buffer, size);
+   }
+   return 0;
 }
 
 bool CxCapability::processCmd(const char* szCmdLine) {

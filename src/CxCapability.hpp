@@ -42,6 +42,7 @@ public: \
 }; \
 
 class CxCapability : public Print {
+   Stream* _ioStream = nullptr;
 
 protected:
    bool __bLocked;
@@ -62,6 +63,9 @@ public:
    size_t getMemAllocation() {return __nMemAllocation;}
    void setMemAllocation(size_t set) {__nMemAllocation = set;}
    uint32_t getCommandsCount() {return (uint32_t)commands.size();}
+   
+   void setIoStream(Stream& stream) {_ioStream = &stream;}
+   Stream* getIoStream() {return _ioStream;}
    
    const char* getName() { return name;}
    

@@ -60,101 +60,117 @@ public:
    
    // Register constructor method (Prevent duplicates)
    bool regCap(const char* name, std::unique_ptr<CxCapability> (*constructor)(const char*)) {
-      if (_mapCapRegistry.find(name) != _mapCapRegistry.end()) {
-         print(F("Capability '")); print(name); println(F("' already listed."));
-         return false;  // Registration failed
+      if (!__bIsWiFiClient) {
+         if (_mapCapRegistry.find(name) != _mapCapRegistry.end()) {
+            print(F("Capability '")); print(name); println(F("' already listed."));
+            return false;  // Registration failed
+         }
+         _mapCapRegistry[name] = constructor;
+         return true;  // Registration successful
       }
-      _mapCapRegistry[name] = constructor;
-      return true;  // Registration successful
+      return false;
    }
    
    // Unregister a constructor method and remove instance
    void unregCap(const char* name) {
-      _mapCapRegistry.erase(name);
-      _mapCapInstances.erase(name);
+      if (!__bIsWiFiClient) {
+         _mapCapRegistry.erase(name);
+         _mapCapInstances.erase(name);
+      }
    }
    
    // Create an instance or return existing one (copy pointer)
    std::unique_ptr<CxCapability> createCapInstanceCpy(const char* name, const char* param) {
-      // If an instance already exists, return a new copy
-      auto itInstance = _mapCapInstances.find(name);
-      if (itInstance != _mapCapInstances.end()) {
-         return std::make_unique<CxCapability>(*itInstance->second);  // Copy existing instance
+      if (!__bIsWiFiClient) {
+         // If an instance already exists, return a new copy
+         auto itInstance = _mapCapInstances.find(name);
+         if (itInstance != _mapCapInstances.end()) {
+            return std::make_unique<CxCapability>(*itInstance->second);  // Copy existing instance
+         }
+         
+         // If a constructor exists, create and store the instance
+         auto it = _mapCapRegistry.find(name);
+         if (it != _mapCapRegistry.end()) {
+            std::unique_ptr<CxCapability> newInstance = it->second(param); // could be improved?
+            _mapCapInstances[name] = std::make_unique<CxCapability>(*newInstance);  // Store copy
+            return newInstance;  // Return newly created instance
+         }
       }
-      
-      // If a constructor exists, create and store the instance
-      auto it = _mapCapRegistry.find(name);
-      if (it != _mapCapRegistry.end()) {
-         std::unique_ptr<CxCapability> newInstance = it->second(param); // could be improved?
-         _mapCapInstances[name] = std::make_unique<CxCapability>(*newInstance);  // Store copy
-         return newInstance;  // Return newly created instance
-      }
-      
-      return nullptr;  // Constructor not found
+      return nullptr;  // Constructor not found or Wifi Client
    }
    
    // Create an instance or return existing one
    CxCapability* createCapInstance(const char* name, const char* param) {
-      // If an instance already exists, return the same pointer
-      auto itInstance = _mapCapInstances.find(name);
-      if (itInstance != _mapCapInstances.end()) {
-         print(F("Capability '")); print(name); println(F("' already exists."));
-         return itInstance->second.get();
-      }
-      
-      // If a constructor exists, create and store the instance
-      auto it = _mapCapRegistry.find(name);
-      if (it != _mapCapRegistry.end()) {
-         size_t mem = g_Heap.available();
-         std::unique_ptr<CxCapability> instance = it->second(name); // could be improved?
-         if (instance) {
-            instance->setup();
-            _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
-            _mapCapInstances[name].get()->setMemAllocation(mem - g_Heap.available());
-            print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD));
-            print(_mapCapInstances[name].get()->getMemAllocation()); print(F(ESC_ATTR_RESET" bytes allocated. " ESC_ATTR_BOLD));
-            print(_mapCapInstances[name].get()->getCommandsCount()); println(F(ESC_ATTR_RESET" commands added."));
-         } else {
-            return nullptr;
+      if (!__bIsWiFiClient) {
+         // If an instance already exists, return the same pointer
+         auto itInstance = _mapCapInstances.find(name);
+         if (itInstance != _mapCapInstances.end()) {
+            print(F("Capability '")); print(name); println(F("' already exists."));
+            return itInstance->second.get();
          }
-         return _mapCapInstances[name].get();
+         
+         // If a constructor exists, create and store the instance
+         auto it = _mapCapRegistry.find(name);
+         if (it != _mapCapRegistry.end()) {
+            size_t mem = g_Heap.available();
+            std::unique_ptr<CxCapability> instance = it->second(name); // could be improved?
+            if (instance) {
+               instance->setIoStream(*__ioStream);
+               instance->setup();
+               _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
+               _mapCapInstances[name].get()->setMemAllocation(mem - g_Heap.available());
+               print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD));
+               print(_mapCapInstances[name].get()->getMemAllocation()); print(F(ESC_ATTR_RESET" bytes allocated. " ESC_ATTR_BOLD));
+               print(_mapCapInstances[name].get()->getCommandsCount()); println(F(ESC_ATTR_RESET" commands added."));
+            } else {
+               return nullptr;
+            }
+            return _mapCapInstances[name].get();
+         }
+         print(F("Capability '")); print(name); println(F("' not found."));
       }
-      print(F("Capability '")); print(name); println(F("' not found."));
-      return nullptr;  // Constructor not found
+      return nullptr;  // Constructor not found or Wifi Client
    }
    
    void deleteCapInstance(const char* name) {
-      auto it = _mapCapInstances.find(name);
-      if (it != _mapCapInstances.end()) {
-         if (!it->second.get()->isLocked()) {
-            _mapCapInstances.erase(it);  // Unique_ptr automatically deletes the object
-            print(F("Capability '")); print(name); println(F("' deleted."));
+      if (!__bIsWiFiClient) {
+         auto it = _mapCapInstances.find(name);
+         if (it != _mapCapInstances.end()) {
+            if (!it->second.get()->isLocked()) {
+               _mapCapInstances.erase(it);  // Unique_ptr automatically deletes the object
+               print(F("Capability '")); print(name); println(F("' deleted."));
+            } else {
+               print(F("Capability '")); print(name); println(F("' is locked!"));
+            }
          } else {
-            print(F("Capability '")); print(name); println(F("' is locked!"));
+            print(F("Capability '")); print(name); println(F("' not found."));
          }
-      } else {
-         print(F("Capability '")); print(name); println(F("' not found."));
       }
    }
    
    // Print all registered constructors
    void listCap() {
-      println(F("Available Capabilities: "));
-      for (const auto& entry : _mapCapRegistry) {
-         print("- "); print(entry.first.c_str());
-         if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
-            print(F(" (loaded"));
-            if (_mapCapInstances[entry.first].get()->isLocked()) {
-               print(F(" and locked"));
+      if (__bIsWiFiClient) {
+         // forward command to main instance
+         // TODO: move to CxESPConsole
+      } else {
+         println(F("Available Capabilities: "));
+         for (const auto& entry : _mapCapRegistry) {
+            print("- "); print(entry.first.c_str());
+            if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
+               print(F(" (loaded"));
+               if (_mapCapInstances[entry.first].get()->isLocked()) {
+                  print(F(" and locked"));
+               }
+               print(F(", "));
+               print(_mapCapInstances[entry.first].get()->getMemAllocation());
+               print(F(" bytes allocated, "));
+               print(_mapCapInstances[entry.first].get()->getCommandsCount());
+               print(F(" commands)"));
+               println();
+            } else {
+               println();
             }
-            print(F(", "));
-            print(_mapCapInstances[entry.first].get()->getMemAllocation());
-            print(F(" bytes allocated, "));
-            print(_mapCapInstances[entry.first].get()->getCommandsCount());
-            print(F(" commands)"));
-            println();
-         } else {
-            println();
          }
       }
    }
@@ -186,7 +202,8 @@ public:
    }
 
 protected:
-   
+   bool __bIsWiFiClient = false;
+
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
 
    // Universal printf() that supports both Flash and RAM strings
@@ -400,7 +417,6 @@ public:
    /// protected members and methods
    ///
 protected:
-   bool __bIsWiFiClient = false;
    
    CxESPConsole* __espConsoleWiFiClient = nullptr;
 

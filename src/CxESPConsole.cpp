@@ -18,20 +18,33 @@ CxESPConsole* CxESPConsole::_pESPConsoleInstance = nullptr;
 
 bool CxESPConsoleBase::processCmd(const char* cmd) {
    if (!cmd) return false;
-   
-   for (auto& entry : _mapCapInstances) {
-      if (cmd[0] == '?') {
-         entry.second->printCommands();
-      } else if (entry.second->processCmd(cmd)) {
-         return true;
+   if (__bIsWiFiClient) {
+      // forward command to main instance
+      // TODO: verify smart pointer!
+      return CxESPConsole::getInstance()->processCmd(cmd);
+   } else {
+      for (auto& entry : _mapCapInstances) {
+         Stream* pStream = nullptr;
+         bool bResult = false;
+         if (__bIsWiFiClient) {
+            pStream = entry.second->getIoStream();
+            entry.second->setIoStream(*__ioStream);
+         }
+         if (cmd[0] == '?') {
+            entry.second->printCommands();
+         } else {
+            bResult = entry.second->processCmd(cmd);
+         }
+         if (pStream) entry.second->setIoStream(*pStream);
+         if (bResult) return true;
       }
+      
+      if (strlen(cmd) > 0 && cmd[0] != '?') {
+         println("Unknown command: ");
+         println(cmd);
+      }
+      return false;
    }
-   
-   if (strlen(cmd) > 0 && cmd[0] != '?') {
-      println("Unknown command: ");
-      println(cmd);
-   }
-   return false;
 }
 
 
@@ -41,8 +54,10 @@ bool CxESPConsoleBase::processCmd(const char* cmd) {
 ///
 void CxESPConsole::begin() {
    
-   regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
-   createCapInstance(CxCapabilityBasic::getName(), "");
+   if (!__isWiFiClient()) {
+      regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
+      createCapInstance(CxCapabilityBasic::getName(), "");
+   }
 
    println();println();
    info(F("==== BASE ===="));
