@@ -65,7 +65,13 @@ public:
    uint32_t getCommandsCount() {return (uint32_t)commands.size();}
    
    void setIoStream(Stream& stream) {_ioStream = &stream;}
-   Stream* getIoStream() {return _ioStream;}
+   Stream& getIoStream() {
+      if (_ioStream) {
+         return *_ioStream;
+      } else {
+         return Serial;
+      }
+   }
    
    const char* getName() { return name;}
    

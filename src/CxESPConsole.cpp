@@ -9,78 +9,60 @@
 #include "CxESPConsole.hpp"
 #include "../capabilities/CxCapabilityBasic.hpp"
 
-CxESPHeapTracker g_Heap; // init as early as possible...
+CxESPHeapTracker g_Heap(51000); // init as early as possible...
 
 
-uint8_t CxESPConsole::_nUsers = 0;
-CxESPConsole* CxESPConsole::_pESPConsoleInstance = nullptr;
+uint8_t CxESPConsole::__nUsers = 0;
 
-
-bool CxESPConsoleBase::processCmd(const char* cmd) {
+bool CxESPConsoleMaster::processCmd(const char* cmd) {
    if (!cmd) return false;
-   if (__bIsWiFiClient) {
-      // forward command to main instance
-      // TODO: verify smart pointer!
-      return CxESPConsole::getInstance()->processCmd(cmd);
-   } else {
-      for (auto& entry : _mapCapInstances) {
-         Stream* pStream = nullptr;
-         bool bResult = false;
-         if (__bIsWiFiClient) {
-            pStream = entry.second->getIoStream();
-            entry.second->setIoStream(*__ioStream);
-         }
-         if (cmd[0] == '?') {
-            entry.second->printCommands();
-         } else {
-            bResult = entry.second->processCmd(cmd);
-         }
-         if (pStream) entry.second->setIoStream(*pStream);
-         if (bResult) return true;
-      }
+   for (auto& entry : _mapCapInstances) {
+      bool bResult = false;
       
-      if (strlen(cmd) > 0 && cmd[0] != '?') {
-         println("Unknown command: ");
-         println(cmd);
-      }
-      return false;
+      entry.second->setIoStream(*__ioStream);
+      
+      bResult = entry.second->processCmd(cmd);
+      if (bResult && *cmd != '?') return true;
    }
+   
+   if (strlen(cmd) > 0 && *cmd != '?') {
+      println("Unknown command: ");
+      println(cmd);
+   }
+   return false;
 }
 
+void CxESPConsoleMaster::begin() {
+   info(F("==== MASTER ===="));
 
-///
-/// begin() shall be overridden by the last derived class. The begin()s of the
-/// inherited classes shall be called first.
-///
-void CxESPConsole::begin() {
+   regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
+   createCapInstance(CxCapabilityBasic::getName(), "");
    
-   if (!__isWiFiClient()) {
-      regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
-      createCapInstance(CxCapabilityBasic::getName(), "");
-   }
-
-   println();println();
-   info(F("==== BASE ===="));
-
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
    if (_pWiFiServer) {
 #ifdef ESP32
-      _strHostName = WiFi.getHostname();
+      setHostName(WiFi.getHostname().c_str());
 #else
-      _strHostName = WiFi.hostname();
+      setHostName(WiFi.hostname().c_str());
 #endif
 #endif
-   }
-   if (_nUsers == _nMaxUsers) {
-      warn(F("Connection will be closed, max. number of clients reached."));
-      _abortClient();
    }
    // silence the log messages on the console by default
    __nUsrLogLevel = 0;
 #endif
-   
-   _nUsers++;
+   CxESPConsole::begin();
+}
+
+void CxESPConsole::begin() {
+   println();println();
+   info(F("==== CONSOLE ===="));
+
+   if (__nUsers == __nMaxUsers) {
+      warn(F("Connection will be closed, max. number of clients reached."));
+      _abortClient();
+   }
+   __nUsers++;
    setConsoleName(""); // shall be set by the last derived class
    cls();
    wlcm();
@@ -98,74 +80,22 @@ void CxESPConsole::wlcm() {
    printf(F("ESP console %s + WiFi - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime();println();
 #endif
    println();
-   printInfo();
 }
 
-void CxESPConsole::printInfo() {
-   print(F(ESC_ATTR_BOLD "  Hostname: " ESC_ATTR_RESET));printHostName();printf(F(ESC_ATTR_BOLD " IP: " ESC_ATTR_RESET));printIp();printf(F(ESC_ATTR_BOLD " SSID: " ESC_ATTR_RESET));printSSID();println();
-   print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));printUpTimeISO(*__ioStream);printf(F(" - %d user(s)"), _nUsers);    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));printStartTime(*__ioStream);println();
-   printHeap();println();
+void CxESPConsoleMaster::wlcm() {
+   CxESPConsole::wlcm();
+   _mapCapInstances["basic"]->execute("info", "");
 }
 
-void CxESPConsole::printUptimeExt() {
-   // should be "hh:mm:ss up <days> days, hh:mm,  <users> user,  load average: <load>"
-   uint32_t seconds = uint32_t (millis() / 1000);
-   uint32_t days = seconds / 86400;
-   seconds %= 86400;
-   uint32_t hours = seconds / 3600;
-   seconds %= 3600;
-   uint32_t minutes = seconds / 60;
-   seconds %= 60;
-   printTime(*__ioStream);
-   printf(F(" up %d days, %02d:%02d,"), days, hours, minutes);
-   printf(F(" %d user, load: %.2f average: %.2f, loop time: %d"), users(), load(), avgload(), avglooptime());
+void CxESPConsoleClient::wlcm() {
+   CxESPConsole::wlcm();
+   CxESPConsoleMaster::getInstance().processCmd(*__ioStream, "info");
 }
 
 bool CxESPConsole::hasFS() {
    return false;
 }
 
-void CxESPConsole::printHeap() {
-   print(F(ESC_ATTR_BOLD " Heap Size: " ESC_ATTR_RESET));printHeapSize();print(F(" bytes"));
-   print(F(ESC_ATTR_BOLD " Used: " ESC_ATTR_RESET));printHeapUsed();print(F(" bytes"));
-   print(F(ESC_ATTR_BOLD " Free: " ESC_ATTR_RESET));printHeapAvailable();print(F(" bytes"));
-   print(F(ESC_ATTR_BOLD " Fragm.: " ESC_ATTR_RESET));printHeapFragmentation();print(F(" %"));
-}
-
-void CxESPConsole::printHeapAvailable(bool fmt) {
-   if (g_Heap.available() < 10000) print(F(ESC_TEXT_BRIGHT_YELLOW));
-   if (g_Heap.available() < 3000) print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
-   if (fmt) {
-      printf(F("%7lu"), g_Heap.available());
-   } else {
-      printf(F("%lu"), g_Heap.available());
-   }
-   print(F(ESC_ATTR_RESET));
-}
-
-void CxESPConsole::printHeapSize(bool fmt) {
-   if (fmt) {
-      printf(F("%s%7lu%s"), g_Heap.size());
-   } else {
-      printf(F("%lu"), g_Heap.size());
-   }
-}
-
-void CxESPConsole::printHeapUsed(bool fmt) {
-   if (fmt) {
-      printf(F("%7lu"), g_Heap.used());
-   } else {
-      printf(F("%lu"), g_Heap.used());
-   }
-}
-
-void CxESPConsole::printHeapFragmentation(bool fmt) {
-   if (fmt) {
-      printf(F("%7lu"), g_Heap.fragmentation());
-   } else {
-      printf(F("%lu"), g_Heap.fragmentation());
-   }
-}
 
 void CxESPConsole::__handleConsoleInputs() {
    
@@ -181,13 +111,14 @@ void CxESPConsole::__handleConsoleInputs() {
       if (c == '\n') { // Kommando abgeschlossen
          _szCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
          println();
-         processCmd(_szCmdBuffer);
-         //commandHandler.processCommand(*__ioStream, _szCmdBuffer);
-//         if (!__processCommand(_szCmdBuffer)) {
-//            if (_szCmdBuffer[0]) {
-//               println(F("command was not valid!"));
-//            }
-//         }
+/*
+         print("heap: ");
+#ifdef ARDUINO
+         print(ESP.getFreeHeap());
+#endif
+         println();
+ */
+         CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _szCmdBuffer);
          _storeCmd(_szCmdBuffer);
          _clearCmdBuffer();
          __prompt();
@@ -222,47 +153,10 @@ void CxESPConsole::__handleConsoleInputs() {
    }
 }
 
-void CxESPConsole::_measureCPULoad() {
-   // TODO: improve CPU load measurement
-   
-   uint32_t now = (uint32_t) micros();
-   
-   // Zeitdifferenz zur aktiven Zeit hinzufügen
-   _nActiveTime += micros() - _nStartActive;
-   
-   // Wenn der Beobachtungszeitraum erreicht ist
-   if (now - _nLastMeasurement >= _nTotalTime) {
-      if (_nLoops > 0) _navgLoopTime = (int32_t) (_nActiveTime / _nLoops);
-      
-      // Update der Gesamtzeit und aktiven Zeit
-      _nTotalActiveTime += _nActiveTime;
-      _nTotalObservationTime += _nTotalTime;
-      
-      // Durchschnittliche Prozesslast berechnen
-      _fAvgLoad = (_nTotalActiveTime / (float)_nTotalObservationTime);
-      
-      // Ausgabe der aktuellen und durchschnittlichen Prozesslast
-      _fLoad = (_nActiveTime / (float)_nTotalTime);
-      
-      // Werte zurücksetzen für den nächsten Messzyklus
-      _nActiveTime = 0;
-      _nLastMeasurement = now;
-      _nLoops = 0;
-   } else {
-      _nLoops++;
-   }
-   
-   // Zeit für die nächste Aufgabe messen
-   _nStartActive = (uint32_t) micros();
-      
-
-   // Keine Pausen oder Blockierungen
-
-}
 
 #ifndef ESP_CONSOLE_NOWIFI
 void CxESPConsole::_abortClient() {
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       println("No exit on a serial connection.");
       return;
    }
@@ -277,6 +171,13 @@ void CxESPConsole::_abortClient() {
 #endif
 
 void CxESPConsole::loop() {
+
+   __handleConsoleInputs();
+}
+
+void CxESPConsoleMaster::loop() {
+   CxESPConsole::loop();
+
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
    // check, if a new wifi client is or the current one is (still) connected
@@ -312,17 +213,7 @@ void CxESPConsole::loop() {
             
             if (commandReceived) {
                info(F("remote command received: %s"), commandBuffer);
-               // redirect stream to client
-               Stream* pStream = __ioStream;
-               __ioStream = &client;
-               processCmd(_szCmdBuffer);
-
-               //commandHandler.processCommand(*__ioStream, commandBuffer);
-//               if ( !__processCommand(commandBuffer)) {
-//                  println(F("command was not valid!"));
-//               };
-               // restore stream
-               __ioStream = pStream;
+               processCmd(client, commandBuffer);
                client.stop();
                
                info(F("Client disconnected after command."));
@@ -337,7 +228,7 @@ void CxESPConsole::loop() {
             info(F("Start interactive console"));
             _activeClient = client; // Aktiven Client aktualisieren
             delete __espConsoleWiFiClient; // Alte Instanz löschen
-            __espConsoleWiFiClient = _createInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
+            __espConsoleWiFiClient = _createClientInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
             if (__espConsoleWiFiClient) {
                __espConsoleWiFiClient->setHostName(getHostName());
                __espConsoleWiFiClient->begin();
@@ -355,52 +246,14 @@ void CxESPConsole::loop() {
    }
 #endif
 #endif
-   __handleConsoleInputs();
-   _measureCPULoad();
-}
-
-#ifndef ESP_CONSOLE_NOWIFI
-void CxESPConsole::printHostName() {
-   print(getHostName());
-}
-
-void CxESPConsole::printIp() {
-#ifdef ARDUINO
-   print(WiFi.localIP().toString().c_str());
-#endif
-}
-
-void CxESPConsole::printSSID() {
-#ifdef ARDUINO
-   if (isConnected()) {
-      printf(F("%s (%d dBm)"), WiFi.SSID().c_str(), WiFi.RSSI());
+   for (auto& entry : _mapCapInstances) {
+      entry.second->setIoStream(*__ioStream);
+      entry.second->loop();
    }
-#endif
 }
 
-void CxESPConsole::printMode() {
-#ifdef ARDUINO
-   switch(WiFi.getMode()) {
-      case WIFI_OFF:
-         print(F("OFF"));;
-         break;
-      case WIFI_STA:
-         print(F("Station (STA)"));
-         break;
-      case WIFI_AP:
-         print(F("Access Point (AP)"));
-         break;
-      case WIFI_AP_STA:
-         print(F("AP+STA"));
-         break;
-      default:
-         print(F("unknown"));
-         break;
-   }
-#endif
-}
 
-bool CxESPConsole::isHostAvailable(const char* szHost, int nPort) {
+bool CxESPConsoleMaster::isHostAvailable(const char* szHost, int nPort) {
 #ifdef ARDUINO
    if (WiFi.status() == WL_CONNECTED && nPort > 0 && szHost && szHost[0] != '\0') { //Check WiFi connection status
       WiFiClient client;
@@ -425,7 +278,7 @@ void CxESPConsole::debug(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
    }
    
@@ -445,7 +298,7 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
    }
    
@@ -465,7 +318,7 @@ void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
    }
    
@@ -486,7 +339,7 @@ void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
    }
    
@@ -507,7 +360,7 @@ void CxESPConsole::info(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
    }
    
@@ -527,7 +380,7 @@ void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
    }
    
@@ -547,7 +400,7 @@ void CxESPConsole::warn(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
    }
    
@@ -567,7 +420,7 @@ void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
    }
    
@@ -587,7 +440,7 @@ void CxESPConsole::error(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
    }
    
@@ -607,7 +460,7 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!__isWiFiClient()) {
+   if (!isWiFiClient()) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
    }
    
@@ -621,16 +474,3 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
    
    va_end(args);
 }
-
-void CxESPConsole::reboot() {
-   warn(F("reboot..."));
-#ifdef ARDUINO
-   delay(1000); // let some time to handle last network messages
-#ifndef ESP_CONSOLE_NOWIFI
-   WiFi.disconnect();
-#endif
-   ESP.restart();
-#endif
-}
-
-#endif /* ESP_COSNOLE_NOWIFI */

@@ -13,29 +13,58 @@ class CxESPHeapTracker;
 extern CxESPHeapTracker g_Heap; // init as early as possible...
 
 class CxESPHeapTracker {
-   size_t _nInitialHeap;
+   size_t _nInitialHeap = 0;
+   size_t _nActualHeap = 0;
+   size_t _nActualFrag = 0;
+   size_t _nLowHeap = 0;
+   size_t _nFragPeak = 0;
+   
 public:
-   CxESPHeapTracker() {_nInitialHeap = available();};
+   CxESPHeapTracker(size_t init = 0) {
+      if (init) {
+         _nInitialHeap = init;
+      } else {
+         _nInitialHeap = update();
+      }
+      _nLowHeap = _nInitialHeap;
+   };
+   
    size_t size() {
       return _nInitialHeap;
    }
+   
    size_t available() {
-#ifdef ARDUINO
-      return ESP.getFreeHeap();
-#else
-      return 0;
-#endif
+      // no update is on purpose. update shall be called by only one instance in a loop.
+      // why? ESP.getFreeHeap() seems to depend on a context and this lead
+      // to different results.
+      return _nActualHeap;
    }
+   
    size_t used() {
-      return _nInitialHeap - available();
+      return size() - available();
    }
    
    size_t fragmentation() {
+      return _nActualFrag;
+   }
+   
+   size_t update() {
 #ifdef ARDUINO
-      return ESP.getHeapFragmentation();
-#else
-      return 0;
+      _nActualHeap = ESP.getFreeHeap();
+      _nActualFrag = ESP.getHeapFragmentation();
 #endif
+      if (_nActualHeap < _nLowHeap) _nLowHeap = _nActualHeap;
+      if (_nActualFrag > _nFragPeak) _nFragPeak = _nActualFrag;
+
+      return _nActualHeap;
+   }
+   
+   size_t low() {
+      return _nLowHeap;
+   }
+   
+   size_t peak() {
+      return _nFragPeak;
    }
    
 };
