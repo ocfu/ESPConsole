@@ -33,9 +33,13 @@ bool CxCapability::processCmd(const char* szCmdLine) {
    
    if (!command) return false;  // No command found
    
-   for (const auto& cmdInSet : commands) {
-      if (strcmp(command, cmdInSet) == 0) {
-         if (execute(command, args ? args : "")) return true;
+   if (*command == '$') { // hidden command
+      return execute(command, args ? args : "");
+   } else {
+      for (const auto& cmdInSet : commands) {
+         if (strcmp(command, cmdInSet) == 0 || *command == '?') {
+            if (execute(command, args ? args : "")) return true;
+         }
       }
    }
    return false;
