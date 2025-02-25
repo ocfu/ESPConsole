@@ -32,6 +32,9 @@ public:
       
       setIoStream(*console.getStream());
       __bLocked = true;
+      
+      console.info(F("====  Cap: %s  ===="), getName());
+
    }
    
    void loop() override {

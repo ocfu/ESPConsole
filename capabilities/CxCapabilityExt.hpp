@@ -126,7 +126,7 @@ public:
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -139,6 +139,8 @@ public:
       g_Heap.update();
       
       __bLocked = false;
+      
+      console.info(F("====  Cap: %s  ===="), getName());
       
       if (!isConnected()) {
          println();
