@@ -134,11 +134,16 @@ public:
    }
    
    void setup() override {
+      CxCapability::setup();
+
       g_Heap.update();
       
       __bLocked = false;
       
-      if (!isConnected()) startWiFi();
+      if (!isConnected()) {
+         println();
+         startWiFi();
+      }
       
       Led1.off();
       if (isConnected()) {
@@ -193,6 +198,9 @@ public:
    }
    
    void loop() override {
+      startMeasure();
+      CxCapability::loop();
+
 #ifndef ESP_CONSOLE_NOWIFI
       Ota1.loop();
 #ifdef ARDUINO
@@ -206,6 +214,7 @@ public:
       if (_nTimer10s.isDue()) {
          g_Heap.update();
       }
+      stopMeasure();
    }
    
     bool execute(const char *szCmd, const char *args) override {

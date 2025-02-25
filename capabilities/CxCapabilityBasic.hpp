@@ -15,26 +15,12 @@
 class CxCapabilityBasic : public CxCapability {
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    
-   uint32_t _nLastMeasurement = 0; // Zeitmarke des letzten Messzyklus
-   uint32_t _nActiveTime = 0;      // Aktive Zeit für den aktuellen Zyklus
-   uint32_t _nTotalTime = 1000000; // Beobachtungszeitraum pro Zyklus (1 Sekunde in Mikrosekunden)
-   uint32_t _nLoops = 0;
-   uint32_t _navgLoopTime = 0;
-   
-   // Variablen für Durchschnitt
-   uint32_t _nTotalActiveTime = 0; // Gesamte aktive Zeit über alle Zyklen
-   uint32_t _nTotalObservationTime = 0; // Gesamtzeit über alle Zyklen
-   uint32_t _nStartActive = 0;
-   float _fAvgLoad = 0.0;
-   float _fLoad = 0.0;
-
-   
 public:
    explicit CxCapabilityBasic()
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -42,15 +28,16 @@ public:
    }
    
    void setup() override {
-      _nLastMeasurement = (uint32_t) micros(); // Startzeit initialisieren
-      _nStartActive = (uint32_t) micros();     // Zeit für die aktive Aufgabe messen
-
+      CxCapability::setup();
+      
       setIoStream(*console.getStream());
       __bLocked = true;
    }
    
    void loop() override {
-      measureCPULoad();
+      startMeasure();
+      CxCapability::loop();
+      stopMeasure();
    }
    
    bool execute(const char *szCmd, const char *args) override {
@@ -109,7 +96,10 @@ public:
          printInfo();
          println();
       } else if (cmd == "uptime") {
-         printUptimeExt();
+         console.printUptimeExt();
+         println();
+      } else if (cmd == "ps") {
+         console.printPs();
          println();
       } else if (cmd == "time") {
          if(console.getStream()) console.printTime(*console.getStream());
@@ -199,51 +189,7 @@ public:
       }
       return true;
    }
-   
-   float load() {return _fLoad;}
-   float avgload() {return _fAvgLoad;}
-   uint32_t avglooptime() {return _navgLoopTime;}
-   
-   
-   // TODO: take this into a seperated tool class and inherit to console and capability
-   void measureCPULoad() {
-      // TODO: improve CPU load measurement
       
-      uint32_t now = (uint32_t) micros();
-      
-      // Zeitdifferenz zur aktiven Zeit hinzufügen
-      _nActiveTime += micros() - _nStartActive;
-      
-      // Wenn der Beobachtungszeitraum erreicht ist
-      if (now - _nLastMeasurement >= _nTotalTime) {
-         if (_nLoops > 0) _navgLoopTime = (int32_t) (_nActiveTime / _nLoops);
-         
-         // Update der Gesamtzeit und aktiven Zeit
-         _nTotalActiveTime += _nActiveTime;
-         _nTotalObservationTime += _nTotalTime;
-         
-         // Durchschnittliche Prozesslast berechnen
-         _fAvgLoad = (_nTotalActiveTime / (float)_nTotalObservationTime);
-         
-         // Ausgabe der aktuellen und durchschnittlichen Prozesslast
-         _fLoad = (_nActiveTime / (float)_nTotalTime);
-         
-         // Werte zurücksetzen für den nächsten Messzyklus
-         _nActiveTime = 0;
-         _nLastMeasurement = now;
-         _nLoops = 0;
-      } else {
-         _nLoops++;
-      }
-      
-      // Zeit für die nächste Aufgabe messen
-      _nStartActive = (uint32_t) micros();
-      
-      
-      // Keine Pausen oder Blockierungen
-      
-   }
-   
    void reboot() {
       console.warn(F("reboot..."));
 #ifdef ARDUINO
@@ -255,20 +201,6 @@ public:
 #endif
    }
    
-   void printUptimeExt() {
-      // should be "hh:mm:ss up <days> days, hh:mm,  <users> user,  load average: <load>"
-      uint32_t seconds = uint32_t (millis() / 1000);
-      uint32_t days = seconds / 86400;
-      seconds %= 86400;
-      uint32_t hours = seconds / 3600;
-      seconds %= 3600;
-      uint32_t minutes = seconds / 60;
-      seconds %= 60;
-      console.printTime(getIoStream());
-      printf(F(" up %d days, %02d:%02d,"), days, hours, minutes);
-      printf(F(" %d user, load: %.2f average: %.2f, loop time: %d"), console.users(), load(), avgload(), avglooptime());
-   }
-
 #ifndef ESP_CONSOLE_NOWIFI
    void printHostName() {
       print(console.getHostName());

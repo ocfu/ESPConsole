@@ -11,6 +11,7 @@
 
 
 #include "Arduino.h"
+#include "../tools/CxProcessStatistic.hpp"
 
 // include some generic defines, such as ESC sequences, format for prompts, debug macros etc.
 #include "defines.h"
@@ -41,7 +42,7 @@ public: \
    virtual bool execute(const char* cmd, const char* args) override; \
 }; \
 
-class CxCapability : public Print {
+class CxCapability : public Print, public CxProcessStatistic {
    Stream* _ioStream = nullptr;
 
 protected:

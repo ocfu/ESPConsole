@@ -114,13 +114,14 @@ public:
 
 };
 
-class CxESPConsole : public CxESPConsoleBase, public CxESPTime {
+class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcessStatistic {
          
    String _strHostName; // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
    
    const char* _szUserName = "";
    const char* _szAppName = "";
    const char* _szAppVer = "";
+   
    
    static const int _nMAXLENGTH = 64;   // Max. command line length
    char _szCmdBuffer[_nMAXLENGTH];      // Command line buffer
@@ -216,6 +217,9 @@ protected:
    
    static uint8_t __nUsers;
    uint8_t __nMaxUsers = 2; // 1 serial, 1 wifi
+   CxProcessStatistic __totalCPU;
+   CxProcessStatistic __sysCPU;
+
    
    const char* __szConsoleName = ""; // appears at the start message
    void setConsoleName(const char* sz) {
@@ -301,6 +305,8 @@ public:
    const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
    const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
 
+   uint8_t users() {return __nUsers;}
+
    
    void printProgress(uint32_t actual, uint32_t max, const char* header, const char* unit) {
       uint32_t progress = (actual * 100) / max;
@@ -372,6 +378,19 @@ public:
       _cbUsrResponse = responseCallback;
    }
    
+   void printUptimeExt() {
+      // should be "hh:mm:ss up <days> days, hh:mm,  <users> user,  load average: <load>"
+      uint32_t seconds = uint32_t (millis() / 1000);
+      uint32_t days = seconds / 86400;
+      seconds %= 86400;
+      uint32_t hours = seconds / 3600;
+      seconds %= 3600;
+      uint32_t minutes = seconds / 60;
+      seconds %= 60;
+      printTime(*__ioStream);
+      printf(F(" up %d days, %02d:%02d,"), days, hours, minutes);
+      printf(F(" %d user, load: %.2f average: %.2f, loop time: %d"), users(), load(), avgload(), avglooptime());
+   }
 };
 
 class CxESPConsoleClient : public CxESPConsole {
@@ -477,13 +496,13 @@ public:
       // If a constructor exists, create and store the instance
       auto it = _mapCapRegistry.find(name);
       if (it != _mapCapRegistry.end()) {
-         size_t mem = g_Heap.available();
+         size_t mem = g_Heap.available(true); // force update
          std::unique_ptr<CxCapability> instance = it->second(name); // could be improved?
          if (instance) {
             instance->setIoStream(*__ioStream);
             instance->setup();
             _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
-            _mapCapInstances[name].get()->setMemAllocation(mem - g_Heap.available());
+            _mapCapInstances[name].get()->setMemAllocation(mem - g_Heap.available(true));
             print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD));
             print(_mapCapInstances[name].get()->getMemAllocation()); print(F(ESC_ATTR_RESET" bytes allocated. " ESC_ATTR_BOLD));
             print(_mapCapInstances[name].get()->getCommandsCount()); println(F(ESC_ATTR_RESET" commands added."));
@@ -533,6 +552,44 @@ public:
       }
    }
    
+   // process (loop) statistics
+   void printPs() {
+      println(F(ESC_ATTR_BOLD "Name     Cmd  Time Load Avg" ESC_ATTR_RESET));
+      printf( "%-8s ", "sys");
+      print(F("*    "));
+      printf("%4d ", __sysCPU.looptime());
+      printf("%1.2f ", __sysCPU.load());
+      printf("%1.2f", __sysCPU.avgload());
+      println();
+      
+      printf("%-8s ", "cons");
+      print(F("loop "));
+      printf("%4d ", looptime());
+      printf("%1.2f ", load());
+      printf("%1.2f", avgload());
+      println();
+
+      for (const auto& entry : _mapCapRegistry) {
+         if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
+            printf("%-8s ", entry.first.c_str());
+            print(F("loop "));
+            printf("%4d ", _mapCapInstances[entry.first].get()->looptime());
+            printf("%1.2f ", _mapCapInstances[entry.first].get()->load());
+            printf("%1.2f", _mapCapInstances[entry.first].get()->avgload());
+            println();
+         }
+      }
+
+      printf(ESC_ATTR_BOLD "%-8s ", "total");
+      print(F("*    "));
+      printf("%4d ", __totalCPU.looptime());
+      printf("%1.2f ", __totalCPU.load());
+      printf("%1.2f", __totalCPU.avgload());
+      println(ESC_ATTR_RESET);
+
+   }
+
+   
 #ifndef ESP_CONSOLE_NOWIFI
    bool isConnected() {
 #ifdef ARDUINO
@@ -557,8 +614,6 @@ public:
       return bResult;
    }
    
-   // TODO: get number of connected clients
-   uint8_t users() {return __nUsers;}
    
 #ifndef ESP_CONSOLE_NOWIFI
    void begin(WiFiServer& server) {

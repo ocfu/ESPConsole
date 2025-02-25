@@ -33,10 +33,13 @@ public:
       return _nInitialHeap;
    }
    
-   size_t available() {
-      // no update is on purpose. update shall be called by only one instance in a loop.
-      // why? ESP.getFreeHeap() seems to depend on a context and this lead
+   size_t available(bool bForceUpdate = false) {
+      // Update shall be called generally only by one instance in a loop.
+      // why? ESP.getFreeHeap() seems to depend on a context and this leads
       // to different results.
+      if (bForceUpdate) {
+         update();
+      }
       return _nActualHeap;
    }
    

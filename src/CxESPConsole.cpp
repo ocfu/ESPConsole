@@ -9,7 +9,7 @@
 #include "CxESPConsole.hpp"
 #include "../capabilities/CxCapabilityBasic.hpp"
 
-CxESPHeapTracker g_Heap(51000); // init as early as possible...
+CxESPHeapTracker g_Heap; // init as early as possible...
 
 
 uint8_t CxESPConsole::__nUsers = 0;
@@ -171,11 +171,13 @@ void CxESPConsole::_abortClient() {
 #endif
 
 void CxESPConsole::loop() {
-
    __handleConsoleInputs();
+   __totalCPU.measureCPULoad();
 }
 
 void CxESPConsoleMaster::loop() {
+   __sysCPU.stopMeasure();
+   startMeasure();
    CxESPConsole::loop();
 
 #ifdef ARDUINO
@@ -185,7 +187,7 @@ void CxESPConsoleMaster::loop() {
       char commandBuffer[128] = {0};
       bool commandReceived = false;
       int index = 0;
-
+      
       WiFiClient client = _pWiFiServer->available();
       
       // first check, if remote connection has a command
@@ -235,10 +237,12 @@ void CxESPConsoleMaster::loop() {
             } else {
                error(F("*** error: _createInstance() for new wifi client failed!"));
             }
+            g_Heap.update();
          } else if (__espConsoleWiFiClient) {
             info(F("Client disconnected."));
             delete __espConsoleWiFiClient;
             __espConsoleWiFiClient = nullptr;
+            g_Heap.update();
          }
       }
       
@@ -246,10 +250,12 @@ void CxESPConsoleMaster::loop() {
    }
 #endif
 #endif
+   stopMeasure();
    for (auto& entry : _mapCapInstances) {
       entry.second->setIoStream(*__ioStream);
       entry.second->loop();
    }
+   __sysCPU.startMeasure();
 }
 
 
