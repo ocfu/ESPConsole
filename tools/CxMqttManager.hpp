@@ -100,8 +100,8 @@ public:
    using tCallback = std::function<void(const char*, uint8_t*, unsigned int)>;
 
 private:
-   CxESPConsole* _consoleInstance = static_cast<CxESPConsole*>(CxESPConsole::getInstance());
-   
+   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+
    bool         _bIsInitialized; ///< the mqtt manager is ready to use
    WiFiClient   _wifiClient;    ///< WiFi client for underlying network communication.
    PubSubClient _mqttClient;    ///< MQTT client using the WiFi client.
