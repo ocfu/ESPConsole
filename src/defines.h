@@ -109,7 +109,7 @@
 
 #ifndef debug
 #ifdef DEBUG_BUILD
-#define _CONSOLE_DEBUG(...) if (_consoleInstance) _consoleInstance->debug(__VA_ARGS__)
+#define _CONSOLE_DEBUG(...) console.debug(__VA_ARGS__)
 #else
 #define _CONSOLE_DEBUG(...) ((void)0)
 #endif
