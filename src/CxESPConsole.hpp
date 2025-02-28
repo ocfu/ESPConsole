@@ -20,7 +20,6 @@
 #include "../tools/CxESPTime.hpp"
 #include "../tools/CxStrToken.hpp"
 #include "../tools/CxTimer.hpp"
-//#include "../capabilities/CxCapabilityBasic.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
@@ -204,8 +203,6 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
          println();
       }
    }
-   // logging functions
-   uint32_t _addPrefix(char c, char* buf, uint32_t lenmax);
    
 #ifndef ESP_CONSOLE_NOWIFI
    void _abortClient(); // aborts (ends) the (WiFi) client
@@ -499,9 +496,9 @@ public:
          size_t mem = g_Heap.available(true); // force update
          std::unique_ptr<CxCapability> instance = it->second(name); // could be improved?
          if (instance) {
-            instance->setIoStream(*__ioStream);
-            instance->setup();
             _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
+            _mapCapInstances[name]->setIoStream(*__ioStream);
+            _mapCapInstances[name]->setup();
             _mapCapInstances[name].get()->setMemAllocation(mem - g_Heap.available(true));
             print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD));
             print(_mapCapInstances[name].get()->getMemAllocation()); print(F(ESC_ATTR_RESET" bytes allocated. " ESC_ATTR_BOLD));
@@ -601,13 +598,13 @@ public:
    bool isHostAvailable(const char* szHost, int nPort);
 #endif
    
-   bool processCmd(const char* cmd);
-   bool processCmd(Stream& stream, const char* cmd) {
+   bool processCmd(const char* cmd, bool bQuiet = false);
+   bool processCmd(Stream& stream, const char* cmd, bool bQuiet = false) {
       // redirect stream to client
       Stream* pStream = __ioStream;
       __ioStream = &stream;
       
-      bool bResult = processCmd(cmd);
+      bool bResult = processCmd(cmd, bQuiet);
       
       __ioStream = pStream;
       

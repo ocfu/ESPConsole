@@ -9,12 +9,15 @@
 #include "CxESPConsole.hpp"
 #include "../capabilities/CxCapabilityBasic.hpp"
 
-CxESPHeapTracker g_Heap; // init as early as possible...
+CxESPHeapTracker g_Heap(51000); // init as early as possible...
 
 
 uint8_t CxESPConsole::__nUsers = 0;
 
-bool CxESPConsoleMaster::processCmd(const char* cmd) {
+CxESPConsoleMaster& g_console = CxESPConsoleMaster::getInstance();
+
+
+bool CxESPConsoleMaster::processCmd(const char* cmd, bool bQuiet) {
    if (!cmd) return false;
    for (auto& entry : _mapCapInstances) {
       bool bResult = false;
@@ -25,7 +28,7 @@ bool CxESPConsoleMaster::processCmd(const char* cmd) {
       if (bResult && *cmd != '?') return true;
    }
    
-   if (strlen(cmd) > 0 && *cmd != '?') {
+   if (!bQuiet && strlen(cmd) > 0 && *cmd != '?') {
       println("Unknown command: ");
       println(cmd);
    }
@@ -34,9 +37,6 @@ bool CxESPConsoleMaster::processCmd(const char* cmd) {
 
 void CxESPConsoleMaster::begin() {
    info(F("==== MASTER ===="));
-
-   regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct);
-   createCapInstance(CxCapabilityBasic::getName(), "");
    
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
@@ -272,13 +272,6 @@ bool CxESPConsoleMaster::isHostAvailable(const char* szHost, int nPort) {
    return false;
 }
 
-// logging functions
-uint32_t CxESPConsole::_addPrefix(char c, char* buf, uint32_t lenmax) {
-   uint32_t len = getTime(buf, lenmax, true);
-   snprintf(buf+len, lenmax, "[%c] ", c);
-   return (uint32_t)strlen(buf);
-}
-
 void CxESPConsole::debug(const char *fmt, ...) {
    
    va_list args;
@@ -289,13 +282,16 @@ void CxESPConsole::debug(const char *fmt, ...) {
    }
    
    char buf[256];
+   vsnprintf(buf, sizeof(buf), fmt, args);
    
-   uint32_t len = _addPrefix('D', buf, sizeof(buf));
+   String strLog;
+   strLog = "log debug ";
+   strLog += getTime();
+   strLog += "[D] ";
+   strLog += buf;
    
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   __debug(buf);
-   
+   if ( !g_console.processCmd(strLog.c_str(), true)) __debug(strLog.substring(10).c_str());
+
    va_end(args);
 }
 
@@ -309,13 +305,16 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
    }
    
    char buf[256];
+   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
    
-   uint32_t len = _addPrefix('D', buf, sizeof(buf));
+   String strLog;
+   strLog = "log debug ";
+   strLog += getTime();
+   strLog += "[D] ";
+   strLog += buf;
    
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   __debug(buf);
-   
+   if ( !g_console.processCmd(strLog.c_str(), true)) __debug(strLog.substring(10).c_str());
+
    va_end(args);
 }
 
@@ -329,13 +328,18 @@ void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
    }
    
    char buf[256];
+   vsnprintf(buf, sizeof(buf), fmt, args);
    
-   uint32_t len = _addPrefix('X', buf, sizeof(buf));
+   String strLog;
+   strLog = "log debug_ext ";
+   strLog += flag;
+   strLog += " ";
+   strLog += getTime();
+   strLog += "[X] ";
+   strLog += buf;
    
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   __debug_ext(flag, buf);
-      
+   if ( !g_console.processCmd(strLog.c_str(), true)) __debug_ext(flag, strLog.substring(14).c_str());
+
    va_end(args);
    
 }
@@ -350,13 +354,16 @@ void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
    }
    
    char buf[256];
+   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
+
+   String strLog;
+   strLog = "log debug_ext ";
+   strLog += getTime();
+   strLog += "[D] ";
+   strLog += buf;
    
-   uint32_t len = _addPrefix('X', buf, sizeof(buf));
-   
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   __debug_ext(flag, buf);
-   
+   if ( !g_console.processCmd(strLog.c_str(), true)) __debug_ext(flag, strLog.substring(14).c_str());
+
    va_end(args);
    
 }
@@ -371,13 +378,16 @@ void CxESPConsole::info(const char *fmt, ...) {
    }
    
    char buf[256];
+   vsnprintf(buf, sizeof(buf), fmt, args);
    
-   uint32_t len = _addPrefix('I', buf, sizeof(buf));
+   String strLog;
+   strLog = "log info ";
+   strLog += getTime();
+   strLog += "[I] ";
+   strLog += buf;
    
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   __info(buf);
-   
+   if ( !g_console.processCmd(strLog.c_str(), true)) __info(strLog.substring(9).c_str());
+
    va_end(args);
 }
 
@@ -391,13 +401,16 @@ void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
    }
    
    char buf[256];
+   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
    
-   uint32_t len = _addPrefix('I', buf, sizeof(buf));
+   String strLog;
+   strLog = "log info ";
+   strLog += getTime();
+   strLog += "[I] ";
+   strLog += buf;
    
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   __info(buf);
-   
+   if ( !g_console.processCmd(strLog.c_str(), true)) __info(strLog.substring(9).c_str());
+
    va_end(args);
 }
 
@@ -411,13 +424,16 @@ void CxESPConsole::warn(const char *fmt, ...) {
    }
    
    char buf[256];
+   vsnprintf(buf, sizeof(buf), fmt, args);
    
-   uint32_t len = _addPrefix('W', buf, sizeof(buf));
+   String strLog;
+   strLog = "log warn ";
+   strLog += getTime();
+   strLog += "[W] ";
+   strLog += buf;
    
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
+   if ( !g_console.processCmd(strLog.c_str(), true)) __warn(strLog.substring(9).c_str());
 
-   __warn(buf);
-   
    va_end(args);
 }
 
@@ -431,13 +447,16 @@ void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
    }
    
    char buf[256];
+   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
    
-   uint32_t len = _addPrefix('W', buf, sizeof(buf));
+   String strLog;
+   strLog = "log warn ";
+   strLog += getTime();
+   strLog += "[W] ";
+   strLog += buf;
    
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   __warn(buf);
-   
+   if ( !g_console.processCmd(strLog.c_str(), true)) __warn(strLog.substring(9).c_str());
+
    va_end(args);
 }
 
@@ -451,13 +470,16 @@ void CxESPConsole::error(const char *fmt, ...) {
    }
    
    char buf[256];
+   vsnprintf(buf, sizeof(buf), fmt, args);
    
-   uint32_t len = _addPrefix('E', buf, sizeof(buf));
+   String strLog;
+   strLog = "log error ";
+   strLog += getTime();
+   strLog += "[E] ";
+   strLog += buf;
    
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
+   if ( !g_console.processCmd(strLog.c_str(), true)) __error(strLog.substring(10).c_str());
 
-   __error(buf);
-   
    va_end(args);
 }
 
@@ -471,12 +493,15 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
    }
    
    char buf[256];
+   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
    
-   uint32_t len = _addPrefix('E', buf, sizeof(buf));
+   String strLog;
+   strLog = "log error ";
+   strLog += getTime();
+   strLog += "[E] ";
+   strLog += buf;
    
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   if ( !g_console.processCmd(strLog.c_str(), true)) __error(strLog.substring(10).c_str());
 
-   __error(buf);
-   
    va_end(args);
 }
