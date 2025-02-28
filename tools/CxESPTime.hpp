@@ -22,6 +22,7 @@
 ///
 
 class CxESPTime {
+   char _buf[20];
 public:
    CxESPTime() : _strNtpServer("pool.ntp.org"), _strTz("GMT0") {__initTime();};
    
@@ -37,17 +38,17 @@ public:
       stream.print(buf);
    }
    
-   uint32_t getTime(char* buf, uint32_t lenmax, bool ms = false) {
+   const char* getTime(bool ms = false) {
       __updateTime();
       if (isValid()) {
-         strftime (buf, lenmax, "%H:%M:%S", &_tmLocal);
-         if (ms && lenmax > 12) {
+         strftime (_buf, sizeof(_buf), "%H:%M:%S", &_tmLocal);
+         if (ms) {
             unsigned long millisec;
             struct timeval tv;
             
             gettimeofday(&tv, NULL);
             millisec = lrint(tv.tv_usec/1000.0); // Round to nearest millisec
-            snprintf(buf+8, lenmax-8, ".%03lu", millisec);
+            snprintf(_buf+8, sizeof(_buf)-8, ".%03lu", millisec);
          }
       } else {
          uint32_t millisec = uint32_t (millis());
@@ -58,9 +59,9 @@ public:
          seconds %= 3600;
          uint32_t minutes = seconds / 60;
          seconds %= 60;
-         snprintf(buf, lenmax, "%02d:%02d:%02d.%03d", hours, minutes, seconds, millisec);
+         snprintf(_buf, sizeof(_buf), "%02d:%02d:%02d.%03d", hours, minutes, seconds, millisec);
       }
-      return (uint32_t)strlen(buf);
+      return _buf;
    }
    
    void printDate(Stream& stream) {
