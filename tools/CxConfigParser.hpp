@@ -82,6 +82,11 @@ public:
       rebuildConfigString();
    }
    
+   void addVariable(const String strName, const char* szValue) {
+      String strValue = szValue;
+      addVariable(strName, strValue);
+   }
+   
    // Method to add an integer variable
    void addVariable(const String strName, uint32_t nValue) {
       configMap[strName] = String(nValue);
