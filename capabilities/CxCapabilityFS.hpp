@@ -11,6 +11,7 @@
 
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
+#include "../tools/CxConfigParser.hpp"
 #include "esphw.h"
 
 #ifndef ESP_CONSOLE_NOWIFI
@@ -34,16 +35,26 @@ struct FSInfo {
 #endif /* ARDUINO */
 #endif /* ESP_CONSOLE_NOWIFI */
 
+#define CAPFS(console) console.regCap(CxCapabilityFS::getName(), CxCapabilityFS::construct); console.createCapInstance(CxCapabilityFS::getName(), "");
+
+
 class CxCapabilityFS : public CxCapability {
    
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   
+   String _strLogServer = "";
+   uint32_t _nLogPort = 0;
+   bool _bLogServerAvailable = false;
+   
+   CxTimer60s _timer60sLogServer;
+
 
 public:
 
    explicit CxCapabilityFS() : CxCapability("fs", getCmds()) {}
    static constexpr const char* getName() { return "fs"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "save", "load" };
+      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "save", "load", "log" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -63,6 +74,7 @@ public:
       execute("load", "ntp");
       execute("load", "tz");
       execute("load", "led");
+      execute ("log", "load");
    }
    
    void loop() override {
@@ -74,16 +86,16 @@ public:
       
       
    
-   bool execute(const char *szCmd, const char *args) override {
+   bool execute(const char *strCmd, const char *args) override {
        
       // validate the call
-      if (!szCmd) return false;
+      if (!strCmd) return false;
       
       // get the command and arguments into the token buffer
       CxStrToken tkArgs(args, " ");
       
       // we have a command, find the action to take
-      String cmd = szCmd;
+      String cmd = strCmd;
       
       // removes heading and trailing white spaces
       cmd.trim();
@@ -111,7 +123,10 @@ public:
           umount();
        } else if (cmd == "format") {
           format();
-       } else if (cmd == "fs") {
+       } else if (cmd == "hasfs") {
+          return hasFS();
+       }
+       else if (cmd == "fs") {
           printFsInfo();
           println();
        } else if (cmd == "save") {
@@ -137,6 +152,10 @@ public:
              strValue = "Pin:";
              strValue += Led1.getPin();
              if (Led1.isInverted()) strValue += ",inverted";
+             saveEnv(strEnv, strValue);
+          } else if (strEnv == ".mqtt") {
+             strValue = args+5;
+             strValue.trim();
              saveEnv(strEnv, strValue);
           } else {
              println(F("save environment variable. \nusage: save <env>"));
@@ -187,9 +206,12 @@ public:
                    Led1.setInverted(inverted);
                 }
              }
-          }
-          else {
-             println(F("load environment varialbe.\nusage: load <env>"));
+          } else if (strEnv.length() > 1) {
+             if (loadEnv(strEnv, strValue)) {
+                console.processCmd((strEnv+" "+strValue).c_str());
+             }
+          } else {
+             println(F("load environment variable.\nusage: load <env>"));
              println(F("known env variables:\n ntp \n tz "));
              println(F("example: load ntp"));
           }
@@ -197,6 +219,61 @@ public:
           _handleFile();
        } else if (cmd == "$DOWNLOAD$") {
           _handleFile();
+       } else if (cmd == "log") {
+          String strSubCmd = TKTOCHAR(tkArgs, 0);
+          String strEnv = ".log";
+          if (strSubCmd == "server") {
+             _strLogServer = TKTOCHAR(tkArgs, 1);
+             _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
+             if (!_bLogServerAvailable) println(F("server not available!"));
+          } else if (strSubCmd == "port") {
+             _nLogPort = TKTOINT(tkArgs, 1, 0);
+             _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
+             if (!_bLogServerAvailable) println(F("server not available!"));
+          } else if (strSubCmd == "level") {
+             console.setLogLevel(TKTOINT(tkArgs, 1, console.getLogLevel()));
+          } else if (strSubCmd == "save") {
+             CxConfigParser Config;
+             Config.addVariable("level", console.getLogLevel());
+             Config.addVariable("server", _strLogServer);
+             Config.addVariable("port", _nLogPort);
+             saveEnv(strEnv, Config.getConfigStr());
+          } else if (strSubCmd == "load") {
+             String strValue;
+             if (loadEnv(strEnv, strValue)) {
+                CxConfigParser Config(strValue);
+                // extract settings and set, if defined. Keep unchanged, if not set.
+                console.setLogLevel(Config.getInt("level", console.getLogLevel()));
+                _strLogServer = Config.getSz("server", _strLogServer.c_str());
+                _nLogPort = Config.getInt("port", _nLogPort);
+                if (_strLogServer.length() && _nLogPort > 0) {
+                   _bLogServerAvailable = true;
+                   _timer60sLogServer.makeDue();
+                }
+             }
+          } else if (strSubCmd == "error") {
+             _error(args);
+          } else if (strSubCmd == "info") {
+             _info(args);
+          } else if (strSubCmd == "warn") {
+             _warn(args);
+          } else if (strSubCmd == "debug") {
+             _debug(args);
+          } else if (strSubCmd == "debug_ext") {
+             _debug_ext(TKTOINT(tkArgs, 2, 0), args);
+          } else {
+             printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), console.getLogLevel());printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), console.getUsrLogLevel());
+             printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), console.getDebugFlag());
+             printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
+             printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
+             println(F("log commands:"));
+             println(F("  server <server>"));
+             println(F("  port <port>"));
+             println(F("  level <level>"));
+             println(F("  save"));
+             println(F("  load"));
+             console.info(F("test log message"));
+          }
        } else {
           return false;
        }
@@ -509,7 +586,6 @@ public:
       }
    }
    
-   
    void saveEnv(String& strEnv, String& strValue) {
       if (hasFS()) {
          console.debug(F("save env variable %s, value=%s"), strEnv.c_str(), strValue.c_str());
@@ -521,7 +597,7 @@ public:
          }
 #endif
       } else {
-         _printNoFS();
+         println(F("file system not mounted!"));
       }
    }
    
@@ -539,11 +615,12 @@ public:
          }
 #endif
       } else {
-         _printNoFS();
+         println(F("file system not mounted!"));
       }
       return false;
       
    }
+
    
 private:
    void _getFSInfo(FSInfo& fsinfo) {
@@ -691,7 +768,83 @@ private:
       if (szCmd && !szFn) printf(F("%s: null : No such file or directory\n"), szCmd);
    };
 
+   void _print2logServer(const char* sz) {
+      if (!_strLogServer.length() || _nLogPort < 1) return;
+      
+      bool bAvailable = _bLogServerAvailable;
+      
+      if (_bLogServerAvailable) {
+#ifdef ARDUINO
+         WiFiClient client;
+         if (client.connect(_strLogServer.c_str(), _nLogPort)) {
+            if (client.connected()) {
+               client.print(sz);
+            }
+            client.stop();
+         } else {
+            _bLogServerAvailable = false;
+         }
+#endif
+      } else {
+         if (_timer60sLogServer.isDue()) {
+            _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
+         }
+      }
+      
+      if (bAvailable != _bLogServerAvailable) {
+         if (!_bLogServerAvailable) {
+            console.warn(F("log server %s OFFLINE, next attemp after 60s."), _strLogServer.c_str());
+         } else {
+            console.info(F("log server %s online"), _strLogServer.c_str());
+         }
+      }
+   }
    
+   void _debug(const char *buf) {
+      if (console.getUsrLogLevel() >= LOGLEVEL_DEBUG) {
+         print(F(ESC_ATTR_DIM));
+         println(buf);
+         print(F(ESC_ATTR_RESET));
+      }
+      if (console.getLogLevel() >= LOGLEVEL_DEBUG) _print2logServer(buf);
+   }
+   
+   void _debug_ext(uint32_t flag, const char *buf) {
+      if (console.getUsrLogLevel() >= LOGLEVEL_DEBUG_EXT) {
+         print(F(ESC_ATTR_DIM));
+         println(buf);
+         print(F(ESC_ATTR_RESET));
+      }
+      if (console.getLogLevel() >= LOGLEVEL_DEBUG_EXT) _print2logServer(buf);
+   }
+   
+   void _info(const char *buf) {
+      if (console.getUsrLogLevel() >= LOGLEVEL_INFO) {
+         println(buf);
+         print(F(ESC_ATTR_RESET));
+      }
+      if (console.getLogLevel() >= LOGLEVEL_INFO) _print2logServer(buf);
+   }
+   
+   void _warn(const char *buf) {
+      if (console.getUsrLogLevel() >= LOGLEVEL_WARN) {
+         print(F(ESC_TEXT_YELLOW));
+         println(buf);
+         print(F(ESC_ATTR_RESET));
+      }
+      if (console.getLogLevel() >= LOGLEVEL_WARN) _print2logServer(buf);
+   }
+   
+   void _error(const char *buf) {
+      if (console.getUsrLogLevel() >= LOGLEVEL_ERROR) {
+         print(F(ESC_ATTR_BOLD));
+         print(F(ESC_TEXT_BRIGHT_RED));
+         println(buf);
+         print(F(ESC_ATTR_RESET));
+      }
+      if (console.getLogLevel() >= LOGLEVEL_ERROR) _print2logServer(buf);
+   }
+
 };
 
 #endif /* CxCapabilityFS */
