@@ -31,7 +31,7 @@ const byte DNS_PORT = 53;
 
 #endif /* ARDUINO */
 
-
+#define CAPEXT(console) console.regCap(CxCapabilityExt::getName(), CxCapabilityExt::construct); console.createCapInstance(CxCapabilityExt::getName(), "");
 
 // HTML and CSS as embedded strings
 const char htmlPageTemplate[] PROGMEM = R"rawliteral(

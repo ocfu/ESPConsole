@@ -12,6 +12,9 @@
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
 
+#define CAPBASIC(console) console.regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct); console.createCapInstance(CxCapabilityBasic::getName(), "");
+
+
 class CxCapabilityBasic : public CxCapability {
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    
