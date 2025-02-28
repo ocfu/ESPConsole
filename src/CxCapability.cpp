@@ -24,7 +24,7 @@ size_t CxCapability::write(const uint8_t *buffer, size_t size) {
 }
 
 bool CxCapability::processCmd(const char* szCmdLine) {
-   char buffer[64];  // Copy the command for strtok
+   char buffer[strlen(szCmdLine)+1];  // Copy the command for strtok
    strncpy(buffer, szCmdLine, sizeof(buffer) - 1);
    buffer[sizeof(buffer) - 1] = '\0';
    
@@ -33,7 +33,7 @@ bool CxCapability::processCmd(const char* szCmdLine) {
    
    if (!command) return false;  // No command found
    
-   if (*command == '$') { // hidden command
+   if (*command == '$' || *command == '.') { // hidden command
       return execute(command, args ? args : "");
    } else {
       for (const auto& cmdInSet : commands) {
