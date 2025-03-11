@@ -10,12 +10,11 @@
 #include "../capabilities/CxCapabilityBasic.hpp"
 
 CxESPHeapTracker g_Heap(51000); // init as early as possible...
-
+CxESPStackTracker g_Stack;
 
 uint8_t CxESPConsole::__nUsers = 0;
 
-CxESPConsoleMaster& g_console = CxESPConsoleMaster::getInstance();
-
+CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 
 bool CxESPConsoleMaster::processCmd(const char* cmd, bool bQuiet) {
    if (!cmd) return false;
@@ -84,7 +83,7 @@ void CxESPConsole::wlcm() {
 
 void CxESPConsoleMaster::wlcm() {
    CxESPConsole::wlcm();
-   _mapCapInstances["basic"]->execute("info", "");
+   _mapCapInstances["basic"]->execute("info");
 }
 
 void CxESPConsoleClient::wlcm() {
@@ -272,6 +271,12 @@ bool CxESPConsoleMaster::isHostAvailable(const char* szHost, int nPort) {
    return false;
 }
 
+// logging functions
+uint32_t CxESPConsole::_addPrefix(char c, char* buf, uint32_t lenmax) {
+   snprintf(buf, lenmax, "%s [%c] ", getTime(true), c);
+   return (uint32_t)strlen(buf);
+}
+
 void CxESPConsole::debug(const char *fmt, ...) {
    
    va_list args;
@@ -281,17 +286,14 @@ void CxESPConsole::debug(const char *fmt, ...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf(buf, sizeof(buf), fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log debug ";
-   strLog += getTime();
-   strLog += "[D] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('D', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __debug(strLog.substring(10).c_str());
-
+   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
+   
+   __debug(buf);
+   
    va_end(args);
 }
 
@@ -304,17 +306,14 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log debug ";
-   strLog += getTime();
-   strLog += "[D] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('D', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __debug(strLog.substring(10).c_str());
-
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   
+   __debug(buf);
+   
    va_end(args);
 }
 
@@ -327,19 +326,14 @@ void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf(buf, sizeof(buf), fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log debug_ext ";
-   strLog += flag;
-   strLog += " ";
-   strLog += getTime();
-   strLog += "[X] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('X', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __debug_ext(flag, strLog.substring(14).c_str());
-
+   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
+   
+   __debug_ext(flag, buf);
+      
    va_end(args);
    
 }
@@ -353,17 +347,14 @@ void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
-
-   String strLog;
-   strLog = "log debug_ext ";
-   strLog += getTime();
-   strLog += "[D] ";
-   strLog += buf;
+   char buf[100];
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __debug_ext(flag, strLog.substring(14).c_str());
-
+   uint32_t len = _addPrefix('X', buf, sizeof(buf));
+   
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   
+   __debug_ext(flag, buf);
+   
    va_end(args);
    
 }
@@ -377,17 +368,14 @@ void CxESPConsole::info(const char *fmt, ...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf(buf, sizeof(buf), fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log info ";
-   strLog += getTime();
-   strLog += "[I] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('I', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __info(strLog.substring(9).c_str());
-
+   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
+   
+   __info(buf);
+   
    va_end(args);
 }
 
@@ -400,17 +388,14 @@ void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log info ";
-   strLog += getTime();
-   strLog += "[I] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('I', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __info(strLog.substring(9).c_str());
-
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   
+   __info(buf);
+   
    va_end(args);
 }
 
@@ -423,17 +408,14 @@ void CxESPConsole::warn(const char *fmt, ...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf(buf, sizeof(buf), fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log warn ";
-   strLog += getTime();
-   strLog += "[W] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('W', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __warn(strLog.substring(9).c_str());
+   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
 
+   __warn(buf);
+   
    va_end(args);
 }
 
@@ -446,17 +428,14 @@ void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log warn ";
-   strLog += getTime();
-   strLog += "[W] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('W', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __warn(strLog.substring(9).c_str());
-
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
+   
+   __warn(buf);
+   
    va_end(args);
 }
 
@@ -469,17 +448,14 @@ void CxESPConsole::error(const char *fmt, ...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf(buf, sizeof(buf), fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log error ";
-   strLog += getTime();
-   strLog += "[E] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('E', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __error(strLog.substring(10).c_str());
+   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
 
+   __error(buf);
+   
    va_end(args);
 }
 
@@ -492,16 +468,13 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
       if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
    }
    
-   char buf[256];
-   vsnprintf_P(buf, sizeof(buf), (PGM_P) fmt, args);
+   char buf[100];
    
-   String strLog;
-   strLog = "log error ";
-   strLog += getTime();
-   strLog += "[E] ";
-   strLog += buf;
+   uint32_t len = _addPrefix('E', buf, sizeof(buf));
    
-   if ( !g_console.processCmd(strLog.c_str(), true)) __error(strLog.substring(10).c_str());
+   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
 
+   __error(buf);
+   
    va_end(args);
 }

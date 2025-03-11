@@ -86,6 +86,14 @@ public:
       stream.print(buf);
    }
    
+   const char* getStartTime() {
+      struct tm *tmstart = localtime(&_tStart);
+      
+      static char buf[80];
+      strftime (buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", tmstart);
+      return buf;
+   }
+   
    void printFileTime(Stream& stream, time_t cr, time_t lw) {
       //struct tm *tmcr = localtime(&cr);
       struct tm *tmlw = localtime(&lw);
@@ -121,6 +129,15 @@ public:
    void printUpTimeISO(Stream& stream, bool sec = true) {
       stream.print(getUpTimeISO(sec));
    }
+   
+   time_t getUpTimeSeconds() {
+      if (_tStart > 0) {
+         return time(nullptr) - _tStart;
+      } else {
+         return millis() / 1000;
+      }
+   }
+
    
    const char* getUpTimeISO(bool sec = true) {
       static char buf[32];

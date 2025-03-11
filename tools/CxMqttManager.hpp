@@ -233,20 +233,23 @@ public:
     * @param path The root path.
     */
    void setRootPath(const char* path) {
+      
+      // FIXME: SOS stack problems !?
+
       if (_strRootPath != path) {
-         _CONSOLE_DEBUG(F("set new root path to %s"), path);
+         //_CONSOLE_DEBUG(F("set new root path to %s"), path);
 
          // root path has changed, re-subscribe all subscribtions with a relative path
          for (const auto& pair : _mapTopicCallbacks) {
             if (_mapIsRelative[pair.first]) {
                String strTopic = _strRootPath + '/' + pair.first;
-               _CONSOLE_DEBUG(F("unsubscribe topic %s"), strTopic.c_str());
+               //_CONSOLE_DEBUG("unsubscribe topic %s", strTopic.c_str());
                _mqttClient.unsubscribe(strTopic.c_str());
                
                strTopic = path;
                strTopic += '/';
                strTopic += pair.first;
-               _CONSOLE_DEBUG(F("subscribe topic %s"), strTopic.c_str());
+               //_CONSOLE_DEBUG("subscribe topic %s", strTopic.c_str());
                _mqttClient.subscribe(strTopic.c_str());
             }
          }
@@ -264,6 +267,7 @@ public:
    
    void setBufferSize(uint16_t size) {
       _nBufferSize = (size > 128) ? size : 128;
+      _mqttClient.setBufferSize(_nBufferSize);
    }
    
    uint16_t getBufferSize() {
@@ -310,20 +314,24 @@ public:
          _mqttClient.setBufferSize(_nBufferSize);
          _mqttClient.setCallback([this](const char* topic, uint8_t* payload, unsigned int length) {
             if (topic && payload) {
+               // take a copy of the topic here. it might become invalid after the call of the callback function, e.g. if a call back function publish something.
+               const char* topicCpy = strdup(topic);
+
+               // MARK: do we need to copy the payload as well? use case: one topic was subsribed more than one time.
                payload[length] = '\0';
-               _CONSOLE_DEBUG(F("received from topic %s: '%s'"), topic, (char*)payload);
+               _CONSOLE_DEBUG(F("received from topic %s: '%s'"), topicCpy, (char*)payload);
 
                for (const auto& pair : _mapTopicCallbacks) {
                   if (!pair.second.second) continue; // has no callback
                   if (_mapIsRelative[pair.first]) {
                      String strTopic = _strRootPath + '/' + pair.first;
-                     _CONSOLE_DEBUG(F("compare topics '%s' with '%s'"), strTopic.c_str(), topic);
+                     _CONSOLE_DEBUG(F("compare topics '%s' with '%s'"), strTopic.c_str(), topicCpy);
 
-                     if (strTopic == topic) pair.second.second(topic, payload, length);
+                     if (strTopic == topicCpy) pair.second.second(topicCpy, payload, length);
                   } else {
-                     _CONSOLE_DEBUG(F("compare topics '%s' with '%s'"), pair.first+1, topic);
-                     if (strcmp(pair.first+1, topic) == 0) { // without heading '/'
-                        pair.second.second(topic, payload, length);
+                     _CONSOLE_DEBUG(F("compare topics '%s' with '%s'"), pair.first+1, topicCpy);
+                     if (strcmp(pair.first+1, topicCpy) == 0) { // without heading '/'
+                        pair.second.second(topicCpy, payload, length);
                      }
                   }
                }
@@ -418,6 +426,12 @@ public:
     */
    bool publish(const char* topic, const char* value, bool retain = false) {
       // is topic given as an absolute path (indicated with a starting '/'), than ignore the root path.
+      
+//      if (topic) {
+//         console.print("publish to topic: "); console.println(topic);
+//         console.println(value);
+//      }
+//      
       if (topic && topic[0] == '/' && topic[1]) {
          return _mqttClient.publish(topic+1, value, retain);
       } else if (topic && topic[0]){

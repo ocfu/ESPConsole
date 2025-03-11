@@ -17,6 +17,7 @@
 #include "CxCapability.hpp"
 
 #include "../tools/CxESPHeapTracker.hpp"
+#include "../tools/CxESPStackTracker.hpp"
 #include "../tools/CxESPTime.hpp"
 #include "../tools/CxStrToken.hpp"
 #include "../tools/CxTimer.hpp"
@@ -38,6 +39,11 @@
 
 #include <map>
 #include <vector>
+#include <functional>
+
+class CxESPConsoleMaster;
+
+extern CxESPConsoleMaster& ESPConsole;
 
 
 ///
@@ -48,11 +54,31 @@
 ///
 class CxESPConsoleBase : public Print  {
    
+   std::function<void(const char*)> _funcDebug;
+   std::function<void(uint32_t flag, const char*)> _funcDebugExt;
+   std::function<void(const char*)> _funcWarn;
+   std::function<void(const char*)> _funcInfo;
+   std::function<void(const char*)> _funcError;
+   std::function<bool(String& strEnv, String& strValue)> _funcLoadEnv;
+   std::function<void(String& strEnv, String& strValue)> _funcSaveEnv;
+
 protected:
    bool __bIsWiFiClient = false;
    
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    
+   virtual void __debug(const char* sz) {if(_funcDebug) _funcDebug(sz); else println(sz);}
+   virtual void __debug_ext(uint32_t flag, const char* sz) {if(_funcDebugExt) _funcDebugExt(flag, sz); else println(sz);}
+   virtual void __info(const char* sz) {if(_funcInfo) _funcInfo(sz); else println(sz);}
+   virtual void __warn(const char* sz) {if(_funcWarn) _funcWarn(sz); else println(sz);}
+   virtual void __error(const char* sz) {if(_funcError) _funcError(sz); else println(sz);}
+
+public:
+   explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream) {}
+   CxESPConsoleBase() : __ioStream(nullptr) {}
+   
+   virtual ~CxESPConsoleBase() {}
+
    // Universal printf() that supports both Flash and RAM strings
    void printf(const char *format, ...) {
       char buffer[128];  // Temporary buffer for formatted string
@@ -72,19 +98,7 @@ protected:
       va_end(args);
       print(buffer);  // Use Print's built-in print()
    }
-   
-   virtual void __debug(const char* sz) {println(sz);}
-   virtual void __debug_ext(uint32_t flang, const char* sz) {println(sz);}
-   virtual void __info(const char* sz) {println(sz);}
-   virtual void __warn(const char* sz) {println(sz);}
-   virtual void __error(const char* sz) {println(sz);}
 
-public:
-   explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream) {}
-   CxESPConsoleBase() : __ioStream(nullptr) {}
-   
-   virtual ~CxESPConsoleBase() {}
-   
    
    void setStream(Stream& stream) {__ioStream = &stream;}
    Stream* getStream() {return __ioStream;}
@@ -109,7 +123,25 @@ public:
          return 0;
       }
    }
-
+   
+   bool loadEnv(String& strEnv, String& strValue) {if (_funcLoadEnv) return _funcLoadEnv(strEnv, strValue); else return false;}
+   void saveEnv(String& strEnv, String& strValue) {if (_funcSaveEnv) _funcSaveEnv(strEnv, strValue);}
+   
+   void setFuncDebug(std::function<void(const char*)> f) {_funcDebug = f;}
+   void clearFuncDebug() {_funcDebug = nullptr;}
+   void setFuncDebugExt(std::function<void(uint32_t flag, const char*)> f) {_funcDebugExt = f;}
+   void clearFuncDebugExt() {_funcDebugExt = nullptr;}
+   void setFuncInfo(std::function<void(const char*)> f) {_funcInfo = f;}
+   void clearFuncInfo() {_funcInfo = nullptr;}
+   void setFuncWarn(std::function<void(const char*)> f) {_funcWarn = f;}
+   void clearFuncWarn() {_funcWarn = nullptr;}
+   void setFuncError(std::function<void(const char*)> f) {_funcError = f;}
+   void clearFuncError() {_funcError = nullptr;}
+   
+   void setFuncLoadEnv(std::function<bool(String&, String&)> f) {_funcLoadEnv = f;}
+   void clearFuncLoadEnv() {_funcLoadEnv = nullptr;}
+   void setFuncSaveEnv(std::function<void(String&, String&)> f) {_funcSaveEnv = f;}
+   void clearFuncSaveEnv() {_funcSaveEnv = nullptr;}
 
 };
 
@@ -203,6 +235,8 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
          println();
       }
    }
+   // logging functions
+   uint32_t _addPrefix(char c, char* buf, uint32_t lenmax);
    
 #ifndef ESP_CONSOLE_NOWIFI
    void _abortClient(); // aborts (ends) the (WiFi) client

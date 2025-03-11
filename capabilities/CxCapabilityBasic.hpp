@@ -12,9 +12,6 @@
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
 
-#define CAPBASIC(console) console.regCap(CxCapabilityBasic::getName(), CxCapabilityBasic::construct); console.createCapInstance(CxCapabilityBasic::getName(), "");
-
-
 class CxCapabilityBasic : public CxCapability {
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    
@@ -23,7 +20,7 @@ public:
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -46,7 +43,7 @@ public:
       stopMeasure();
    }
    
-   bool execute(const char *szCmd, const char *args) override {
+   bool execute(const char *szCmd) override {
       
       bool bQuiet = false;
       
@@ -54,10 +51,10 @@ public:
       if (!szCmd) return false;
       
       // get the arguments into the token buffer
-      CxStrToken tkArgs(args, " ");
+      CxStrToken tkArgs(szCmd, " ");
       
       // we have a command, find the action to take
-      String cmd = szCmd;
+      String cmd = TKTOCHAR(tkArgs, 0);
       
       // removes heading and trailing white spaces
       cmd.trim();
@@ -65,12 +62,12 @@ public:
       if (cmd == "?") {
          printCommands();
       } else if (cmd == "cap") {
-         if (tkArgs.count() > 0) {
-            String strSubCmd = TKTOCHAR(tkArgs, 0);
-            if (strSubCmd == "load" && tkArgs.count() > 1) {
-               console.createCapInstance(TKTOCHAR(tkArgs, 1), "");
-            } else if (strSubCmd == "unload" && tkArgs.count() > 1) {
-               console.deleteCapInstance(TKTOCHAR(tkArgs, 1));
+         if (tkArgs.count() > 1) {
+            String strSubCmd = TKTOCHAR(tkArgs, 1);
+            if (strSubCmd == "load" && tkArgs.count() > 2) {
+               console.createCapInstance(TKTOCHAR(tkArgs, 2), "");
+            } else if (strSubCmd == "unload" && tkArgs.count() > 2) {
+               console.deleteCapInstance(TKTOCHAR(tkArgs, 2));
             } else if (strSubCmd == "list") {
                console.listCap();
             }
@@ -83,7 +80,7 @@ public:
          }
          return true;
       } else if (cmd == "reboot") {
-         String opt = TKTOCHAR(tkArgs, 0);
+         String opt = TKTOCHAR(tkArgs, 1);
          
          // force reboot
          if (opt == "-f" || bQuiet) {
@@ -115,6 +112,9 @@ public:
          println();
       } else if (cmd == "heap") {
          printHeap();
+         println();
+      } else if (cmd == "stack" ) {
+         printStack();
          println();
       } else if (cmd == "hostname") {
 #ifndef ESP_CONSOLE_NOWIFI
@@ -193,6 +193,7 @@ public:
       } else {
          return false;
       }
+      g_Stack.update();
       return true;
    }
       
@@ -253,6 +254,7 @@ public:
       print(F(ESC_ATTR_BOLD "  Hostname: " ESC_ATTR_RESET));printHostName();printf(F(ESC_ATTR_BOLD " IP: " ESC_ATTR_RESET));printIp();printf(F(ESC_ATTR_BOLD " SSID: " ESC_ATTR_RESET));printSSID();println();
       print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));console.printUpTimeISO(getIoStream());printf(F(" - %d user(s)"), console.users());    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));console.printStartTime(getIoStream());println();
       printHeap();println();
+      printStack();println();
    }
    
    void printHeap() {
@@ -263,6 +265,13 @@ public:
       print(F(ESC_ATTR_BOLD " Fragm.: " ESC_ATTR_RESET));printHeapFragmentation();print(F(" % (peak: ")); printHeapFragmentationPeak();print(F(("%)")));
    }
    
+   void printStack() {
+      print(F(ESC_ATTR_BOLD " Stack: " ESC_ATTR_RESET));printStackSize();print(F(" bytes"));
+      print(F(ESC_ATTR_BOLD " Room: " ESC_ATTR_RESET));printStackHeapDistance();print(F(" bytes"));
+      print(F(ESC_ATTR_BOLD " High: " ESC_ATTR_RESET));printStackHigh();print(F(" bytes"));
+      print(F(ESC_ATTR_BOLD " Low: " ESC_ATTR_RESET));printStackLow();print(F(" bytes"));
+   }
+
    void printHeapAvailable(bool fmt = false) {
       if (g_Heap.available() < 10000) print(F(ESC_TEXT_BRIGHT_YELLOW));
       if (g_Heap.available() < 3000) print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
@@ -315,6 +324,41 @@ public:
          printf(F("%7lu"), g_Heap.peak());
       } else {
          printf(F("%lu"), g_Heap.peak());
+      }
+   }
+   
+   void printStackHigh(bool fmt = false) {
+      if (g_Stack.getHigh() > 1000) print(F(ESC_TEXT_BRIGHT_YELLOW));
+      if (g_Stack.getHigh() > 2000) print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
+      if (fmt) {
+         printf(F("%7lu"), g_Stack.getHigh());
+      } else {
+         printf(F("%lu"), g_Stack.getHigh());
+      }
+      print(F(ESC_ATTR_RESET));
+   }
+   
+   void printStackSize(bool fmt = false) {
+      if (fmt) {
+         printf(F("%s%7lu%s"), g_Stack.getSize());
+      } else {
+         printf(F("%lu"), g_Stack.getSize());
+      }
+   }
+   
+   void printStackHeapDistance(bool fmt = false) {
+      if (fmt) {
+         printf(F("%7lu"), g_Stack.getHeapDistance());
+      } else {
+         printf(F("%lu"), g_Stack.getHeapDistance());
+      }
+   }
+   
+   void printStackLow(bool fmt = false) {
+      if (fmt) {
+         printf(F("%7lu"), g_Stack.getLow());
+      } else {
+         printf(F("%lu"), g_Stack.getLow());
       }
    }
 

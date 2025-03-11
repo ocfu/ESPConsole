@@ -11,11 +11,11 @@
 
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
+
+#include "../capabilities/CxCapabilityFS.hpp"
+
+
 #include "../tools/CxMqttManager.hpp"
-
-#define CAPMQTT(console) console.regCap(CxCapabilityMqtt::getName(), CxCapabilityMqtt::construct); console.createCapInstance(CxCapabilityMqtt::getName(), "");
-
-
 
 class CxCapabilityMqtt : public CxCapability {
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
@@ -55,8 +55,8 @@ public:
       
       console.info(F("====  Cap: %s  ===="), getName());
       
-      execute ("mqtt", "load");
-      execute ("mqtt", "connect");
+      execute ("mqtt load");
+      execute ("mqtt connect");
       
       _pmqttTopicCmd = new CxMqttTopic("cmd", [this](const char* topic, uint8_t* payload, unsigned int len) {
          console.info(("command is %s"), (char*)payload);
@@ -95,66 +95,61 @@ public:
       stopMeasure();
    }
    
-   bool execute(const char *szCmd, const char *args) override {
-      String strConfig;
-      
-      if (args) strConfig = args;
-
-      
+   bool execute(const char *szCmd) override {
       bool bQuiet = false;
       
       // validate the call
       if (!szCmd) return false;
       
       // get the arguments into the token buffer
-      CxStrToken tkArgs(args, " ");
+      CxStrToken tkArgs(szCmd, " ");
       
       // we have a command, find the action to take
-      String cmd = szCmd;
+      String cmd = TKTOCHAR(tkArgs, 0);
       
       // removes heading and trailing white spaces
       cmd.trim();
       
       // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkArgs, 0);
-      const char* b = TKTOCHAR(tkArgs, 1);
+      const char* a = TKTOCHAR(tkArgs, 1);
+      const char* b = TKTOCHAR(tkArgs, 2);
       
       if (cmd == "?") {
          printCommands();
       } else if (cmd == "mqtt") {
-         String strSubCmd = TKTOCHAR(tkArgs, 0);
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
          String strEnv = ".mqtt";
          if (strSubCmd == "connect") {
-            startMqtt(TKTOCHAR(tkArgs, 1), TKTOINT(tkArgs, 2, 0));
+            startMqtt(TKTOCHAR(tkArgs, 2), TKTOINT(tkArgs, 3, 0));
          } else if (strSubCmd == "stop") {
             console.info(F("stop mqtt server"));
             stopMqtt();
          } else if (strSubCmd == "server") {
-            __mqttManager.setServer(TKTOCHAR(tkArgs, 1));
+            __mqttManager.setServer(TKTOCHAR(tkArgs, 2));
             _bMqttServerOnline = console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
             if (!_bMqttServerOnline) println(F("server not available!"));
             startMqtt();
          } else if (strSubCmd == "port") {
-            __mqttManager.setPort(TKTOINT(tkArgs, 1, 0));
+            __mqttManager.setPort(TKTOINT(tkArgs, 2, 0));
             _bMqttServerOnline = console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
             if (!_bMqttServerOnline) println(F("server not available!"));
             startMqtt();
          } else if (strSubCmd == "qos") {
-            __mqttManager.setQoS(TKTOINT(tkArgs, 1, 0));
+            __mqttManager.setQoS(TKTOINT(tkArgs, 2, 0));
          } else if (strSubCmd == "root") {
-            __mqttManager.setRootPath(TKTOCHAR(tkArgs, 1));
+            __mqttManager.setRootPath(TKTOCHAR(tkArgs, 2));
          } else if (strSubCmd == "heartbeat") {
-            int32_t period = TKTOINT(tkArgs, 1, -1);
+            int32_t period = TKTOINT(tkArgs, 2, -1);
             if (period == 0 || period >= 1000) _timerHeartbeat.start(period, true);
          } else if (strSubCmd == "will") {
             if (b) {
-               int8_t bWill = (int8_t)TKTOINT(tkArgs, 1, -1);
+               int8_t bWill = (int8_t)TKTOINT(tkArgs, 3, -1);
                if (bWill > 0) {
                   // disable or enable will behaviour. In case to will topic was set, the will topic is the rootPath
                   __mqttManager.setWill(bWill);
                } else {
                   // set topic. will behaviour implicitly enabled, if topic length > 0.
-                  __mqttManager.setWillTopic(TKTOCHAR(tkArgs, 1));
+                  __mqttManager.setWillTopic(TKTOCHAR(tkArgs, 2));
                }
             } else {
                __mqttManager.setWillTopic("");
@@ -170,13 +165,31 @@ public:
             Config.addVariable("will", (uint8_t)__mqttManager.isWill());
             Config.addVariable("willtopic", __mqttManager.getWillTopic());
             Config.addVariable("heartbeat", _timerHeartbeat.getPeriod());
-            strSubCmd += " mqtt " + Config.getConfigStr();
-            console.processCmd(strSubCmd.c_str());
+            
+            String strEnv = ".mqtt";
+            ESPConsole.saveEnv(strEnv, Config.getConfigStr());
+            
          } else if (strSubCmd == "load") {
-            strSubCmd += " mqtt";
-            console.processCmd(strSubCmd.c_str());
+            String strValue;
+            if (ESPConsole.loadEnv(strEnv, strValue)) {
+               CxConfigParser Config(strValue.c_str());
+               // extract settings and set, if defined. Keep unchanged, if not set.
+               __mqttManager.setServer(Config.getSz("server", __mqttManager.getServer()));
+               __mqttManager.setPort(Config.getInt("port", __mqttManager.getPort()));
+               __mqttManager.setQoS(Config.getInt("qos", __mqttManager.getQoS()));
+               __mqttManager.setRootPath(Config.getSz("root", __mqttManager.getRootPath()));
+               __mqttManager.setWill(Config.getInt("will", __mqttManager.isWill()) > 0);
+               __mqttManager.setWillTopic(Config.getSz("willtopic", __mqttManager.getWillTopic()));
+               int32_t period = Config.getInt("heartbeat", _timerHeartbeat.getPeriod());
+               if (period == 0 || period >= 1000) _timerHeartbeat.setPeriod(period);
+               console.info(F("Mqtt server set to %s at port %d, qos=%d"), __mqttManager.getServer(), __mqttManager.getPort(), __mqttManager.getQoS());
+               console.info(F("Mqtt set root path to '%s' and will topic to '%s'"), __mqttManager.getRootPath(), __mqttManager.getWillTopic());
+               console.info(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
+               _timer60sMqttServer.makeDue(); // make timer due to force an immidiate check
+               
+            }
          } else if (strSubCmd == "publish") {
-            publish(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2), (bool) TKTOINT(tkArgs, 3, 0));
+            publish(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3), (bool) TKTOINT(tkArgs, 4, 0));
          }
          else {
             printf(F(ESC_ATTR_BOLD " Server:       " ESC_ATTR_RESET "%s (%s)\n"), __mqttManager.getServer(), _bMqttServerOnline? ESC_TEXT_GREEN "online" ESC_ATTR_RESET: ESC_TEXT_BRIGHT_RED "offline" ESC_ATTR_RESET);
@@ -201,29 +214,10 @@ public:
             println(F("  load"));
             println(F("  publish <topic> <message> [<0|1> (retain)]"));
          }
-      } else if (cmd == ".mqtt" && args) {
-         
-         print("mqtt config load: ");
-         println(strConfig.c_str());
-         
-         CxConfigParser Config(strConfig.c_str());
-         // extract settings and set, if defined. Keep unchanged, if not set.
-         __mqttManager.setServer(Config.getSz("server", __mqttManager.getServer()));
-         __mqttManager.setPort(Config.getInt("port", __mqttManager.getPort()));
-         __mqttManager.setQoS(Config.getInt("qos", __mqttManager.getQoS()));
-         __mqttManager.setRootPath(Config.getSz("root", __mqttManager.getRootPath()));
-         __mqttManager.setWill(Config.getInt("will", __mqttManager.isWill()) > 0);
-         __mqttManager.setWillTopic(Config.getSz("willtopic", __mqttManager.getWillTopic()));
-         int32_t period = Config.getInt("heartbeat", _timerHeartbeat.getPeriod());
-         if (period == 0 || period >= 1000) _timerHeartbeat.setPeriod(period);
-         console.info(F("Mqtt server set to %s at port %d, qos=%d"), __mqttManager.getServer(), __mqttManager.getPort(), __mqttManager.getQoS());
-         console.info(F("Mqtt set root path to '%s' and will topic to '%s'"), __mqttManager.getRootPath(), __mqttManager.getWillTopic());
-         console.info(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
-         _timer60sMqttServer.makeDue(); // make timer due to force an immidiate check
-
       } else {
          return false;
       }
+      g_Stack.update();
       return true;
    }
       
@@ -235,7 +229,7 @@ public:
       return __mqttManager.publish(topic, payload, retained);
    }
    bool publish(const FLASHSTRINGHELPER * topicP, const char* payload, bool retained = false) {
-      char buf[256];
+      static char buf[256];
       strncpy_P(buf, (PGM_P)topicP, sizeof(buf));
       buf[sizeof(buf)-1] = '\0';
       return publish(buf, payload, retained);

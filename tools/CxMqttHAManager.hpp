@@ -86,8 +86,8 @@ private:
    String _strTopicBase;           ///< Base MQTT topic path
    
 protected:
-   CxESPConsole* _consoleInstance = static_cast<CxESPConsole*>(CxESPConsole::getInstance()); ///< Debug console instance
-   
+   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+
 public:
    /**
     * @enum e_type
@@ -826,7 +826,7 @@ public:
       
       while(it != _vecItems.end())
       {
-         stream.println((*it)->getTopic());
+         stream.println((*it)->getTopicBase());
          it++;
       }
    }

@@ -24,23 +24,12 @@ size_t CxCapability::write(const uint8_t *buffer, size_t size) {
 }
 
 bool CxCapability::processCmd(const char* szCmdLine) {
-   char buffer[strlen(szCmdLine)+1];  // Copy the command for strtok
-   strncpy(buffer, szCmdLine, sizeof(buffer) - 1);
-   buffer[sizeof(buffer) - 1] = '\0';
+   if (!szCmdLine) return false;  // No command found
    
-   char* command = strtok(buffer, " ");  // Get the main command
-   char* args = strtok(nullptr, "");     // Get the remaining arguments
-   
-   if (!command) return false;  // No command found
-   
-   if (*command == '$' || *command == '.') { // hidden command
-      return execute(command, args ? args : "");
+   if (*szCmdLine == '$' || *szCmdLine == '.') { // hidden command
+      return execute(szCmdLine);
    } else {
-      for (const auto& cmdInSet : commands) {
-         if (strcmp(command, cmdInSet) == 0 || *command == '?') {
-            if (execute(command, args ? args : "")) return true;
-         }
-      }
+      if (execute(szCmdLine)) return true;
    }
    return false;
 }

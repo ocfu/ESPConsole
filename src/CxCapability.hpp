@@ -39,8 +39,12 @@ public: \
    } \
    virtual void setup() override; \
    virtual void loop() override; \
-   virtual bool execute(const char* cmd, const char* args) override; \
-}; \
+   virtual bool execute(const char* cmd) override; \
+};
+
+#define CAPREG(_cap_class_) ESPConsole.regCap(_cap_class_::getName(), _cap_class_::construct);
+#define CAPLOAD(_cap_class_) ESPConsole.createCapInstance(_cap_class_::getName(), "");
+
 
 class CxCapability : public Print, public CxProcessStatistic {
    Stream* _ioStream = nullptr;
@@ -78,7 +82,7 @@ public:
    
    virtual void setup() {}
    virtual void loop() {}
-   virtual bool execute(const char* cmd, const char* args) {return false;}
+   virtual bool execute(const char* cmd) {return false;}
    
    virtual size_t write(uint8_t c) override;
    virtual size_t write(const uint8_t *buffer, size_t size) override;

@@ -11,6 +11,9 @@
 
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
+
+#include "../capabilities/CxCapabilityBasic.hpp"
+
 #include "../tools/CxGpioTracker.hpp"
 #include "../tools/CxLed.hpp"
 #include "esphw.h"
@@ -30,8 +33,6 @@ DNSServer dnsServer;
 const byte DNS_PORT = 53;
 
 #endif /* ARDUINO */
-
-#define CAPEXT(console) console.regCap(CxCapabilityExt::getName(), CxCapabilityExt::construct); console.createCapInstance(CxCapabilityExt::getName(), "");
 
 // HTML and CSS as embedded strings
 const char htmlPageTemplate[] PROGMEM = R"rawliteral(
@@ -112,6 +113,8 @@ const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 CxOta Ota1;
 CxLed Led1(LED_BUILTIN);
 
+bool g_bOTAinProgress = false;
+
 #endif /* ESP_CONSOLE_NOWIFI */
 
 class CxCapabilityExt : public CxCapability {
@@ -119,6 +122,7 @@ class CxCapabilityExt : public CxCapability {
    
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
+   
 
 
 public:
@@ -131,6 +135,11 @@ public:
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
       return std::make_unique<CxCapabilityExt>();
+   }
+   
+   ~CxCapabilityExt() {
+      Ota1.end();
+      stopWiFi();
    }
    
    void setup() override {
@@ -163,12 +172,16 @@ public:
          CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
          con.info(F("OTA start..."));
          Led1.blinkFlash();
+         g_bOTAinProgress = true;
       });
       
       Ota1.onEnd([](){
          CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
          con.info(F("OTA end"));
-         con.processCmd("reboot -f");
+         if (g_bOTAinProgress) {
+            con.processCmd("reboot -f");
+         }
+         g_bOTAinProgress = false;
       });
       
       Ota1.onProgress([](unsigned int progress, unsigned int total){
@@ -219,23 +232,23 @@ public:
       stopMeasure();
    }
    
-    bool execute(const char *szCmd, const char *args) override {
+    bool execute(const char *szCmd) override {
        
       // validate the call
       if (!szCmd) return false;
       
       // get the command and arguments into the token buffer
-      CxStrToken tkArgs(args, " ");
+      CxStrToken tkArgs(szCmd, " ");
       
       // we have a command, find the action to take
-      String cmd = szCmd;
+       String cmd = TKTOCHAR(tkArgs, 0);
       
       // removes heading and trailing white spaces
       cmd.trim();
       
       // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkArgs, 0);
-      const char* b = TKTOCHAR(tkArgs, 1);
+      const char* a = TKTOCHAR(tkArgs, 1);
+      const char* b = TKTOCHAR(tkArgs, 2);
       
        if (cmd == "?") {
           printCommands();
@@ -254,11 +267,11 @@ public:
          /// - tz <timezone>
          ///
          
-         String strVar = TKTOCHAR(tkArgs, 0);
+         String strVar = TKTOCHAR(tkArgs, 1);
          if (strVar == "ntp") {
-            console.setNtpServer(TKTOCHAR(tkArgs, 1));
+            console.setNtpServer(TKTOCHAR(tkArgs, 2));
          } else if (strVar == "tz") {
-            console.setTimeZone(TKTOCHAR(tkArgs, 1));
+            console.setTimeZone(TKTOCHAR(tkArgs, 2));
          } else {
             println(F("set environment variable."));
             println(F("usage: set <env> <server>"));
@@ -268,16 +281,16 @@ public:
          }
       } else if (cmd == "eeprom") {
          if (a) {
-            ::printEEPROM(getIoStream(), TKTOINT(tkArgs, 0, 0), TKTOINT(tkArgs, 1, 128));
+            ::printEEPROM(getIoStream(), TKTOINT(tkArgs, 1, 0), TKTOINT(tkArgs, 2, 128));
          } else {
             println(F("show eeprom content."));
             println(F("usage: eeprom [<start address>] [<length>]"));
          }
       } else if (cmd == "wifi") {
-         String strCmd = TKTOCHAR(tkArgs, 0);
+         String strCmd = TKTOCHAR(tkArgs, 1);
          if (strCmd == "ssid") {
             if (b) {
-               ::writeSSID(TKTOCHAR(tkArgs, 1));
+               ::writeSSID(TKTOCHAR(tkArgs, 2));
             } else {
                char buf[20];
                ::readSSID(buf, sizeof(buf));
@@ -285,7 +298,7 @@ public:
             }
          } else if (strCmd == "password") {
             if (b) {
-               ::writePassword(TKTOCHAR(tkArgs, 1));
+               ::writePassword(TKTOCHAR(tkArgs, 2));
             } else {
                char buf[25];
                ::readPassword(buf, sizeof(buf));
@@ -293,15 +306,15 @@ public:
             }
          } else if (strCmd == "hostname") {
             if (b) {
-               console.setHostName(TKTOCHAR(tkArgs, 1));
-               ::writeHostName(TKTOCHAR(tkArgs, 1));
+               console.setHostName(TKTOCHAR(tkArgs, 2));
+               ::writeHostName(TKTOCHAR(tkArgs, 2));
             } else {
                char buf[80];
                ::readHostName(buf, sizeof(buf));
                print(F(ESC_ATTR_BOLD "Hostname: " ESC_ATTR_RESET)); print(buf); println();
             }
          } else if (strCmd == "connect") {
-            startWiFi(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2));
+            startWiFi(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3));
          } else if (strCmd == "disconnect") {
             stopWiFi();
          } else if (strCmd == "status") {
@@ -310,7 +323,7 @@ public:
             ::scanWiFi(getIoStream());
          } else if (strCmd == "otapw") {
             if (b) {
-               ::writeOtaPassword(TKTOCHAR(tkArgs, 1));
+               ::writeOtaPassword(TKTOCHAR(tkArgs, 2));
             } else {
                char buf[25];
                ::readOtaPassword(buf, sizeof(buf));
@@ -336,17 +349,17 @@ public:
          if (!a && !b) {
             println(F("usage: ping <host> <port>"));
          } else {
-            if (isHostAvailble(TKTOCHAR(tkArgs, 0), TKTOINT(tkArgs, 1, 0))) {
+            if (isHostAvailble(TKTOCHAR(tkArgs, 1), TKTOINT(tkArgs, 2, 0))) {
                println(F("ok"));
             } else {
                println(F("host not available on this port!"));
             };
          }
       } else if (cmd == "gpio") {
-         String strCmd = TKTOCHAR(tkArgs, 0);
-         uint8_t nPin = TKTOINT(tkArgs, 1, INVALID_PIN);
-         int16_t nValue = TKTOINT(tkArgs, 2, -1);
-         String strValue = TKTOCHAR(tkArgs, 2);
+         String strCmd = TKTOCHAR(tkArgs, 1);
+         uint8_t nPin = TKTOINT(tkArgs, 2, INVALID_PIN);
+         int16_t nValue = TKTOINT(tkArgs, 3, -1);
+         String strValue = TKTOCHAR(tkArgs, 3);
          
          if (strCmd == "state") {
             _gpioTracker.printAllStates(getIoStream());
@@ -401,13 +414,13 @@ public:
             println(F("  get <pin>"));
          }
       } else if (cmd == "led") {
-         String strCmd = TKTOCHAR(tkArgs, 0);
-         if (strCmd == "on") {
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
+         if (strSubCmd == "on") {
             Led1.on();
-         } else if (strCmd == "off") {
+         } else if (strSubCmd == "off") {
             Led1.off();
-         } else if (strCmd == "blink") {
-            String strPattern = TKTOCHAR(tkArgs, 1);
+         } else if (strSubCmd == "blink") {
+            String strPattern = TKTOCHAR(tkArgs, 2);
             if (strPattern == "ok") {
                Led1.blinkOk();
             } else if (strPattern == "error") {
@@ -423,9 +436,9 @@ public:
             } else if (strPattern == "connect") {
                Led1.blinkConnect();
             }  else {
-               Led1.setBlink(TKTOINT(tkArgs, 1, 1000), TKTOINT(tkArgs, 2, 128));
+               Led1.setBlink(TKTOINT(tkArgs, 2, 1000), TKTOINT(tkArgs, 3, 128));
             }
-         } else if (strCmd == "flash") {
+         } else if (strSubCmd == "flash") {
             String strPattern = TKTOCHAR(tkArgs, 2);
             if (strPattern == "ok") {
                Led1.flashOk();
@@ -442,9 +455,9 @@ public:
             } else if (strPattern == "connect") {
                Led1.flashConnect();
             } else {
-               Led1.setFlash(TKTOINT(tkArgs, 1, 250), TKTOINT(tkArgs, 2, 128), TKTOINT(tkArgs, 3, 1));
+               Led1.setFlash(TKTOINT(tkArgs, 2, 250), TKTOINT(tkArgs, 3, 128), TKTOINT(tkArgs, 4, 1));
             }
-         } else if (strCmd == "invert") {
+         } else if (strSubCmd == "invert") {
             Led1.setInverted(!Led1.isInverted());
             Led1.toggle();
          } else {
@@ -459,6 +472,7 @@ public:
       } else {
          return false;
       }
+       g_Stack.update();
       return true;
    }
    

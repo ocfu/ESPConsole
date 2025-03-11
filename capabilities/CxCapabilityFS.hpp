@@ -11,6 +11,9 @@
 
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
+
+#include "../capabilities/CxCapabilityExt.hpp"
+
 #include "../tools/CxConfigParser.hpp"
 #include "esphw.h"
 
@@ -35,9 +38,6 @@ struct FSInfo {
 #endif /* ARDUINO */
 #endif /* ESP_CONSOLE_NOWIFI */
 
-#define CAPFS(console) console.regCap(CxCapabilityFS::getName(), CxCapabilityFS::construct); console.createCapInstance(CxCapabilityFS::getName(), "");
-
-
 class CxCapabilityFS : public CxCapability {
    
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
@@ -61,6 +61,17 @@ public:
       return std::make_unique<CxCapabilityFS>();
    }
    
+   ~CxCapabilityFS() {
+      umount();
+      
+      // remove log functions
+      ESPConsole.setFuncDebug([this](const char *c) { this->_debug(c); });
+      ESPConsole.setFuncDebugExt([this](uint32_t flag, const char *c) { this->_debug_ext(flag, c); });
+      ESPConsole.setFuncInfo([this](const char *c) { this->_info(c); });
+      ESPConsole.setFuncWarn([this](const char *c) { this->_warn(c); });
+      ESPConsole.setFuncError([this](const char *c) { this->_error(c); });
+   }
+   
    void setup() override {
       CxCapability::setup();
       
@@ -71,10 +82,22 @@ public:
       // load specific environments for this class
       mount();
       
-      execute("load", "ntp");
-      execute("load", "tz");
-      execute("load", "led");
-      execute ("log", "load");
+      execute("load ntp");
+      execute("load tz");
+      execute("load led");
+      execute ("log load");
+      
+      // implement log functions
+      ESPConsole.setFuncDebug([this](const char *c) { this->_debug(c); });
+      ESPConsole.setFuncDebugExt([this](uint32_t flag, const char *c) { this->_debug_ext(flag, c); });
+      ESPConsole.setFuncInfo([this](const char *c) { this->_info(c); });
+      ESPConsole.setFuncWarn([this](const char *c) { this->_warn(c); });
+      ESPConsole.setFuncError([this](const char *c) { this->_error(c); });
+      
+      ESPConsole.setFuncLoadEnv([this](String &strEnv, String &strValue)->bool { return this->loadEnv(strEnv, strValue); });
+      ESPConsole.setFuncSaveEnv([this](String &strEnv, String &strValue) {this->saveEnv(strEnv, strValue);});
+
+
    }
    
    void loop() override {
@@ -86,23 +109,23 @@ public:
       
       
    
-   bool execute(const char *strCmd, const char *args) override {
+   bool execute(const char *szCmd) override {
        
       // validate the call
-      if (!strCmd) return false;
+      if (!szCmd) return false;
       
       // get the command and arguments into the token buffer
-      CxStrToken tkArgs(args, " ");
+      CxStrToken tkArgs(szCmd, " ");
       
       // we have a command, find the action to take
-      String cmd = strCmd;
+      String cmd = TKTOCHAR(tkArgs, 0);
       
       // removes heading and trailing white spaces
       cmd.trim();
       
       // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkArgs, 0);
-      const char* b = TKTOCHAR(tkArgs, 1);
+      const char* a = TKTOCHAR(tkArgs, 1);
+      const char* b = TKTOCHAR(tkArgs, 2);
       
        if (cmd == "?") {
           printCommands();
@@ -110,7 +133,7 @@ public:
        } else if (cmd == "df") {printDf();println(F(" bytes"));
        } else if (cmd == "size") {printSize();println(F(" bytes"));
        } else if (cmd == "ls") {
-          String strOpt = TKTOCHAR(tkArgs, 0);
+          String strOpt = TKTOCHAR(tkArgs, 1);
           ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la");
        } else if (cmd == "cat") {cat(a);
        } else if (cmd == "cp") {cp(a, b);
@@ -140,7 +163,7 @@ public:
           ///
           
           String strEnv = ".";
-          strEnv += TKTOCHAR(tkArgs, 0);
+          strEnv += TKTOCHAR(tkArgs, 1);
           String strValue;
           if (strEnv == ".ntp") {
              strValue = console.getNtpServer();
@@ -154,7 +177,7 @@ public:
              if (Led1.isInverted()) strValue += ",inverted";
              saveEnv(strEnv, strValue);
           } else if (strEnv == ".mqtt") {
-             strValue = args+5;
+             strValue = cmd.substring(5);
              strValue.trim();
              saveEnv(strEnv, strValue);
           } else {
@@ -164,7 +187,7 @@ public:
           }
        } else if (cmd == "load") {
           String strEnv = ".";
-          strEnv += TKTOCHAR(tkArgs, 0);
+          strEnv += TKTOCHAR(tkArgs, 1);
           String strValue;
           if (strEnv == ".ntp") {
              if (loadEnv(strEnv, strValue)) {
@@ -206,10 +229,6 @@ public:
                    Led1.setInverted(inverted);
                 }
              }
-          } else if (strEnv.length() > 1) {
-             if (loadEnv(strEnv, strValue)) {
-                console.processCmd((strEnv+" "+strValue).c_str());
-             }
           } else {
              println(F("load environment variable.\nusage: load <env>"));
              println(F("known env variables:\n ntp \n tz "));
@@ -220,18 +239,18 @@ public:
        } else if (cmd == "$DOWNLOAD$") {
           _handleFile();
        } else if (cmd == "log") {
-          String strSubCmd = TKTOCHAR(tkArgs, 0);
+          String strSubCmd = TKTOCHAR(tkArgs, 1);
           String strEnv = ".log";
           if (strSubCmd == "server") {
-             _strLogServer = TKTOCHAR(tkArgs, 1);
+             _strLogServer = TKTOCHAR(tkArgs, 2);
              _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
              if (!_bLogServerAvailable) println(F("server not available!"));
           } else if (strSubCmd == "port") {
-             _nLogPort = TKTOINT(tkArgs, 1, 0);
+             _nLogPort = TKTOINT(tkArgs, 2, 0);
              _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
              if (!_bLogServerAvailable) println(F("server not available!"));
           } else if (strSubCmd == "level") {
-             console.setLogLevel(TKTOINT(tkArgs, 1, console.getLogLevel()));
+             console.setLogLevel(TKTOINT(tkArgs, 2, console.getLogLevel()));
           } else if (strSubCmd == "save") {
              CxConfigParser Config;
              Config.addVariable("level", console.getLogLevel());
@@ -252,15 +271,15 @@ public:
                 }
              }
           } else if (strSubCmd == "error") {
-             _error(args);
+             _error(a);
           } else if (strSubCmd == "info") {
-             _info(args);
+             _info(a);
           } else if (strSubCmd == "warn") {
-             _warn(args);
+             _warn(a);
           } else if (strSubCmd == "debug") {
-             _debug(args);
+             _debug(a);
           } else if (strSubCmd == "debug_ext") {
-             _debug_ext(TKTOINT(tkArgs, 2, 0), args);
+             _debug_ext(TKTOINT(tkArgs, 3, 0), a);
           } else {
              printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), console.getLogLevel());printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), console.getUsrLogLevel());
              printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), console.getDebugFlag());
@@ -277,6 +296,7 @@ public:
        } else {
           return false;
        }
+      g_Stack.update();
       return true;
    }
 
@@ -499,7 +519,7 @@ public:
       if (hasFS()) {
 #ifdef ARDUINO
          if (LittleFS.exists(szSrc)) {
-            char buf[64];
+            static char buf[64];
             
             // FIXME: cp need y/n query if dst exist, unless -f is given as parameter
             if (LittleFS.exists(szDst)) LittleFS.remove(szDst);
@@ -618,7 +638,6 @@ public:
          println(F("file system not mounted!"));
       }
       return false;
-      
    }
 
    
@@ -636,7 +655,7 @@ private:
    
    bool _handleFile() {
 #ifdef ARDUINO
-      char buffer[512];
+      static char buffer[64];
       String header = "";
       String filename = "";
       size_t expectedSize = 0;
@@ -741,10 +760,11 @@ private:
       client->printf("SIZE: %d\n", fileSize);
       //console.info("Sending file: %s (%d bytes)\n", filename, fileSize);
 
-      
-      char buffer[512];
+      static char buffer[64];
       size_t bytesRead;
-      
+
+      g_Stack.update();
+
       // Send file data
       while ((bytesRead = file.readBytes(buffer, sizeof(buffer))) > 0) {
          client->write((uint8_t *)buffer, bytesRead);
