@@ -82,11 +82,7 @@ esp@serial:/>
 The output of the console is formated and controlled by using ESC sequences. Your used terminal should support this (e.g. PuTTY).
 
 ## Capabilities
-<<<<<<< HEAD
 The following capabilities are available and can be loaded on demand:
-=======
-The following capabilities are available:
->>>>>>> 9fef67bdd3f1a4e6e7eb6ac6e67353d7147cb8b7
 
 | Capability | Description |
 |------------|-------------|
