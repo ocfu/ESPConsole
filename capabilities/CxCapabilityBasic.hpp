@@ -38,9 +38,6 @@ public:
    }
    
    void loop() override {
-      startMeasure();
-      CxCapability::loop();
-      stopMeasure();
    }
    
    bool execute(const char *szCmd) override {
