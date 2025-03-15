@@ -252,7 +252,9 @@ void CxESPConsoleMaster::loop() {
    stopMeasure();
    for (auto& entry : _mapCapInstances) {
       entry.second->setIoStream(*__ioStream);
+      entry.second->startMeasure();
       entry.second->loop();
+      entry.second->stopMeasure();
    }
    __sysCPU.startMeasure();
 }
