@@ -1,11 +1,15 @@
-//
-//  CxCapabilityMqttHA.hpp
-//  ESP
-//
-//  Created by ocfu on 09.01.25.
-//  Copyright © 2025 ocfu. All rights reserved.
-//
-
+/**
+ * @file CxCapabilityMqttHA.hpp
+ * @brief MQTT Home Assistant Capability for ESP-based projects
+ *
+ * This file defines the `CxCapabilityMqttHA` class, which provides MQTT Home Assistant
+ * capabilities for an ESP-based project. It includes methods for setting up, managing,
+ * and executing MQTT Home Assistant-related commands.
+ *
+ * @date 09.01.25
+ * @author ocfu
+ * @copyright © 2025 ocfu
+ */
 #ifndef CxCapabilityMqttHA_hpp
 #define CxCapabilityMqttHA_hpp
 

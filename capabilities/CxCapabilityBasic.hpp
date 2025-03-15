@@ -1,10 +1,12 @@
-//
-//  CxCapabilityBasic.hpp
-//  ESP
-//
-//  Created by ocfu on 09.01.25.
-//  Copyright © 2025 ocfu. All rights reserved.
-//
+/**
+ * @file CxCapabilityBasic.hpp
+ * @brief Defines the CxCapabilityBasic class for basic command capabilities in the ESP console.
+ *
+ * This file contains the following class:
+ * - CxCapabilityBasic: Provides basic system commands such as reboot, info, uptime, and network information.
+ *
+ * @date Created by ocfu on 09.01.25.
+ */
 
 #ifndef CxCapabilityBasic_hpp
 #define CxCapabilityBasic_hpp

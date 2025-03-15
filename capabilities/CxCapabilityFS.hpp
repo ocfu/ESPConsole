@@ -1,10 +1,14 @@
-//
-//  CxCapabilityFS.hpp
-//  ESP
-//
-//  Created by ocfu on 09.01.25.
-//  Copyright © 2025 ocfu. All rights reserved.
-//
+/**
+ * @file CxCapabilityFS.hpp
+ * @brief This file defines the CxCapabilityFS class for handling file system operations on an ESP-based system using LittleFS.
+ *
+ * @author ocfu
+ * @date 09.01.25
+ * @copyright © 2025 ocfu. All rights reserved.
+ *
+ * The CxCapabilityFS class provides various file system operations such as mounting, unmounting, formatting, and performing file operations like ls, cat, cp, rm, and touch.
+ * It also includes methods for handling environment variables and logging.
+ */
 
 #ifndef CxCapabilityFS_hpp
 #define CxCapabilityFS_hpp

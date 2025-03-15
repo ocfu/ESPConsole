@@ -1,10 +1,15 @@
-//
-//  CxCapabilityMqtt.hpp
-//  ESP
-//
-//  Created by ocfu on 09.01.25.
-//  Copyright © 2025 ocfu. All rights reserved.
-//
+/**
+ * @file CxCapabilityMqtt.hpp
+ * @brief MQTT Capability for ESP-based projects
+ *
+ * This file defines the `CxCapabilityMqtt` class, which provides MQTT capabilities
+ * for an ESP-based project. It includes methods for setting up, managing, and
+ * executing MQTT-related commands.
+ *
+ * @date 09.01.25
+ * @author ocfu
+ * @copyright © 2025 ocfu
+ */
 
 #ifndef CxCapabilityMqtt_hpp
 #define CxCapabilityMqtt_hpp
