@@ -193,7 +193,8 @@ void setup() {
 
 void loop() {
    ESPConsole.loop();
-}```
+}
+```
 
 More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examples) 
 
