@@ -17,6 +17,7 @@
 #include "../tools/CxGpioTracker.hpp"
 #include "../tools/CxLed.hpp"
 #include "esphw.h"
+#include "../tools/CxSensorManager.hpp"
 
 #ifndef ESP_CONSOLE_NOWIFI
 #include "../tools/CxOta.hpp"
@@ -123,14 +124,14 @@ class CxCapabilityExt : public CxCapability {
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
    
-
+   CxSensorManager& _sensorManager = CxSensorManager::getInstance();
 
 public:
 
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -213,9 +214,6 @@ public:
    }
    
    void loop() override {
-      startMeasure();
-      CxCapability::loop();
-
 #ifndef ESP_CONSOLE_NOWIFI
       Ota1.loop();
 #ifdef ARDUINO
@@ -228,8 +226,8 @@ public:
       
       if (_nTimer10s.isDue()) {
          g_Heap.update();
+         _sensorManager.update();
       }
-      stopMeasure();
    }
    
     bool execute(const char *szCmd) override {
@@ -344,6 +342,7 @@ public:
             println(F("  scan"));
             println(F("  otapw [<password>]"));
             println(F("  ap"));
+            println(F("  sensor"));
          }
       } else if (cmd == "ping") {
          if (!a && !b) {
@@ -468,6 +467,22 @@ public:
             println(F("  blink [pattern] (ok, error...)"));
             println(F("  flash [period] [duty] [number]"));
             println(F("  invert"));
+         }
+      } else if (cmd == "sensor") {
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
+         if (strSubCmd == "list") {
+            _sensorManager.printList();
+         } else if (strSubCmd == "get") {
+            float f = _sensorManager.getSensorValueFloat(TKTOINT(tkArgs, 2, INVALID_FLOAT));
+            if (!std::isnan(f)) {
+               println(f);
+            } else {
+               println(F("invalid sensor id!"));
+            }
+         } else {
+            println(F("sensor commands:"));
+            println(F("  list"));
+            println(F("  get <id>"));
          }
       } else {
          return false;
@@ -823,15 +838,13 @@ private:
    }
    
    void _beginAP() {
-      CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
-
       stopWiFi();
       
       Led1.blinkWait();
       
 #ifdef ARDUINO
       // Start Access Point
-      WiFi.softAP(con.getHostName(), "12345678");
+      WiFi.softAP(console.getHostName(), "12345678");
       
       // Start DNS Server
       dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
@@ -848,8 +861,9 @@ private:
       // Start the web server
       webServer.begin();
 #endif
-      con.info(F("ESP started in AP mode"));
-      printf(F("ESP started in AP mode. SSID: %s, PW:%s\n"), con.getHostName(), "12345678");
+      console.info(F("ESP started in AP mode"));
+      printf(F("ESP started in AP mode. SSID: %s, PW:%s\n"), console.getHostName(), "12345678");
+      console.setAPMode(true);
    }
    
    void _stopAP() {
@@ -861,6 +875,7 @@ private:
       webServer.close();
       dnsServer.stop();
 #endif
+      console.setAPMode(false);
    }
 
 
