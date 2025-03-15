@@ -1,23 +1,35 @@
-//
-//  CxConfigParser.hpp
-//
-//
-//  Created by ocfu on 15.01.24.
-//
+/**
+ * @file CxConfigParser.hpp
+ * @brief Defines the CxConfigParser class for parsing and managing configuration key-value pairs.
+ *
+ * This file contains the following class:
+ * - CxConfigParser: Manages configuration key-value pairs, including parsing, retrieving, and adding variables.
+ *
+ * @date Created by ocfu on 15.01.24.
+ */
 
 #ifndef CxConfigParser_hpp
 #define CxConfigParser_hpp
 
 #include <map>
 
+/**
+ * @class CxConfigParser
+ * @brief Manages configuration key-value pairs, including parsing, retrieving, and adding variables.
+ */
 class CxConfigParser {
 private:
    std::map<String, String> configMap; // Stores the configuration key-value pairs
    String configString; // Holds the complete configuration string
+
+   const char _cDelimiter = ';'; ///< The character used to separate key-value pairs in the configuration
+   const char _cAssigner = '='; ///< The character used to assign a value to a key in the configuration
    
-   const char _cDelimiter = ';';
-   const char _cAssigner = '=';
    
+   /**
+    * @brief Parses the configuration string and stores the key-value pairs in the configMap.
+    * @param configStr The configuration string to parse.
+    */
    void parseConfigString(const String &configStr) {
       configMap.clear(); // Clear any existing configuration
       configString = configStr;
@@ -77,7 +89,7 @@ public:
    }
    
    // Method to add a string variable
-   void addVariable(const String strName, const String strValue) {
+   void addVariable(const String& strName, const String& strValue) {
       configMap[strName] = strValue;
       rebuildConfigString();
    }

@@ -1,10 +1,12 @@
-//
-//  CxESPTime.hpp
-//  xESP
-//
-//  Created by ocfu on 13.12.24.
-//  Copyright © 2024 ocfu. All rights reserved.
-//
+/**
+ * @file CxESPTime.hpp
+ * @brief Defines the CxESPTime class for managing time and date functionalities, including NTP server synchronization and time zone settings.
+ *
+ * This file contains the following class:
+ * - CxESPTime: Provides methods to print and retrieve the current time, date, and system uptime in various formats.
+ *
+ * @date Created by ocfu on 13.12.24.
+ */
 
 #ifndef CxESPTime_hpp
 #define CxESPTime_hpp
@@ -21,6 +23,12 @@
 /// https://github.com/nayarsystems/posix_tz_db/blob/master/zones.csv
 ///
 
+/**
+ * @class CxESPTime
+ * @brief Provides methods to manage time and date functionalities, including NTP server synchronization and time zone settings.
+ *      The class supports printing and retrieving the current time, date, and system uptime in various formats.
+ *      It also includes methods for printing file timestamps and system boot time.
+ */
 class CxESPTime {
    char _buf[20];
 public:
@@ -38,6 +46,14 @@ public:
       stream.print(buf);
    }
    
+   /**
+    * @brief Retrieves the current time in the format "HH:MM:SS" or "HH:MM:SS.SSS" with milliseconds.
+    * @param ms Flag to include milliseconds in the time string.
+    * @return The current time as a string.
+    * @note The time string is stored in a static buffer and is overwritten with each call to this method.
+    * @note The time is retrieved from the system clock using the time() function.
+    * @note If the time is not valid, the method returns the system uptime in the format "HH:MM:SS.SSS".
+    */
    const char* getTime(bool ms = false) {
       __updateTime();
       if (isValid()) {
@@ -167,8 +183,29 @@ public:
    void setTimeZone(const char* sz) {_strTz = sz; __initTime();}
    
    bool isValid() {return _bValid;}
-      
+   
+   int getTimeHour() {
+      __updateTime();
+      return _tmLocal.tm_hour;
+   }
+   
+   int getTimeMin() {
+      __updateTime();
+      return _tmLocal.tm_min;
+   }
+   
+   int getTimeSec() {
+      __updateTime();
+      return _tmLocal.tm_sec;
+   }
+
 protected:
+   /**
+    * @brief Updates the current time and date in the local time zone.
+    * @details Reads the current time from the system clock and converts it to the local time zone.
+    * @note The method sets the _bValid flag to true if the time is successfully synchronized.
+    * @note The method sets the _tStart time to the system start time if it has not been set yet.
+   */
    void __updateTime() {
       time(&_tNow);                    // read the current time
       _bValid = localtime_r(&_tNow, &_tmLocal);  // make it the local time
@@ -190,6 +227,11 @@ private:
    struct tm _tmLocal;
    bool _bValid = false; // true, if synchronised
    
+   /**
+    * @brief Initializes the time and date settings.
+    * @details Configures the NTP server and time zone settings.
+    * @note The method is called by the constructor to initialize the time and date settings.
+   */
    void __initTime() {
       if (_strNtpServer.length() != 0 && _strTz.length() != 0) {
 #ifdef ARDUINO
