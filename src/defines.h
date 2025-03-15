@@ -9,6 +9,8 @@
 #ifndef defines_h
 #define defines_h
 
+#include <limits.h>
+
 // escape sequences
 
 // text colors
@@ -125,5 +127,22 @@
 
 #define LOGLEVEL_MAX LOGLEVEL_DEBUG_EXT
 
+// debug flags 32 bits 0xfffffffe (except: -1)
+#define DEBUG_FLAG_OFF              0x0
+#define DEBUG_FLAG_XESP             0x1
+
+#define DEBUG_FLAG_GPIO             0x10
+#define DEBUG_FLAG_MQTT             0x20
+#define DEBUG_FLAG_MQTT_PUBLISH     0x40
+
+#define DEBUG_FLAG_SENSOR           0x80
+
+#define DEBUG_FLAG_ALL      0xfffffffe
+
+
+#define INVALID_FLOAT std::numeric_limits<float>::quiet_NaN()
+#define INVALID_UINT8 0xFF
+#define INVALID_UINT32 0xFFFFFFFF
+#define INVALID_INT32 0x80000000
 
 #endif /* defines_h */
