@@ -1,10 +1,14 @@
-//
-//  CxCapabilityExt.hpp
-//  ESP
-//
-//  Created by ocfu on 09.01.25.
-//  Copyright © 2025 ocfu. All rights reserved.
-//
+/**
+ * @file CxCapabilityExt.hpp
+ * @brief This file defines the CxCapabilityExt class, which extends the CxCapability class.
+ *
+ * The CxCapabilityExt class manages various capabilities and functionalities for an ESP-based project,
+ * including WiFi management, OTA updates, GPIO control, and sensor management.
+ *
+ * @date Created by ocfu on 09.01.25.
+ *
+ */
+
 
 #ifndef CxCapabilityExt_hpp
 #define CxCapabilityExt_hpp

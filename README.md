@@ -7,6 +7,10 @@ The console operates non-blockingly and requires frequent calls within the main 
 
 The library also enables and manage basic services, which are quite often needed in many ESP projects, such as logging, OTA and an access point mode with a captive portal for the initial connection to a WiFi network.
 
+The library is designed to be lightweight and easy to use, with a simple API for adding custom commands and features. It is compatible with the Arduino IDE and CLI, as well as other development environments. Additional capablities are provided by header-only files, which can be included in the user's sketch. This minimizes the sketch size size by avoiding including unnecessary code and libraries.
+
+The user program can register and load additional command sets (capabilities), which can be added to the console. The library includes a set of basic commands, which can be extended by the user with additional commands.
+
 # Contents
 - [Installing](#installing)
 - [Dependencies](#dependencies)
@@ -20,16 +24,25 @@ The library also enables and manage basic services, which are quite often needed
 Download a .zip or .tar.gz release from github. Determine the location of your sketchbook by selecting "preferences" on the Arduino menu. Create a "libraries" folder in your sketchbook and unzip the release file in that location.
 
 # Dependencies
+Depending on the used ESPConsole class, tools, capabilities and compiler options, the following libraries are used:
 
 ## Libraries
-- EEPROM           1.0
-- ESP8266WiFi      1.0     (1)
-- LittleFS         0.1.0   (1)
-- ArduinoOTA       1.0     (1)
-- ESP8266WebServer 1.0     (1)
-- DNSServer        1.1.1   (1)
+ESPConsole              0.0.1   
+ESP8266WiFi             1.0     
+ArduinoJson             6.19.4  
+EEPROM                  1.0     
+ArduinoOTA              1.0     
+ESP8266WebServer        1.0     
+DNSServer               1.1.1   
+LittleFS                0.1.0   
+PubSubClient            2.8     
+Wire                    1.0     
+SPI                     1.0     
+Adafruit Unified Sensor 1.1.14  
+Adafruit BME280 Library 2.2.4   
+Adafruit BusIO          1.16.1  
+TM1637TinyDisplay       1.6.0   
 
-(1): Optional, depending on the used ESPConsole class and compiler options.
 
 ## Hardware
 - ESP8266
@@ -52,28 +65,59 @@ Tested on:
 ## Console prompt
 
 ```
-ESP console Ext+FS - Test App 1.0 - 01.01.2025 (CET) 13:24:45
+ESP console  - test 1 v1.0 - 15.03.2025 23:06:06 (CET)
 
-  Hostname: ESP-A75F12 IP: 192.168.1.12 SSID: XYZ (-45 dBm)
-    Uptime: 0T:00:00:04 - 1 user(s) Last Restart: 01.01.2025 13:24:41
- Heap Size: 49576 bytes Used: 2216 bytes Free: 47360 bytes
-      Chip: ESP8266EX/80MHz/4M Sw: core 3.1.2 sdk 2.2.2-dev(38a443e)
-Filesystem: Little FS Size: 1024000 bytes Used: 16384 bytes Free: 1007616 bytes
+  Hostname: espd65e02 IP: 192.168.178.146 SSID: OCap (-79 dBm)
+    Uptime: 0T:00:00:12 - 1 user(s) Last Restart: 01.01.1970 00:59:59
+ Heap Size: 51000 bytes Used: 22368 bytes Free: 28632 bytes Low: 28632 bytes Fragm.: 4 % (peak: 6%)
+ Stack: 592 bytes Room: 52004 bytes High: 768 bytes Low: 1364 bytes
+
+
 
 Enter ? to get help. Have a nice day :-)
-esp@serial:/> _
+esp@serial:/> 
+
 ```
 ## Terminal
 The output of the console is formated and controlled by using ESC sequences. Your used terminal should support this (e.g. PuTTY).
+
+## Capabilities
+The following capabilities are available:
+
+| Capability | Description |
+|------------|-------------|
+| Basic      | Basic system commands such as reboot, info, uptime, and network information. |
+| Ext        | Additional commands, including WiFi management, OTA updates, GPIO control, and sensor management. |
+| FS         | Provides various file system operations such as mounting, unmounting, formatting, and performing file operations like ls, cat, cp, rm, and touch. It also includes methods for handling environment variables and logging. |
+| I2C        | Manages I2C capabilities, including initialization, scanning for devices, and executing commands. |
+| MQTT       | It includes methods for setting up, managing, and executing MQTT-related commands. |
+| MqttHa     | Provides MQTT Home Assistant capabilities for an ESP-based project. It includes methods for setting up, managing, and executing MQTT Home Assistant-related commands. |
+| Seg        | Provides 7-segment display commands for managing displays. |
+
 
 ## Command Sets
 
 | Command Set  | Commands        |
 |--------------|-----------------|
-| Bare minimum | ?, reboot, cls, info, uptime, time, exit, date, users, heap, hostname, ip, ssid |
-| Extended     | hw, sw, net, esp, flash, net, set, eeprom, wifi   | 
-| Filesystem   | du, df, size, ls, cat, cp, rm, touch, mount, umount, format, save, load |
-| Logging      | log, usr |
+| basic        | ?, cap, cls, date, exit, heap, hostname, info, ip, net, ps, reboot, ssid, stack, time, uptime, users, usr |
+| ext          | eeprom, esp, flash, gpio, hw, led, ping, sensor, set, sw, wifi |
+| fs           | cat, cp, df, du, format, fs, load, log, ls, mount, rm, save, size, touch, umount |
+| i2c          | i2c |
+| mqtt         | mqtt |
+| mqttha       | ha |
+| seg          | seg |
+
+
+## Tools
+The following tools are available:
+| Tool | Description |
+|------|-------------|
+| SensorManager | Manages sensors and provides sensor data. |
+| StackTracker  | Tracks the stack usage. |
+| HeapTracker   | Tracks the heap usage. |
+| GpioTracker   | Tracks the GPIO usage. |
+
+
 
 More and description to come.
 
@@ -100,18 +144,7 @@ Bare minimum Arduino example. The ESPConsole library provides a simple command-l
 
 
 ```cpp
-#include "CxESPConsole.hpp"
-
-CxESPConsole ESPConsole(Serial, "Test App", "1.0");
-
-void setup() {
-   Serial.begin(115200);
-   ESPConsole.begin();
-}
-
-void loop() {
-   ESPConsole.loop();
-}
+tbd
 ```
 
 [ESPConsole_min_wifi](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min_wifi)
@@ -119,10 +152,9 @@ This example offers the same command set as the previous one, but with added rem
 
 ```cpp
 #include "CxESPConsole.hpp"
+#include "../capabilities/CxCapabilityBasic.hpp"
 
-CxESPConsole ESPConsole(Serial, "Test App", "1.0");
-
-WiFiServer server(23);
+WiFiServer server(8266);
 
 #ifndef STASSID
 #define STASSID "your-ssid"
@@ -133,23 +165,31 @@ const char* ssid = STASSID;
 const char* password = STAPSK;
 
 void setup() {
+   g_Stack.begin();
+
    Serial.begin(115200);
+   Serial.println();
+   
    WiFi.begin(STASSID, STAPSK);
-    
-    while (WiFi.status() != WL_CONNECTED) {
-       delay(500);
-       Serial.print(".");
-    }
-    Serial.println("\nWiFi connected.");
-    server.begin();
-    
-    ESPConsole.begin(server);
+   
+   while (WiFi.status() != WL_CONNECTED) {
+      delay(500);
+      Serial.print(".");
+   }
+   Serial.println("\nWiFi connected.");
+   
+   ESPConsole.setAppNameVer("Min WiFi", "v1.0");
+   ESPConsole.setTimeZone("CET-1CEST,M3.5.0,M10.5.0/3");
+
+   CAPREG(CxCapabilityBasic);
+   CAPLOAD(CxCapabilityBasic);
+   
+   ESPConsole.begin(server);
 }
 
 void loop() {
    ESPConsole.loop();
-}
-```
+}```
 
 More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examples) 
 
@@ -161,25 +201,14 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 - [ ] Implement functionality for Ext features
    - Commands
       - **reset**: factory reset (erase files and all configuration)
-   - Implement functionality to add additional command sets.
-      - **mqtt**: mqtt configuration 
-      - **ha**: home assistant configuration
 - [ ] Testing
 
 ### Medium Priority
 - [ ] Improve functionality for core features
    - [ ] User prompt (Yes/No and further)
-   - Commands
-      - **uptime**: verfy load and loop time measurements
-- [ ] Improve functionality for Ext features
-   - Commands:
-     - **gpio**: get/set gpio ports
-     - **ping**: ping a host (simple, no ext. lib, save resources)   
 - [ ] Improve functionality for FS features
    - Commands:
       - **cat**: introduce ">" and ">>" to write inputs from console users
-- [ ] File up/download
-- [ ] Remote shell commands
 - [ ] Refactor code
 - [ ] Monitor and minimize of resources (code in flash, heap usage)
 - [ ] Test in other environments and up-to-date versions
@@ -189,23 +218,14 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 ---
 
 ## 🚀 More to come
-- [ ] Configuration file on FS
 - [ ] Logging
    - to file(s)
    - to syslog   
-- [ ] Process Manager
-   - Managing user processes (control and measure times and resources etc.). 
-   - New console commands: start, kill, top, ps
-   - Console processes (e.g. start heap to continuesly showing heap information until user quits with ctr-c)
+- [ ] Improve Process Manager
+   - New console commands: start, kill
    - User processes (in the ino sketh the user can register loops to be managed as a process with start parameter like delayed start, priority, standby, triggered ...)
-- [ ] SSH / secured login
+- [ ] TLS support
 
-
----
-
-## ✅ Completed Tasks
-- [x] Set up project repository
-- [x] Define project goals and milestones
 
 ---
 
@@ -227,6 +247,7 @@ More examples here [examples](https://github.com/ocfu/ESPConsole/tree/main/examp
 ## Credits
 
 - ChatGPS: initial creation of classes and library documentation support
+- CoPilot: coding and documentation support
 
 
 
