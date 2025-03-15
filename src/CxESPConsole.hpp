@@ -451,6 +451,8 @@ class CxESPConsoleMaster : public CxESPConsole {
 #ifndef ESP_CONSOLE_NOWIFI
    WiFiServer* _pWiFiServer = nullptr;
    WiFiClient _activeClient;
+   
+   bool _bAPMode = false;
 #endif
    
    std::map<String, std::unique_ptr<CxCapability> (*)(const char*)> _mapCapRegistry;  // Function pointers for constructors
@@ -533,9 +535,14 @@ public:
             _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
             _mapCapInstances[name]->setIoStream(*__ioStream);
             _mapCapInstances[name]->setup();
-            _mapCapInstances[name].get()->setMemAllocation(mem - g_Heap.available(true));
-            print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD));
-            print(_mapCapInstances[name].get()->getMemAllocation()); print(F(ESC_ATTR_RESET" bytes allocated. " ESC_ATTR_BOLD));
+            size_t mem2 = g_Heap.available(true); // force update
+            if (mem2 < mem) {
+               print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD)); print(mem - mem2); println(F(ESC_ATTR_RESET " bytes allocated."));
+               _mapCapInstances[name].get()->setMemAllocation(mem - mem2);
+            } else {
+               print(F("Capability '" ESC_ATTR_BOLD)); print(name); println(F(ESC_ATTR_RESET "' loaded. It has actually released memory."));
+               _mapCapInstances[name].get()->setMemAllocation(INVALID_INT32);
+            }
             print(_mapCapInstances[name].get()->getCommandsCount()); println(F(ESC_ATTR_RESET" commands added."));
          } else {
             print(F("Capability '")); print(name); println(F("' could not be created."));
@@ -544,6 +551,14 @@ public:
          return _mapCapInstances[name].get();
       }
       print(F("Capability '")); print(name); println(F("' not found."));
+      return nullptr;
+   }
+   
+   CxCapability* getCapInstance(const char* name) {
+      auto itInstance = _mapCapInstances.find(name);
+      if (itInstance != _mapCapInstances.end()) {
+         return itInstance->second.get();
+      }
       return nullptr;
    }
    
@@ -572,8 +587,12 @@ public:
                print(F(" and locked"));
             }
             print(F(", "));
-            print(_mapCapInstances[entry.first].get()->getMemAllocation());
-            print(F(" bytes allocated, "));
+            if (_mapCapInstances[entry.first].get()->getMemAllocation() != INVALID_INT32) {
+               print(_mapCapInstances[entry.first].get()->getMemAllocation());
+               print(F(" bytes allocated, "));
+            } else {
+               print(F("memory allocation undefined, "));
+            }
             print(_mapCapInstances[entry.first].get()->getCommandsCount());
             print(F(" commands)"));
             println();
@@ -630,6 +649,8 @@ public:
 #endif
    }
    bool isHostAvailable(const char* szHost, int nPort);
+   bool isAPMode() {return _bAPMode;}
+   void setAPMode(bool set) {_bAPMode = set;}
 #endif
    
    bool processCmd(const char* cmd, bool bQuiet = false);
