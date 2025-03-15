@@ -69,9 +69,6 @@ public:
    }
    
    void loop() override {
-      startMeasure();
-      CxCapability::loop();
-      
       if (console.isConnected()) {
          if (_timerHeartbeat.isDue()) {
             __mqttManager.publish("heartbeat", String((uint32_t)millis()).c_str());
@@ -91,8 +88,6 @@ public:
          }
          publishInfo();
       }
-
-      stopMeasure();
    }
    
    bool execute(const char *szCmd) override {

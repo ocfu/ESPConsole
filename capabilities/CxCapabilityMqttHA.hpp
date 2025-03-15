@@ -72,9 +72,6 @@ public:
    }
    
    void loop() override {
-      startMeasure();
-      CxCapability::loop();
-      
       if (_timer60s.isDue()) {
          if (_mapHADiag[0]) {
             StaticJsonDocument<256> doc;
@@ -112,8 +109,6 @@ public:
          if (_mapHADiag[8]) _mapHADiag[8]->publishState(g_Stack.getLow(), 0);
 
       }
-
-      stopMeasure();
    }
    
    bool execute(const char *szCmd) override {
