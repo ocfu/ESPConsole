@@ -1,7 +1,7 @@
 /**
  * @file CxSensorManager.hpp
- * @brief Defines classes for managing sensors and their capabilities in an embedded system.
- *
+ * @brief Defines classes for managing sensors and their capabilities in an ESP system.
+ * @details
  * This file contains the following classes:
  * - CxSensor: Represents a generic sensor with properties and methods for sensor management.
  * - CxSensorGeneric: Represents a generic sensor with a callback function for reading values.
@@ -10,11 +10,64 @@
  * The code includes conditional compilation for Arduino-specific libraries and functions.
  *
  * @date Created by ocfu on 03.03.25.
+ * @copyright © 2025 ocfu. All rights reserved.
+ *
+ * Key Features:
+ * 1. Classes and Enumerations:
+ *    - ECSensorType: Enumeration of sensor types (none, temperature, humidity, pressure, flow).
+ *    - CxSensor: Base class for all sensor types, providing common properties and methods for sensor management.
+ *    - CxSensorGeneric: Derived class of CxSensor with a callback function for reading values.
+ *    - CxSensorManager: Singleton class that manages sensors, including initialization, updating, and command execution.
+ *
+ * 2. CxSensor Class:
+ *    - Manages sensor properties such as type, resolution, name, model, and value.
+ *    - Provides methods to enable/disable sensors, set/get sensor values, and update sensor readings.
+ *    - Registers and unregisters sensors with the CxSensorManager.
+ *
+ * 3. CxSensorGeneric Class:
+ *    - Extends CxSensor with a callback function to read sensor values.
+ *    - Implements the begin and read methods.
+ *
+ * 4. CxSensorManager Class:
+ *    - Manages a collection of sensors using a map with unique IDs.
+ *    - Provides methods to add, remove, and retrieve sensors.
+ *    - Updates sensor values and prints a list of all sensors to the console.
+ *
+ * Relationships:
+ * - CxSensor is the base class for all sensor types and interacts with CxSensorManager to register/unregister sensors.
+ * - CxSensorGeneric inherits from CxSensor and provides a specific implementation for reading sensor values using a callback function.
+ * - CxSensorManager is a singleton class that manages all sensors, providing methods to add, remove, and update sensors.
+ *
+ * How They Work Together:
+ * - CxSensor and its derived classes (e.g., CxSensorGeneric) represent individual sensors with specific properties and methods.
+ * - CxSensorManager maintains a collection of these sensors, allowing for centralized management and updates.
+ * - Sensors register themselves with the CxSensorManager upon creation and unregister upon destruction.
+ * - The CxSensorManager can update all sensors or specific sensors, retrieve sensor values, and print sensor information to the console.
+ *
+ * Suggested Improvements:
+ * 1. Error Handling:
+ *    - Add error handling for edge cases, such as invalid sensor IDs or failed sensor updates.
+ *
+ * 2. Code Refactoring:
+ *    - Improve code readability and maintainability by refactoring complex methods and reducing code duplication.
+ *
+ * 3. Documentation:
+ *    - Enhance documentation with more detailed explanations of methods and their parameters.
+ *
+ * 4. Testing:
+ *    - Implement unit tests to ensure the reliability and correctness of the sensor management functionality.
+ *
+ * 5. Resource Management:
+ *    - Monitor and optimize resource usage, such as memory and processing time, especially for embedded systems with limited resources.
+ *
+ * 6. Extensibility:
+ *    - Provide a more flexible mechanism for adding new sensor types and capabilities without modifying the core classes.
  */
 #ifndef CxSensorManager_hpp
 #define CxSensorManager_hpp
 
 #include "CxESPConsole.hpp"
+#include "CxConfigParser.hpp"
 
 #include <map>
 
@@ -143,6 +196,8 @@ public:
    const char* getUnit() {return __strUnit.c_str();}
    /// Get the name of the sensor
    const char* getName() {return __strName.c_str();}
+   void setName(const char* name) {__strName = name;}
+
    
    /// Pure virtual method to read sensor values
    virtual bool read() = 0;
@@ -194,15 +249,19 @@ class CxSensorGeneric : public CxSensor {
    cb_sensor_t _cb;
    
 public:
-   CxSensorGeneric(ECSensorType eType, uint8_t res = 12, const char* unit = "", cb_sensor_t cb = nullptr) : _cb(cb) {
+   CxSensorGeneric(const char* szName, ECSensorType eType, uint8_t res = 12, const char* unit = "", cb_sensor_t cb = nullptr) : _cb(cb) {
       setType(eType);
       setResolution(res);
       __strUnit = unit; //"\x09\x43"  for °C;
       __bValid = true;
       __fMaxValue = 9999.999;
       __fMinValue = -9999.999;
-      __strName = "vir";
       __nId = 0;
+      __strName = szName;
+      __strModel = "generic";
+
+      registerSensors(); /// Register the sensor with the manager
+
    }
    
    /// Define virtual methods from base class.
@@ -286,6 +345,26 @@ public:
          /// Create a unique ID for the sensor
          uint8_t nId = createId();
          
+         /// load .sensors file
+         String strValue;
+         String strEnv = ".sensors";
+
+         /// Load the sensor configuration
+         if (__console.loadEnv(strEnv, strValue)) {
+            CxConfigParser Config(strValue.c_str());
+            DynamicJsonDocument doc(256);
+            DeserializationError error = deserializeJson(doc, Config.getSz("json"));
+            if (!error) {
+               JsonArray sensors = doc["sensors"].as<JsonArray>();
+               for (JsonObject sensor : sensors) {
+                  uint8_t nIdSensor = sensor["id"].as<uint8_t>();
+                  if (nId == nIdSensor) {
+                     pSensor->setName(sensor["na"].as<const char*>());
+                  }
+               }
+            }
+         }
+
          /// Set the unique ID for the sensor
          pSensor->setId(nId);
          
@@ -420,16 +499,33 @@ public:
       }
    }
    
+   void setSensorName(uint8_t nId, const char* szName) {
+      if (szName != nullptr) {
+         CxSensor* pSensor = getSensor(nId);
+         if (pSensor) {
+            pSensor->setName(szName);
+         }
+      }
+   }
+   
+   const char* getSensorName(uint8_t nId) {
+      CxSensor* pSensor = getSensor(nId);
+      if (pSensor) {
+         return pSensor->getName();
+      }
+      return nullptr;
+   }
+   
    /**
     * @brief Print a list of all sensors to the console.
     */
    void printList() {
       /// print table header (ID, name, type, value, unit)
-      __console.printf(F(ESC_ATTR_BOLD "ID | Name       | Type            | Model    | Value   | Unit\n" ESC_ATTR_RESET));
+      __console.printf(F(ESC_ATTR_BOLD "ID | Name        | Type            | Model    | Value   | Unit\n" ESC_ATTR_RESET));
       
       /// iterate over all sensors and print formated sensor information
       for (const auto& [nId, pSensor] : _mapSensors) {
-         __console.printf(F(ESC_ATTR_BOLD "%02d" ESC_ATTR_RESET " | %-10s | %-15s | %-8s | %7.1f | %s\n"), nId, pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() ,pSensor->getFloatValue(), pSensor->getUnit());
+         __console.printf(F(ESC_ATTR_BOLD "%02d" ESC_ATTR_RESET " | %-11s | %-15s | %-8s | %7.1f | %s\n"), nId, pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() ,pSensor->getFloatValue(), pSensor->getUnit());
       }
    }
    
