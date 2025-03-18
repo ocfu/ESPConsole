@@ -235,6 +235,13 @@ public:
    }
    
    /**
+    * @brief Destructor
+    */
+   ~CxMqttHABase() {
+      unregisterDevice<CxMqttHADevice>();
+   }
+   
+   /**
     * @brief Generate unique entity ID
     */
    void setStrId() {
@@ -307,6 +314,16 @@ public:
    template <typename T>
    void registerDevice() {
       T::getInstance().addItem(this);  // Calls the singleton instance of T to register the new ha object
+   }
+
+   // unregister from device
+   /**
+    * @brief Unregister entity with device manager
+    * @tparam T Device manager class (must implement singleton pattern)
+    */
+   template <typename T>
+   void unregisterDevice() {
+      T::getInstance().delItem(this);  // Calls the singleton instance of T to unregister the ha object
    }
    
    /**
@@ -770,6 +787,25 @@ public:
          _CONSOLE_DEBUG("item not valid to add to HA");
       }
    }
+
+   /**
+    * @brief Remove entity from device
+    * @param item Entity to remove
+    */
+   void delItem(CxMqttHABase* item) {
+      _t_vecItems::iterator it = _vecItems.begin();
+      
+      while(it != _vecItems.end())
+      {
+         if ((*it) == item) {
+            _CONSOLE_DEBUG("delete item %s from HA", item->getFriendlyName());
+            _vecItems.erase(it);
+            //delete item;
+            break;
+         }
+         it++;
+      }
+   }
    
    /**
     * @brief Register/deregister all entities
@@ -795,6 +831,25 @@ public:
          it++;
       }
    }
+   
+   /**
+    * @brief Find entity by name
+    * @param szName Entity name
+    * @return Pointer to entity or nullptr if not found
+    */
+   CxMqttHABase* findItem(const char* szName) {
+      _t_vecItems::iterator it = _vecItems.begin();
+      
+      while(it != _vecItems.end())
+      {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            return *it;
+         }
+         it++;
+      }
+      return nullptr;
+   }
+
    
    void publishAvailabilityAllItems() {
       _t_vecItems::iterator it = _vecItems.begin();
@@ -824,10 +879,22 @@ public:
    void printList(Stream& stream) {
       _t_vecItems::iterator it = _vecItems.begin();
       
+      /// print table header
+      stream.println(F(ESC_ATTR_BOLD "Nr | Name                 | Friendly Name        | Type       | Available | Retained | Topic Base" ESC_ATTR_RESET));
+      
+      uint8_t n = 1;
+      
       while(it != _vecItems.end())
       {
-         stream.println((*it)->getTopicBase());
+         stream.printf(ESC_ATTR_BOLD "%-2d |" ESC_ATTR_RESET, n);
+         stream.printf(" %-20s |", (*it)->getName());
+         stream.printf(" %-20s |", (*it)->getFriendlyName());
+         stream.printf(" %-10s |", (*it)->getTypeSz());
+         stream.printf(" %-9s |", (*it)->isAvailable()?"yes":"no");
+         stream.printf(" %-8s |", (*it)->isRetainedCmd()?"yes":"no");
+         stream.printf(" %s\n", (*it)->getTopicBase());
          it++;
+         n++;
       }
    }
       
@@ -839,16 +906,21 @@ class CxMqttHASensor : public CxMqttHABase {
 private:
    const char* _szDeviceClass;
    const char* _szUnit;
+   CxSensor* _pSensor;
    
 public:
    
-   CxMqttHASensor(const char* fn, const char* name, const char* dclass = nullptr, const char* unit = nullptr, bool available = false, bool retain = false) : CxMqttHABase(fn, name, nullptr, nullptr, nullptr, retain), _szDeviceClass(dclass), _szUnit(unit) {
+   CxMqttHASensor(CxSensor* pSensor) : CxMqttHASensor(pSensor->getName(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getUnit()) {_pSensor = pSensor;}
+      
+   CxMqttHASensor(const char* fn, const char* name, const char* dclass = nullptr, const char* unit = nullptr, bool available = false, bool retain = false) : CxMqttHABase(fn, name, nullptr, nullptr, nullptr, retain), _szDeviceClass(dclass), _szUnit(unit), _pSensor(nullptr) {
       
       __eStateClass = e_state::measurement;
       __eCat = e_cat::none;
       __eType = e_type::HAsensor;
       setAvailable(available);
    }
+   
+   CxSensor* getSensor() const {return _pSensor;}
    
    void addJsonConfig(JsonDocument &doc) const {
       if (_szDeviceClass) {
