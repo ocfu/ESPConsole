@@ -6,9 +6,44 @@
  * capabilities for an ESP-based project. It includes methods for setting up, managing,
  * and executing MQTT Home Assistant-related commands.
  *
- * @date 09.01.25
- * @author ocfu
+ * @date created by ocfu on 09.01.25
  * @copyright © 2025 ocfu
+ *
+ * Key Features:
+ * 1. Classes and Enumerations:
+ *    - CxCapabilityMqttHA: Provides MQTT Home Assistant capabilities.
+ *
+ * 2. CxCapabilityMqttHA Class:
+ *    - Manages MQTT Home Assistant properties and methods.
+ *    - Provides methods to enable/disable Home Assistant, set/get sensor values, and update sensor readings.
+ *    - Registers and unregisters sensors with the CxSensorManager.
+ *
+ * Relationships:
+ * - CxCapabilityMqttHA is a subclass of CxCapability and interacts with CxSensorManager to register/unregister sensors.
+ *
+ * How They Work Together:
+ * - CxCapabilityMqttHA represents MQTT Home Assistant capabilities with specific properties and methods.
+ * - Sensors based on CxMqttHASensor register themselves with the CxSensorManager upon creation and unregister upon destruction.
+ * - The CxCapabilityMqttHA can initialize, end, and print sensor information.
+ *
+ * Suggested Improvements:
+ * 1. Error Handling:
+ *    - Add error handling for edge cases, such as invalid sensor IDs or failed sensor updates.
+ *
+ * 2. Code Refactoring:
+ *    - Improve code readability and maintainability by refactoring complex methods and reducing code duplication.
+ *
+ * 3. Documentation:
+ *    - Enhance documentation with more detailed explanations of methods and their parameters.
+ *
+ * 4. Testing:
+ *    - Implement unit tests to ensure the reliability and correctness of the sensor management functionality.
+ *
+ * 5. Resource Management:
+ *    - Monitor and optimize resource usage, such as memory and processing time, especially for embedded systems with limited resources.
+ *
+ * 6. Extensibility:
+ *    - Provide a more flexible mechanism for adding new sensor types and capabilities without modifying the core classes.
  */
 #ifndef CxCapabilityMqttHA_hpp
 #define CxCapabilityMqttHA_hpp
@@ -20,18 +55,45 @@
 
 #include "../tools/CxMqttHAManager.hpp"
 
+/// defines for the index of the diagnostics objects
+#define DIAG_STATUS 0
+#define DIAG_RECONNECTS 1
+#define DIAG_LINKQUALITY 2
+#define DIAG_FREE_MEM 3
+#define DIAG_LAST_RESTART 4
+#define DIAG_UPTIME 5
+#define DIAG_RESTART_REASON 6
+#define DIAG_STACK 7
+#define DIAG_STACK_LOW 8
+
+#define DIAGNOTICS_COUNT 9
+
+/**
+ * @class CxCapabilityMqttHA
+ * @brief Provides MQTT Home Assistant capabilities for an ESP-based project.
+ * @details The `CxCapabilityMqttHA` class manages MQTT Home Assistant properties and methods.
+ * It includes methods for enabling/disabling Home Assistant, setting/getting sensor values,
+ * and updating sensor readings. The class registers and unregisters sensors with the CxSensorManager.
+ */
 class CxCapabilityMqttHA : public CxCapability {
+private:
+   /// access to the instances of the master console, MQTT HA device,  MQTT manager and sensor manager
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    CxMqttHADevice& _mqttHAdev = CxMqttHADevice::getInstance();
    CxMqttManager& __mqttManager = CxMqttManager::getInstance();
+   CxSensorManager& _sensorManager = CxSensorManager::getInstance();
 
    bool _bHAEnabled = false;
+
+   /// timer for updating sensor data
+   CxTimer60s _timerUpdate;
    
-   CxTimer60s _timer60s;
-   
+   /// maps of Home Assistant diagnostics and sensors
    std::map<uint8_t, std::unique_ptr<CxMqttHADiagnostic>> _mapHADiag;
+   std::vector<std::unique_ptr<CxMqttHASensor>> _vHASensor;
 
 public:
+   /// Default constructor and default capabilities methods.
    explicit CxCapabilityMqttHA()
    : CxCapability("mqttha", getCmds()) {}
    static constexpr const char* getName() { return "mqttha"; }
@@ -43,11 +105,14 @@ public:
       return std::make_unique<CxCapabilityMqttHA>();
    }
    
+   /// Destructor to end the capability and clear the sensor objects.
    ~CxCapabilityMqttHA() {
       enableHA(false);
       _mapHADiag.clear();
+      _vHASensor.clear();
    }
    
+   /// Setup method to initialize the capability and register
    void setup() override {
       CxCapability::setup();
       
@@ -59,25 +124,29 @@ public:
       // increase the PubSubClient buffer size as for HA the payload could be pretty long, especially for discovery topics.
       __mqttManager.setBufferSize(1024);
       
-      _mapHADiag[0] = std::make_unique<CxMqttHADiagnostic>("Status", "diagstatus", true, __mqttManager.getRootPath());
-      _mapHADiag[1] = std::make_unique<CxMqttHADiagnostic>("Reconnects/h", "diagreconnects", nullptr, "1/h");
-      _mapHADiag[2] = std::make_unique<CxMqttHADiagnostic>("Linkquality", "diaglink", nullptr, "rssi");
-      _mapHADiag[3] = std::make_unique<CxMqttHADiagnostic>("Free mem", "diagmem", nullptr, "bytes");
-      _mapHADiag[4] = std::make_unique<CxMqttHADiagnostic>("Last Restart", "diagrestart", "timestamp", "", true);
-      _mapHADiag[5] = std::make_unique<CxMqttHADiagnostic>("Up Time", "diaguptime", "duration", "s");
-      _mapHADiag[6] = std::make_unique<CxMqttHADiagnostic>("Restart Reason", "diagreason", nullptr, nullptr, true);
-      _mapHADiag[7] = std::make_unique<CxMqttHADiagnostic>("Stack", "diagstack", nullptr, nullptr, true);
-      _mapHADiag[8] = std::make_unique<CxMqttHADiagnostic>("Stack Low", "diagstacklow", nullptr, nullptr, true);
+      /// load diagnostics items for the HA device for debugging purposes.
+      _mapHADiag[DIAG_STATUS] = std::make_unique<CxMqttHADiagnostic>("Status", "diagstatus", true, __mqttManager.getRootPath());
+      _mapHADiag[DIAG_RECONNECTS] = std::make_unique<CxMqttHADiagnostic>("Reconnects/h", "diagreconnects", nullptr, "1/h");
+      _mapHADiag[DIAG_LINKQUALITY] = std::make_unique<CxMqttHADiagnostic>("Linkquality", "diaglink", nullptr, "rssi");
+      _mapHADiag[DIAG_FREE_MEM] = std::make_unique<CxMqttHADiagnostic>("Free mem", "diagmem", nullptr, "bytes");
+      _mapHADiag[DIAG_LAST_RESTART] = std::make_unique<CxMqttHADiagnostic>("Last Restart", "diagrestart", "timestamp", "", true);
+      _mapHADiag[DIAG_UPTIME] = std::make_unique<CxMqttHADiagnostic>("Up Time", "diaguptime", "duration", "s");
+      _mapHADiag[DIAG_RESTART_REASON] = std::make_unique<CxMqttHADiagnostic>("Restart Reason", "diagreason", nullptr, nullptr, true);
+      _mapHADiag[DIAG_STACK] = std::make_unique<CxMqttHADiagnostic>("Stack", "diagstack", nullptr, nullptr, true);
+      _mapHADiag[DIAG_STACK_LOW] = std::make_unique<CxMqttHADiagnostic>("Stack Low", "diagstacklow", nullptr, nullptr, true);
 
+      /// load specific environments for this class
       execute ("ha load");
       
+      /// enable MQTT HA
       if (isEnabled()) enableHA(true);
 
    }
    
+   /// Loop method to update sensor data and diagnostics
    void loop() override {
-      if (_timer60s.isDue()) {
-         if (_mapHADiag[0]) {
+      if (_timerUpdate.isDue()) {
+         if (_mapHADiag[DIAG_STATUS]) {
             StaticJsonDocument<256> doc;
             doc[F("heartbeat")] = millis();
             doc[F("uptime")] = console.getUpTimeISO();
@@ -85,10 +154,10 @@ public:
 #ifdef ARDUINO
             doc[F("RSSI")] = WiFi.RSSI();
 #endif
-            _mapHADiag[0]->publishAttributes(doc);
+            _mapHADiag[DIAG_STATUS]->publishAttributes(doc);
          }
          
-         if (_mapHADiag[1]) {
+         if (_mapHADiag[DIAG_RECONNECTS]) {
             static uint32_t n1hBucket = 0;
             static uint32_t nLastCounter = 0;
             static unsigned long nTimer1h = 0;
@@ -98,20 +167,24 @@ public:
             _mapHADiag[1]->publishAvailability(true);
             
             if ((millis() - nTimer1h) > (3600000)) {
-               _mapHADiag[1]->publishState(n1hBucket, 0);
+               _mapHADiag[DIAG_RECONNECTS]->publishState(n1hBucket, 0);
                nTimer1h = millis();
                n1hBucket = 0;
                nLastCounter = __mqttManager.getConnectCntr();
             }
          }
 #ifdef ARDUINO
-         if (_mapHADiag[2]) _mapHADiag[2]->publishState(WiFi.RSSI(), 0);
-         if (_mapHADiag[3]) _mapHADiag[3]->publishState(ESP.getFreeHeap(), 0);
+         if (_mapHADiag[DIAG_LINKQUALITY]) _mapHADiag[DIAG_LINKQUALITY]->publishState(WiFi.RSSI(), 0);
+         if (_mapHADiag[DIAG_FREE_MEM]) _mapHADiag[DIAG_FREE_MEM]->publishState(ESP.getFreeHeap(), 0);
 #endif
-         if (_mapHADiag[5]) _mapHADiag[5]->publishState(console.getUpTimeSeconds(), 0);
-         if (_mapHADiag[7]) _mapHADiag[7]->publishState(g_Stack.getSize(), 0);
-         if (_mapHADiag[8]) _mapHADiag[8]->publishState(g_Stack.getLow(), 0);
-
+         if (_mapHADiag[DIAG_UPTIME]) _mapHADiag[DIAG_UPTIME]->publishState(console.getUpTimeSeconds(), 0);
+         if (_mapHADiag[DIAG_STACK]) _mapHADiag[DIAG_STACK]->publishState(g_Stack.getSize(), 0);
+         if (_mapHADiag[DIAG_STACK_LOW]) _mapHADiag[DIAG_STACK_LOW]->publishState(g_Stack.getLow(), 0);
+         
+         /// update sensor data
+         for (auto& pHASensor : _vHASensor) {
+            pHASensor->publishState(pHASensor->getSensor()->getFloatValue(), 0);
+         }
       }
    }
    
@@ -145,17 +218,50 @@ public:
             enableHA(_bHAEnabled);
          } else if (strSubCmd == "list") {
             _mqttHAdev.printList(getIoStream());
+         } else if (strSubCmd == "sensor") {
+            String strSensorCmd = TKTOCHAR(tkArgs, 2);
+            if (strSensorCmd == "add") {
+               addSensor(TKTOCHAR(tkArgs, 3));
+            } else if (strSensorCmd == "del") {
+               deleteSensor(TKTOCHAR(tkArgs, 3));
+            }
          } else if (strSubCmd == "save") {
             CxConfigParser Config;
             Config.addVariable("enabled", _bHAEnabled);
-            ESPConsole.saveEnv(strEnv, Config.getConfigStr());
-         } else if (strSubCmd == "load") {
+            
+            DynamicJsonDocument doc(1024);
+            JsonArray sensors = doc.createNestedArray("sensors");
+            for (auto& pHASensor : _vHASensor) {
+               JsonObject sensor = sensors.createNestedObject();
+               sensor["na"] = pHASensor->getName();
+            }
+#ifdef ARDUINO
+            String strSensors;
+            serializeJson(doc, strSensors);
+            Config.addVariable("json", strSensors);
+#else
+            char szSensors[1024];
+            serializeJson(doc, szSensors, sizeof(szSensors));
+            Config.addVariable("json", szSensors);
+#endif
+            
+            console.saveEnv(strEnv, Config.getConfigStr());
+         }  else if (strSubCmd == "load") {
             String strValue;
-            if (ESPConsole.loadEnv(strEnv, strValue)) {
+            if (console.loadEnv(strEnv, strValue)) {
                CxConfigParser Config(strValue.c_str());
                // extract settings and set, if defined. Keep unchanged, if not set.
                _bHAEnabled = Config.getBool("enabled", _bHAEnabled);
                console.info(F("Mqtt HA support enabled: %d"), _bHAEnabled);
+               
+               DynamicJsonDocument doc(1024);
+               DeserializationError error = deserializeJson(doc, Config.getSz("json"));
+               if (!error) {
+                  JsonArray sensors = doc["sensors"].as<JsonArray>();
+                  for (JsonObject sensor : sensors) {
+                     addSensor(sensor["na"].as<const char*>());
+                  }
+               }
             }
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bHAEnabled);
@@ -164,6 +270,8 @@ public:
             println(F("  list"));
             println(F("  save"));
             println(F("  load"));
+            println(F("  sensor add <name>"));
+            println(F("  sensor del <name>"));
          }
       } else {
          return false;
@@ -175,6 +283,10 @@ public:
    bool isEnabled() {return _bHAEnabled;}
    void setEnabled(bool set) {_bHAEnabled = set;}
    
+   /**
+    * @brief Enables or disables the MQTT Home Assistant support.
+    * @param enabled - true to enable, false to disable.
+   */
    void enableHA(bool enabled) {
       _mqttHAdev.setFriendlyName(console.getAppName());
       _mqttHAdev.setName(console.getAppName());
@@ -185,13 +297,40 @@ public:
       _mqttHAdev.setHwVersion("ESP");
       _mqttHAdev.setUrl("");
       _mqttHAdev.setStrId();
-      
+   
       _mqttHAdev.regItems(enabled);
       _mqttHAdev.publishAvailability(enabled);
       
       if (enabled) {
-         if (_mapHADiag[6]) _mapHADiag[6]->publishState(::getResetInfo());
-         if (_mapHADiag[4]) _mapHADiag[4]->publishState(console.getStartTime());
+         if (_mapHADiag[DIAG_RESTART_REASON]) _mapHADiag[DIAG_RESTART_REASON]->publishState(::getResetInfo());
+         if (_mapHADiag[DIAG_LAST_RESTART]) _mapHADiag[DIAG_LAST_RESTART]->publishState(console.getStartTime());
+         
+         /// make the timer active for an instant update in the loop()
+         _timerUpdate.makeDue();
+      } else {
+         _timerUpdate.stop();
+      }      
+   }
+   
+   /// Adds a sensor to the MQTT Home Assistant device.
+   /// _vHASensor is a vector of unique pointers to CxMqttHASensor objects
+   void addSensor(const char* szName) {
+      CxSensor* pSensor = _sensorManager.getSensor(szName);
+      if (pSensor) {
+         if (!_mqttHAdev.findItem(szName)) _vHASensor.push_back(std::make_unique<CxMqttHASensor>(pSensor)); /// implicitly registers the new item in the device.
+      } else {
+         console.printf(F("Sensor '%s' not found."), szName);
+      }
+   }
+   
+   /// Deletes a sensor from the MQTT Home Assistant device
+   void deleteSensor(const char* szName) {
+      for (auto it = _vHASensor.begin(); it != _vHASensor.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->publishAvailability(false);
+            _vHASensor.erase(it);
+            break;
+         }
       }
    }
 };
