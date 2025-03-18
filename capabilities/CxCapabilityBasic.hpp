@@ -6,6 +6,43 @@
  * - CxCapabilityBasic: Provides basic system commands such as reboot, info, uptime, and network information.
  *
  * @date Created by ocfu on 09.01.25.
+ *  @copyright © 2025 ocfu
+ *
+ * Key Features:
+ * 1. Classes and Enumerations:
+ *    - CxCapabilityBasic: Provides basic system commands.
+ *
+ * 2. CxCapabilityBasic Class:
+ *    - Manages basic system commands such as reboot, info, uptime, and network information.
+ *    - Provides methods to enable/disable commands, set/get system information, and update system status.
+ *    - Registers and unregisters commands with the CxESPConsole.
+ *
+ * Relationships:
+ * - CxCapabilityBasic is a subclass of CxCapability and interacts with CxESPConsole to register/unregister commands.
+ *
+ * How They Work Together:
+ * - CxCapabilityBasic represents basic system commands with specific properties and methods.
+ * - Commands register themselves with the CxESPConsole upon creation and unregister upon destruction.
+ * - The CxCapabilityBasic can initialize, end, and print system information.
+ *
+ * Suggested Improvements:
+ * 1. Error Handling:
+ *    - Add error handling for edge cases, such as invalid command inputs or failed command executions.
+ *
+ * 2. Code Refactoring:
+ *    - Improve code readability and maintainability by refactoring complex methods and reducing code duplication.
+ *
+ * 3. Documentation:
+ *    - Enhance documentation with more detailed explanations of methods and their parameters.
+ *
+ * 4. Testing:
+ *    - Implement unit tests to ensure the reliability and correctness of the command management functionality.
+ *
+ * 5. Resource Management:
+ *    - Monitor and optimize resource usage, such as memory and processing time, especially for embedded systems with limited resources.
+ *
+ * 6. Extensibility:
+ *    - Provide a more flexible mechanism for adding new command types and capabilities without modifying the core classes.
  */
 
 #ifndef CxCapabilityBasic_hpp
@@ -14,10 +51,19 @@
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
 
+/**
+ * @class CxCapabilityBasic
+ * @brief Provides basic system commands for the ESP console.
+ * @details The `CxCapabilityBasic` class manages basic system commands such as reboot, info, uptime, and network information.
+ * It includes methods for enabling/disabling commands, setting/getting system information, and updating system status.
+ *
+ */
 class CxCapabilityBasic : public CxCapability {
+   /// access to the instance of the master console
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    
 public:
+   /// Default constructor and default capabilities methods.
    explicit CxCapabilityBasic()
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
@@ -28,7 +74,12 @@ public:
    static std::unique_ptr<CxCapability> construct(const char* param) {
       return std::make_unique<CxCapabilityBasic>();
    }
-   
+
+   /// Destructor to end the capability
+   ~CxCapabilityBasic() {
+   }
+
+   /// Setup method to initialize the capability
    void setup() override {
       CxCapability::setup();
       
@@ -39,9 +90,11 @@ public:
 
    }
    
+   /// Loop method, currently no recurring tasks to handle.
    void loop() override {
    }
    
+   /// Execute a command
    bool execute(const char *szCmd) override {
       
       bool bQuiet = false;
@@ -249,11 +302,17 @@ public:
    }
 #endif
    
+   /**
+    * @brief Prints system information.
+    * @details Prints the hostname, IP address, SSID, uptime, and memory information.
+    * The method also prints the system load, number of users, and last restart time.
+    * @note This method is called by the `info` command and called at the start (as part of the welcome message) of the console.
+    */
    void printInfo() {
       print(F(ESC_ATTR_BOLD "  Hostname: " ESC_ATTR_RESET));printHostName();printf(F(ESC_ATTR_BOLD " IP: " ESC_ATTR_RESET));printIp();printf(F(ESC_ATTR_BOLD " SSID: " ESC_ATTR_RESET));printSSID();println();
       print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));console.printUpTimeISO(getIoStream());printf(F(" - %d user(s)"), console.users());    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));console.printStartTime(getIoStream());println();
       printHeap();println();
-      printStack();println();
+      print(F("    "));printStack();println();
    }
    
    void printHeap() {
