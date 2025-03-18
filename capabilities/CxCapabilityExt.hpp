@@ -5,8 +5,57 @@
  * The CxCapabilityExt class manages various capabilities and functionalities for an ESP-based project,
  * including WiFi management, OTA updates, GPIO control, and sensor management.
  *
- * @date Created by ocfu on 09.01.25.
+ * Dependencies:
+ * - CxCapability.hpp: Base class for capabilities
+ * - CxESPConsole.hpp: Console management class
+ * - CxCapabilityBasic.hpp: Basic capability class
+ * - CxGpioTracker.hpp: GPIO tracker class
+ * - CxLed.hpp: LED control class
+ * - CxSensorManager.hpp: Sensor manager class
+ * - CxConfigParser.hpp: Configuration parser class
+ * - CxOta.hpp: OTA update class
+ * - WebServer.h: Web server library for ESP32
+ * - ESP8266WebServer.h: Web server library for ESP8266
+ * - DNSServer.h: DNS server library
  *
+ * @date Created by ocfu on 09.01.25.
+ * @copyright © 2025 ocfu
+ *
+ * Key Features:
+ * 1. Classes and Enumerations:
+ *    - CxCapabilityExt: Extends CxCapability to manage various functionalities.
+ *
+ * 2. CxCapabilityExt Class:
+ *    - Manages WiFi, OTA updates, GPIO control, and sensor management.
+ *    - Provides methods to enable/disable WiFi, set/get sensor values, and update sensor readings.
+ *    - Registers and unregisters sensors with the CxSensorManager.
+ *
+ * Relationships:
+ * - CxCapabilityExt is a subclass of CxCapability and interacts with CxSensorManager to register/unregister sensors.
+ *
+ * How They Work Together:
+ * - CxCapabilityExt represents various capabilities with specific properties and methods.
+ * - Sensors register themselves with the CxSensorManager upon creation and unregister upon destruction.
+ * - The CxCapabilityExt can initialize, end, and print sensor information.
+ *
+ * Suggested Improvements:
+ * 1. Error Handling:
+ *    - Add error handling for edge cases, such as invalid sensor IDs or failed sensor updates.
+ *
+ * 2. Code Refactoring:
+ *    - Improve code readability and maintainability by refactoring complex methods and reducing code duplication.
+ *
+ * 3. Documentation:
+ *    - Enhance documentation with more detailed explanations of methods and their parameters.
+ *
+ * 4. Testing:
+ *    - Implement unit tests to ensure the reliability and correctness of the sensor management functionality.
+ *
+ * 5. Resource Management:
+ *    - Monitor and optimize resource usage, such as memory and processing time, especially for embedded systems with limited resources.
+ *
+ * 6. Extensibility:
+ *    - Provide a more flexible mechanism for adding new sensor types and capabilities without modifying the core classes.
  */
 
 
@@ -22,6 +71,7 @@
 #include "../tools/CxLed.hpp"
 #include "esphw.h"
 #include "../tools/CxSensorManager.hpp"
+#include "../tools/CxConfigParser.hpp"
 
 #ifndef ESP_CONSOLE_NOWIFI
 #include "../tools/CxOta.hpp"
@@ -115,6 +165,7 @@ const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
+/// global objects for OTA and LED
 CxOta Ota1;
 CxLed Led1(LED_BUILTIN);
 
@@ -122,16 +173,24 @@ bool g_bOTAinProgress = false;
 
 #endif /* ESP_CONSOLE_NOWIFI */
 
+/**
+ * @brief CxCapabilityExt class for managing various capabilities and functionalities.
+ * @details The CxCapabilityExt class extends the CxCapability class to manage capabilities such as WiFi, OTA updates, GPIO control, and sensor management.
+ * It provides methods to enable/disable WiFi, set/get sensor values, and update sensor readings.
+ * The class registers and unregisters sensors with the CxSensorManager.
+ *
+ */
 class CxCapabilityExt : public CxCapability {
-   CxTimer10s _nTimer10s;
-   
+   /// access to the instances of the master console, GPIO tracker, sensor manager
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
-   
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();
+   
+   /// timer for updating stack info and sensor data
+   CxTimer10s _timerUpdate;
 
 public:
-
+   /// Default constructor and default capabilities methods
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
@@ -142,11 +201,13 @@ public:
       return std::make_unique<CxCapabilityExt>();
    }
    
+   /// Destructor to end the capability and stop OTA and Wifi
    ~CxCapabilityExt() {
       Ota1.end();
       stopWiFi();
    }
    
+   /// Setup method to initialize the capability and connect to wifi, if not connected.
    void setup() override {
       CxCapability::setup();
 
@@ -160,7 +221,8 @@ public:
          println();
          startWiFi();
       }
-      
+
+      /// led status indication
       Led1.off();
       if (isConnected()) {
          Led1.flashOk();
@@ -168,7 +230,7 @@ public:
          Led1.blinkError();
       }
       
-      // ota
+      /// setup OTA service
       console.info(F("start OTA service"));
       char szOtaPassword[25];
       ::readOtaPassword(szOtaPassword, sizeof(szOtaPassword));
@@ -217,6 +279,7 @@ public:
       Ota1.begin(console.getHostName(), szOtaPassword);
    }
    
+   /// Loop method to update sensor data, handle OTA updates, and manage LED status and web server requests.
    void loop() override {
 #ifndef ESP_CONSOLE_NOWIFI
       Ota1.loop();
@@ -226,15 +289,18 @@ public:
 #endif
 #endif
 
+      /// update led indications, if any
       ledAction();
       
-      if (_nTimer10s.isDue()) {
+      /// update sensor data and stack info
+      if (_timerUpdate.isDue()) {
          g_Heap.update();
          _sensorManager.update();
       }
    }
    
-    bool execute(const char *szCmd) override {
+   /// Execute method to process the given command and return the result.
+   bool execute(const char *szCmd) override {
        
       // validate the call
       if (!szCmd) return false;
@@ -474,8 +540,16 @@ public:
          }
       } else if (cmd == "sensor") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
+         String strEnv = ".sensors";
          if (strSubCmd == "list") {
             _sensorManager.printList();
+         } else if (strSubCmd == "name") {
+            uint8_t nId = TKTOINT(tkArgs, 2, INVALID_UINT8);
+            if (nId != INVALID_UINT8) {
+               _sensorManager.setSensorName(nId, TKTOCHAR(tkArgs, 3));
+            } else {
+               println(F("usage: sensor name <id> <name>"));
+            }
          } else if (strSubCmd == "get") {
             float f = _sensorManager.getSensorValueFloat(TKTOINT(tkArgs, 2, INVALID_FLOAT));
             if (!std::isnan(f)) {
@@ -483,10 +557,51 @@ public:
             } else {
                println(F("invalid sensor id!"));
             }
+         } else if (strSubCmd == "save") {
+            CxConfigParser Config;
+            DynamicJsonDocument doc(1024);
+            
+            // save the sensors
+            JsonArray sensors = doc.createNestedArray("sensors");
+            for (uint8_t i = 0; i < _sensorManager.getSensorCount(); i++) {
+               JsonObject sensor = sensors.createNestedObject();
+               sensor["id"] = i;
+               sensor["na"] = _sensorManager.getSensorName(i);
+            }
+#ifdef ARDUINO
+            String strJson;
+            serializeJson(doc, strJson);
+            Config.addVariable("json", strJson);
+            console.saveEnv(strEnv, Config.getConfigStr());
+#else
+            char szJson[1024];
+            serializeJson(doc, szJson, sizeof(szJson));
+            Config.addVariable("json", szJson);
+            console.saveEnv(strEnv, Config.getConfigStr());
+#endif
+            
+         } else if (strSubCmd == "load") {
+            String strValue;
+            if (console.loadEnv(strEnv, strValue)) {
+               CxConfigParser Config(strValue.c_str());
+               DynamicJsonDocument doc(256);
+               DeserializationError error = deserializeJson(doc, Config.getSz("json"));
+               if (!error) {
+                  JsonArray sensors = doc["sensors"].as<JsonArray>();
+                  for (JsonObject sensor : sensors) {
+                     uint8_t nId = sensor["id"].as<uint8_t>();
+                     console.info(F("name of sensor %d -> %s"), nId, sensor["na"].as<const char*>());
+                     _sensorManager.setSensorName(nId, sensor["na"].as<const char*>());
+                  }
+               }
+            }
          } else {
             println(F("sensor commands:"));
             println(F("  list"));
+            println(F("  name <id> <name>"));
             println(F("  get <id>"));
+            println(F("  save"));
+            println(F("  load"));
          }
       } else {
          return false;
@@ -694,10 +809,10 @@ public:
    void startWiFi(const char* ssid = nullptr, const char* pw = nullptr) {
       
 #ifndef ESP_CONSOLE_NOWIFI
-      //_stopAP();
+      _stopAP();
       
       if (isConnected()) {
-         //stopWiFi();
+         stopWiFi();
       }
       
       //
@@ -773,6 +888,7 @@ public:
    }
    
 private:
+   /// handle the root request from the web client to provide a captive portal for wifi connection.
    static void _handleRoot() {
 #ifdef ARDUINO
       String htmlPage = htmlPageTemplate;
@@ -799,6 +915,7 @@ private:
 #endif
    }
 
+   /// Handle the connect request from the captive portal to connect to a WiFi network.
    static void _handleConnect() {
 #ifdef ARDUINO
       
@@ -841,6 +958,7 @@ private:
 #endif
    }
    
+   /// starting the access point mode with the given hostname and password.
    void _beginAP() {
       stopWiFi();
       
@@ -869,7 +987,8 @@ private:
       printf(F("ESP started in AP mode. SSID: %s, PW:%s\n"), console.getHostName(), "12345678");
       console.setAPMode(true);
    }
-   
+
+   /// stopping the access point mode
    void _stopAP() {
       Led1.off();
       
