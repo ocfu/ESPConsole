@@ -1,14 +1,65 @@
 /**
  * @file CxSensorBme.hpp
  * @brief Defines the CxSensorBme class for managing BME280 sensor capabilities in an embedded system.
+ * @details The CxSensorBme class provides methods for managing BME280 sensor capabilities, including initialization, reading sensor data, and updating sensor values.
+ *
+ * Dependencies:
+ * - CxSensorManager.hpp
+ * - CxCapabilityI2C.hpp   (for I2C device configuration)
+ * - Adafruit_BME280.h     (for BME280 sensor library)
+ * - Adafruit_Sensor.h     (for Adafruit sensor library)
  *
  * This file contains the following class:
  * - CxSensorBme: Manages BME280 sensor capabilities, including initialization, reading sensor data, and updating sensor values.
+ * - CxBmeSensorContainer: Manages CxSensor objects to represent the three environmental sensors (temperature, humidity and pressure) of the BME280 sensor.
  *
- * The code includes conditional compilation for Arduino-specific libraries and functions.
+ * The global object of the CxSensorBmeContainer (bmeContainer) class provides access to the individual sensor objects.
  *
- * @date Created by ocfu on 31.07.22.
- * @copyright © 2022 ocfu. All rights reserved.
+ * @date Created by ocfu on 16.03.25.
+ * @copyright © 2025 ocfu. All rights reserved.
+ *
+ * Key Features:
+ * 1. Classes and Enumerations:
+ *    - CxSensorBme: Extends CxSensor to manage BME280 sensor capabilities.
+ *    - CxBmeSensorContainer: Manages a container of the BME environmental sensors.
+ *
+ * 2. CxSensorBme Class:
+ *    - Manages BME280 sensor properties such as type, resolution, name, model, and value.
+ *    - Provides methods to enable/disable sensors, set/get sensor values, and update sensor readings.
+ *    - Registers and unregisters sensors with the CxSensorManager.
+ *
+ * 3. CxBmeSensorContainer Class:
+ *    - Manages a collection of the BME environemental sensors using a vector.
+ *    - Provides methods to initialize, end, and print sensor information.
+ *
+ * Relationships:
+ * - CxSensorBme is a subclass of CxSensor and interacts with CxSensorManager to register/unregister sensors.
+ * - CxBmeSensorContainer manages a collection of CxSensorBme objects.
+ *
+ * How They Work Together:
+ * - CxSensorBme represents individual BME280 sensors with specific properties and methods.
+ * - CxBmeSensorContainer maintains a collection of these sensors, allowing for centralized management and updates.
+ * - Sensors register themselves with the CxSensorManager upon creation and unregister upon destruction.
+ * - The CxBmeSensorContainer can initialize, end, and print sensor information.
+ *
+ * Suggested Improvements:
+ * 1. Error Handling:
+ *    - Add error handling for edge cases, such as invalid sensor IDs or failed sensor updates.
+ *
+ * 2. Code Refactoring:
+ *    - Improve code readability and maintainability by refactoring complex methods and reducing code duplication.
+ *
+ * 3. Documentation:
+ *    - Enhance documentation with more detailed explanations of methods and their parameters.
+ *
+ * 4. Testing:
+ *    - Implement unit tests to ensure the reliability and correctness of the sensor management functionality.
+ *
+ * 5. Resource Management:
+ *    - Monitor and optimize resource usage, such as memory and processing time, especially for embedded systems with limited resources.
+ *
+ * 6. Extensibility:
+ *    - Provide a more flexible mechanism for adding new sensor types and capabilities without modifying the core classes.
  */
 #ifndef CxSensorBme_hpp
 #define CxSensorBme_hpp
@@ -188,4 +239,79 @@ public:
    
 };
 
+
+/**
+ * @class CxBmeSensorContainer
+ * @brief Manages a container of BME sensors.
+ * @details The CxBmeSensorContainer class manages a container of BME sensors and provides methods for initialising and ending the sensor manager, getting the number of sensors, and printing sensor information.
+ *
+ * The class stores a vector of BME sensors of the class CxSensorBme, which is a subclass of the CxSensor class. The CxSensor class registers the sensors in the instance of the CxSensorManager class and makes the sensor available for the ESP console.
+ *
+ * The class is a singleton and enforces the singleton pattern by disabling copying and assignment. The class is constructed on first access and destroyed when the program ends.
+ */
+class CxBmeSensorContainer {
+   CxESPConsoleMaster& _console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
+   
+   /// Vector of BME sensors
+   std::vector<std::unique_ptr<CxSensorBme>> _vBmeSensors; /// vector of BME sensors
+   
+   CxBmeSensorContainer() = default; /// Private constructor to enforce singleton pattern
+   
+public:
+   /// Disable copying and assignment to enforce singleton pattern
+   CxBmeSensorContainer(const CxBmeSensorContainer&) = delete;
+   CxBmeSensorContainer& operator=(const CxBmeSensorContainer&) = delete;
+   
+   /// Destructor to unregister sensors
+   ~CxBmeSensorContainer() {
+      end();
+   }
+   
+   /// Singleton pattern
+   /// @return Reference to the singleton instance
+   /// @details The static instance is constructed on first access
+   static CxBmeSensorContainer& getInstance() {
+      static CxBmeSensorContainer instance;
+      return instance;
+   }
+   
+   /// Begin sensor manager
+   /// @details Initialise BME sensors using I2C device
+   void begin() {
+      CxCapabilityI2C* pI2C = CxCapabilityI2C::getInstance();
+      
+      if (pI2C) {
+         _console.debug(F("initialise BME sensors..."));
+         /// Creates and add a BME sensors to the vector using std::make_unique for save memory management
+         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::temperature));
+         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::humidity));
+         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::pressure));
+      }
+      printSensors();
+   }
+   
+   /// End sensor manager
+   void end() {
+      _vBmeSensors.clear();
+   }
+   
+   /// Print BME sensor information
+   void printSensors() {
+      _console.info(F("Registered BME sensors:"));
+      for (auto& sensor : _vBmeSensors) {
+         _console.printf(F("%s %s %.2f %s\n"), sensor->getName(), sensor->getModel(), sensor->getFloatValue(), sensor->getUnit());
+      }
+   }
+   
+};
+
+
+/**
+ * @brief Global BME sensor container instance
+ * @details The global BME sensor container instance is created on first access and destroyed when the program ends.
+ * The instance is used to manage a container of BME sensors.
+ */
+CxBmeSensorContainer& bmeContainer = CxBmeSensorContainer::getInstance();
+   
+   
 #endif /* CxSensorBme_hpp */
