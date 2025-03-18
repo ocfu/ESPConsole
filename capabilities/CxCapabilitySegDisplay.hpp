@@ -78,6 +78,9 @@ class CxSegScreen {
    CxCapabilitySegDisplay* _pDisplay = nullptr;
    
    uint8_t _nId = 0; ///< The screen ID
+
+   String _strName; ///< The screen name
+   
    /**
     * @var _strParam
     * @brief The screen parameter
@@ -127,6 +130,15 @@ public:
    void setParam(const char* set) {if (set) _strParam = set;}
    const char* getParam() {return _strParam.c_str();}
    
+   /**
+    * @brief Sets the screen name.
+    * @param set The name to set.
+    * @details This method is called to set the screen name.
+    * The name is a string that can be used to identify the screen.
+    */
+   void setName(const char* set) {_strName = set;}
+   const char* getName() {return _strName.c_str();}
+
    /**
     * @brief Gets the screen type.
     * @return The screen type as a string.
@@ -238,13 +250,19 @@ private:
     */
    CxGPIO _gpioClk;
    CxGPIO _gpioData;
-   int _nBrigthness;
-   int _nBrightnessDefault;
+   int _nBrigthness = 10;
+   int _nBrightnessDefault = 10;
    
    CxTimer _timerSlideShow;
    CxTimer _timerMsg;
    CxTimer1s _timerUpdate;
    
+   /**
+    * @var _mapScreens
+    * @var _mapScreensƒ
+    * @brief A map of segment screens.
+    * @details The map of segment screens is used to store the screens that are registered with the segment display capability.
+    */
    std::map<String, std::unique_ptr<CxSegScreen>> _mapScreens;
    std::vector<uint8_t> _vScreenSlideShow;
    
@@ -502,7 +520,7 @@ public:
                for (uint8_t n : _vScreenSlideShow) {
                   CxSegScreen* pScreen = findScreen(n);
                   if (pScreen != nullptr) {
-                     _console.printf(F("  %02d %s\n"), n, pScreen->getType());
+                     _console.printf(F("  %02d %s %s\n"), n, pScreen->getName(), pScreen->getType());
                   }
                }
             } else if (strFunc == "on") {
@@ -1036,6 +1054,7 @@ public:
          pScreen->setDisplay(this);
          pScreen->setId(_mapScreens.size());
          pScreen->setParam(szParam);
+         pScreen->setName(szName);
          _mapScreens[szName] = std::move(pScreen);
       }
    }
