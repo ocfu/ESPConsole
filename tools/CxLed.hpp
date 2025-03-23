@@ -8,14 +8,14 @@
 #ifndef CxLed_hpp
 #define CxLed_hpp
 
-#include "CxGpioTracker.hpp"
+#include "CxGpioDeviceManager.hpp"
 #include "CxTimer.hpp"
 
 #ifndef LED_BUILTIN
 #define LED_BUILTIN 2
 #endif
 
-class CxLed : public CxGPIO {
+class CxLed : public CxGPIODevice {
    CxTimer _timer;
    
    uint8_t  _nFlashCnt = 0;
@@ -23,8 +23,13 @@ class CxLed : public CxGPIO {
    
    
 public:
-   CxLed(int nPin, bool bInverted = false) : CxGPIO(nPin, OUTPUT, bInverted) {}
+   CxLed(int nPin, const char* name = "", bool bInverted = false) : CxGPIODevice(nPin, OUTPUT, bInverted) {setName(name);}
    
+   virtual const char* getTypeSz() override {return "led";}
+   
+   void setPin(uint8_t nPin) {CxGPIODevice::setPin(nPin); setPinMode(OUTPUT);} // overwrite virtual base function. RELAY is always an output
+
+
    uint8_t getFlashCnt() {return _nFlashCnt;}
    uint32_t getPeriod() {return _timer.getPeriod();}
    uint32_t getDutyTime() {return _nDutyTime;}
