@@ -69,6 +69,8 @@
 
 #include "../tools/CxGpioTracker.hpp"
 #include "../tools/CxLed.hpp"
+#include "../tools/CxButton.hpp"
+#include "../tools/CxRelay.hpp"
 #include "esphw.h"
 #include "../tools/CxSensorManager.hpp"
 #include "../tools/CxConfigParser.hpp"
@@ -167,7 +169,7 @@ const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 
 /// global objects for OTA and LED
 CxOta Ota1;
-CxLed Led1(LED_BUILTIN);
+CxLed Led1(LED_BUILTIN, "led1");
 
 bool g_bOTAinProgress = false;
 
@@ -184,17 +186,40 @@ class CxCapabilityExt : public CxCapability {
    /// access to the instances of the master console, GPIO tracker, sensor manager
    CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
+   CxGPIODeviceManagerManager& _gpioDeviceManager = CxGPIODeviceManagerManager::getInstance();
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();
    
    /// timer for updating stack info and sensor data
    CxTimer10s _timerUpdate;
+   
+   static void _btnAction(CxButton::EBtnEvent e, const char* cmd) {
+      String strCmd;
+      strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.
+      strCmd = cmd;
+      
+      if (e == CxButton::EBtnEvent::singlepress) {
+         ESPConsole.processCmd(cmd);
+      } else if (e == CxButton::EBtnEvent::doublepress) {
+         strCmd += " #double";
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (e == CxButton::EBtnEvent::multiplepress) {
+         strCmd += " #multi";
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (e == CxButton::EBtnEvent::pressed10s) {
+         strCmd += " #long";
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (e == CxButton::EBtnEvent::reset) {
+         strCmd += " #reset";
+         ESPConsole.processCmd(cmd);
+      }
+   };
 
 public:
    /// Default constructor and default capabilities methods
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -291,12 +316,16 @@ public:
 
       /// update led indications, if any
       ledAction();
+
+      /// check gpio events
+      gpioAction();
       
       /// update sensor data and stack info
       if (_timerUpdate.isDue()) {
          g_Heap.update();
          _sensorManager.update();
       }
+      
    }
    
    /// Execute method to process the given command and return the result.
@@ -425,14 +454,15 @@ public:
             };
          }
       } else if (cmd == "gpio") {
-         String strCmd = TKTOCHAR(tkArgs, 1);
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
          uint8_t nPin = TKTOINT(tkArgs, 2, INVALID_PIN);
          int16_t nValue = TKTOINT(tkArgs, 3, -1);
          String strValue = TKTOCHAR(tkArgs, 3);
+         String strEnv = ".gpio";
          
-         if (strCmd == "state") {
+         if (strSubCmd == "state") {
             _gpioTracker.printAllStates(getIoStream());
-         } else if (strCmd == "set") {
+         } else if (strSubCmd == "set") {
             if (CxGPIO::isValidPin(nPin)) {
                CxGPIO gpio(nPin);
                if (nValue < 0) { // setting the pin mode
@@ -465,7 +495,7 @@ public:
                println("invalid");
                CxGPIO::printInvalidReason(getIoStream(), nPin);
             }
-         } else if (strCmd == "get") {
+         } else if (strSubCmd == "get") {
             if (CxGPIO::isValidPin(nPin)) {
                CxGPIO gpio(nPin);
                if (gpio.isSet()) {
@@ -474,6 +504,179 @@ public:
             } else {
                CxGPIO::printInvalidReason(getIoStream(), nPin);
             }
+         } else if (strSubCmd == "save") {
+            CxConfigParser Config;
+            DynamicJsonDocument doc(1024);
+            String strType;
+            strType.reserve(20); // max. expected type string
+
+            // save the devices
+            JsonArray devices = doc.createNestedArray("devices");
+            for (uint8_t i = 0; i < _gpioDeviceManager.getDeviceCount(); i++) {
+               strType = _gpioDeviceManager.getDevice(i)->getTypeSz();
+               
+               JsonObject device = devices.createNestedObject();
+               device["id"] = i;
+               device["pin"] = _gpioDeviceManager.getDevice(i)->getPin();
+               device["na"] = _gpioDeviceManager.getDevice(i)->getName();
+               device["ty"] = _gpioDeviceManager.getDevice(i)->getTypeSz();
+               device["in"] = _gpioDeviceManager.getDevice(i)->isInverted();
+               if (strType == "button") {
+                  device["cmd"] = _gpioDeviceManager.getDevice(i)->getCmd();
+               }
+               if (strType == "relay") {
+                  CxRelay* p = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(i));
+                  if (p) {
+                     if (p->getOffTime()) {
+                        device["ot"] = p->getOffTime();
+                     }
+                     if (p->isDefaultOn()) {
+                        device["on"] = p->isDefaultOn();
+                     }
+                  }
+               }
+            }
+#ifdef ARDUINO
+            String strJson;
+            serializeJson(doc, strJson);
+            Config.addVariable("json", strJson);
+            console.saveEnv(strEnv, Config.getConfigStr());
+#else
+            char szJson[1024];
+            serializeJson(doc, szJson, sizeof(szJson));
+            Config.addVariable("json", szJson);
+            console.saveEnv(strEnv, Config.getConfigStr());
+#endif
+         } else if (strSubCmd == "load") {
+            String strValue;
+            if (console.loadEnv(strEnv, strValue)) {
+               CxConfigParser Config(strValue.c_str());
+               DynamicJsonDocument doc(1024);
+               DeserializationError error = deserializeJson(doc, Config.getSz("json"));
+               if (!error) {
+                  JsonArray devices = doc["devices"].as<JsonArray>();
+                  for (JsonObject device : devices) {
+                     uint8_t nPin = device["pin"].as<uint8_t>();
+                     console.info(F("load device %d %s"), device["id"].as<uint8_t>(), device["na"].as<const char*>());
+                     if (nPin == INVALID_PIN) {
+                        console.error(F("invalid pin!"));
+                     } else {
+                        uint8_t nId = device["id"].as<uint8_t>();
+                        console.info(F("device %d %s on pin %d"), nId, device["na"].as<const char*>(), nPin);
+                        String strType = device["ty"].as<const char*>();
+                        String strCmd = device["cmd"].as<const char*>();
+                        bool bInverted = device["in"].as<bool>();
+                        
+                        if (strType == "led") {
+                           String strName = device["na"].as<const char*>();
+                           if (strName == "led1") {
+                              Led1.setPin(nPin);
+                              Led1.setPinMode(OUTPUT);
+                              Led1.setName(strName.c_str());
+                              Led1.setInverted(bInverted);
+                              Led1.off();
+                           } else {
+                              if (_gpioDeviceManager.isPinInUse(nPin)) {
+                                 console.error(F("pin already in use!"));
+                              } else {
+                                 CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);
+                                 p->begin();
+                              }
+                           }
+                        } else if (strType == "button") {
+                           if (_gpioDeviceManager.isPinInUse(nPin)) {
+                              console.error(F("pin already in use!"));
+                           } else {
+                              if (strCmd == "reset") {
+                                 CxButtonReset* p = new CxButtonReset(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted);
+                                 if (p) p->begin();
+                              } else {
+                                 CxButton* p = new CxButton(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>(), _btnAction);
+                                 p->begin();
+                              }
+                           }
+                        } else if (strType == "relay") {
+                           if (_gpioDeviceManager.isPinInUse(nPin)) {
+                              console.error(F("pin already in use!"));
+                           } else {
+                              CxRelay* p = new CxRelay(nPin, device["na"].as<const char*>(), bInverted);
+                              if (p) {
+                                 p->setOffTime(device["ot"].as<uint32_t>());
+                                 p->setDefaultOn(device["on"].as<bool>());
+                                 p->begin();
+                              }
+                           }
+                        }
+                     }
+                  }
+               }
+            }
+         } else if (strSubCmd == "list") {
+            _gpioDeviceManager.printList();
+         } else if (strSubCmd == "add") {
+            if (nPin != INVALID_PIN) {
+               String strType = TKTOCHAR(tkArgs, 3);
+               String strName = TKTOCHAR(tkArgs, 4);
+               bool bInverted = TKTOINT(tkArgs, 5, false);
+               String strGpioCmd = TKTOCHAR(tkArgs, 6);
+               if (strType == "button") {
+                  // FIXME: pointer without proper deletion? even if managed internally? maybe container as for the bme?
+                  // TODO: add other gpio devices like led, relay, ...
+                  
+                  // check, if already exists (by pin)
+                  if (_gpioDeviceManager.isPinInUse(nPin)) {
+                     println(F("pin already in use!"));
+                  } else {
+                     console.printf(F("add device type %s on pin %d, cmd=%s\n"), strType.c_str(), nPin, strGpioCmd.c_str());
+                     if (strGpioCmd == "reset") {
+                        CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
+                        if (p) p->begin();
+                     } else {
+                        CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, strGpioCmd.c_str(), _btnAction);  // will be implizitly registered in the device manager
+                        if (p) p->begin();
+                     }
+                  }
+               } else if (strType == "led") {
+                  if (_gpioDeviceManager.isPinInUse(nPin)) {
+                     println(F("pin already in use!"));
+                  } else {
+                     if (strName == "led1") {
+                        Led1.setPin(nPin);
+                        Led1.setName(strName.c_str());
+                        Led1.setInverted(bInverted);
+                     } else {
+                        CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
+                        if (p) p->begin();
+                     }
+                  }
+               } else if (strType == "relay") {
+                  if (_gpioDeviceManager.isPinInUse(nPin)) {
+                     println(F("pin already in use!"));
+                  } else {
+                     CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
+                     if (p) p->begin();
+                  }
+               }
+               else {
+                  println(F("invalid device type!"));
+               }
+            } else {
+               println(F("invalid pin!"));
+            }
+         } else if (strSubCmd == "del") {
+            String strName = TKTOCHAR(tkArgs, 2);
+            if (strName == "led1") {
+               Led1.setPin(INVALID_PIN);
+               Led1.setName("");
+            } else {
+               CxGPIODevice* p = _gpioDeviceManager.getDevice(strName.c_str());
+               if (p) {
+                  delete p;
+               } else {
+                  println(F("device not found!"));
+               }
+               _gpioDeviceManager.removeDevice(strName.c_str());
+            }
          } else {
             _gpioTracker.printAllStates(getIoStream());
             println(F("gpio commands:"));
@@ -481,6 +684,11 @@ public:
             println(F("  set <pin> <mode> (in, out, pwm, inverted, non-inverted"));
             println(F("  set <pin> 0...1023 (set pin state to value)"));
             println(F("  get <pin>"));
+            println(F("  save"));
+            println(F("  load"));
+            println(F("  list"));
+            println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
+            println(F("  del <name>"));
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -603,10 +811,50 @@ public:
             println(F("  save"));
             println(F("  load"));
          }
+      } else if (cmd == "relay") {
+         String strName = TKTOCHAR(tkArgs, 1);
+         String strSubCmd = TKTOCHAR(tkArgs, 2);
+         
+         CxGPIODevice* pDev = _gpioDeviceManager.getDevice(strName.c_str());
+         
+         if (strName == "list") {
+            _gpioDeviceManager.printList("relay");
+         } else if (pDev) {
+            String strType = pDev->getTypeSz();
+            
+            if (strType != "relay") {
+               console.println(F("device is not a relay!"));
+            } else {
+               CxRelay* p = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(strName.c_str()));
+               
+               if (strSubCmd == "on") {
+                  p->on();
+               } else if (strSubCmd == "off") {
+                  p->off();
+               } else if (strSubCmd == "toggle") {
+                  p->toggle();
+               } else if (strSubCmd == "offtimer") {
+                  p->setOffTime(TKTOINT(tkArgs, 3, 0));
+               } else if (strSubCmd == "default") {
+                  p->setDefaultOn(TKTOINT(tkArgs, 3, 0));
+               }
+               else {
+                  console.println(F("invalid relay command"));
+               }
+            }
+         } else {
+            println(F("relay commands:"));
+            println(F("  list")); // TODO: list relays
+            println(F("  <name> on"));
+            println(F("  <name> off"));
+            println(F("  <name> toggle"));
+            println(F("  <name> offtimer <seconds>"));
+            println(F("  <name> default <0|1>"));
+         }
       } else {
          return false;
       }
-       g_Stack.update();
+      g_Stack.update();
       return true;
    }
    
@@ -804,6 +1052,11 @@ public:
 
    void ledAction() {
       Led1.action();
+   }
+   
+   void gpioAction() {
+      // check for gpio events
+      _gpioDeviceManager.loop(console.isAPMode());
    }
 
    void startWiFi(const char* ssid = nullptr, const char* pw = nullptr) {
