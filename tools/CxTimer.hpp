@@ -22,9 +22,13 @@ class CxTimer {
    uint32_t _last; ///< The time of the last timer start
    bool _bOnHold; ///< Flag to indicate if the timer is on hold
    bool _isDue;  ///< if true, trigger the next isDue() call
-   
+   bool _bHoldAfterDue;
+
+   // timer callback
+   std::function<void(void)> _cb;
+
 public:
-   CxTimer(uint32_t period, bool hold = false) : _nPeriod(period), _last(0), _bOnHold(hold||(period == 0)), _isDue(false) {if (!hold) start();}
+   CxTimer(uint32_t period, bool hold = false) : _nPeriod(period), _last(0), _bOnHold(hold||(period == 0)), _isDue(false), _bHoldAfterDue(false), _cb(nullptr) {if (!hold) start();}
    CxTimer() : CxTimer(0) {}
    
    void start() {_last = (uint32_t)millis(); _bOnHold = (_nPeriod == 0);}
@@ -32,8 +36,16 @@ public:
    void restart() {start();}
    void start(uint32_t period, bool bMakeDue = false) {_nPeriod = period; start(); if (bMakeDue) makeDue();}
    void start(bool bMakeDue) {start(); if (bMakeDue) makeDue();}
+   void start(uint32_t period, std::function<void(void)> cb, bool bHoldAfterDue = false) {_cb = cb; start(period); _bHoldAfterDue = bHoldAfterDue;}
+   void start(std::function<void(void)> cb, bool bHoldAfterDue = false) {_cb = cb; start(); _bHoldAfterDue = bHoldAfterDue;}
    void startOnChange(uint32_t period) {if (_nPeriod != period) start(period);}
    void makeDue() {_isDue = (_nPeriod > 0);}
+   
+   void loop() {
+      if (_cb && isDue()) {
+         _cb();
+      }
+   }
 
    uint32_t getElapsedTime() {return ((uint32_t)millis() - _last);}
    uint32_t getPeriod() {return _nPeriod;}
@@ -42,6 +54,7 @@ public:
    /** Check if the timer is due and restart it if not on hold */
    bool isDue(bool hold = false) {
       if (!_bOnHold && (_isDue || (millis() - _last) > _nPeriod)) {
+         if (_bHoldAfterDue) hold = true;
          if (!hold) restart();
          _bOnHold = hold;
          _isDue = false;
