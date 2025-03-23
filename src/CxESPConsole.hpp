@@ -13,6 +13,7 @@
 
 // include some generic defines, such as ESC sequences, format for prompts, debug macros etc.
 #include "defines.h"
+#include "esphw.h"
 
 #include "CxCapability.hpp"
 
@@ -466,6 +467,8 @@ class CxESPConsoleMaster : public CxESPConsole {
    
    ~CxESPConsoleMaster() = default;// enforce singleton pattern
    
+   Settings_t _settings;
+   
 public:
    CxESPConsoleMaster() : CxESPConsole(Serial) {}
    
@@ -676,11 +679,23 @@ public:
 #endif
    
    virtual void wlcm() override;
-
    
-   //virtual void saveEnv(String& strEnv, String& strValue) {};
-   //virtual bool loadEnv(String& strEnv, String& strValue) {return false;};
-
+   void setLoopDelay(uint32_t delay) {
+      if ( delay < 1000) {
+         _settings._loopDelay = delay;
+         ::writeSettings(_settings);
+      } else {
+         println(F("Loop delay must be less than 1000 ms."));
+      }
+   }
+   
+   uint32_t getLoopDelay() {
+      if (_settings._loopDelay < 1000) {
+         return _settings._loopDelay;
+      } else {
+         return 0;
+      }
+   }
 
 };
 

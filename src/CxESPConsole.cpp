@@ -37,6 +37,8 @@ bool CxESPConsoleMaster::processCmd(const char* cmd, bool bQuiet) {
 void CxESPConsoleMaster::begin() {
    info(F("==== MASTER ===="));
    
+   ::readSettings(_settings);
+
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
    if (_pWiFiServer) {
@@ -255,6 +257,8 @@ void CxESPConsoleMaster::loop() {
       entry.second->startMeasure();
       entry.second->loop();
       entry.second->stopMeasure();
+      
+      if (getLoopDelay()) delay(getLoopDelay());
    }
    __sysCPU.startMeasure();
 }
