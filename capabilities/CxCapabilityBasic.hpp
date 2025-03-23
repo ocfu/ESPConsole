@@ -68,7 +68,7 @@ public:
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -156,7 +156,14 @@ public:
       } else if (cmd == "ps") {
          console.printPs();
          println();
-      } else if (cmd == "time") {
+      } else if (cmd == "delay") {
+         if (tkArgs.count() > 1) {
+            console.setLoopDelay(TKTOINT(tkArgs, 1, 0));
+         } else {
+            print(F("delay = ")); println(console.getLoopDelay());
+         }
+      }
+      else if (cmd == "time") {
          if(console.getStream()) console.printTime(*console.getStream());
          println();
       } else if (cmd == "date") {
