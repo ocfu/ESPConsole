@@ -171,11 +171,6 @@ public:
           } else if (strEnv == ".tz") {
              strValue = console.getTimeZone();
              saveEnv(strEnv, strValue);
-          } else if (strEnv == ".led") {
-             strValue = "Pin:";
-             strValue += Led1.getPin();
-             if (Led1.isInverted()) strValue += ",inverted";
-             saveEnv(strEnv, strValue);
           } else if (strEnv == ".mqtt") {
              strValue = cmd.substring(5);
              strValue.trim();
@@ -202,32 +197,6 @@ public:
                 console.info(F("Timezone set to %s"), console.getTimeZone());
              } else {
                 console.warn(F("Timezone env variable (tz) not found!"));
-             }
-          } else if (strEnv == ".led") {
-             if (loadEnv(strEnv, strValue)) {
-                // Extract pin number
-                int pinIndex = strValue.indexOf("Pin:");
-                int pin = -1; // Default invalid pin
-                if (pinIndex != -1) {
-                   int start = pinIndex + 4; // Position after "Pin:"
-                   int end = strValue.indexOf(',', start); // Find the comma after the pin
-                   if (end == -1) end = strValue.length(); // No comma, take the rest of the string
-                   pin = (uint8_t)strValue.substring(start, end).toInt(); // Convert the extracted substring to an integer
-                }
-                
-                // Check if inverted
-                bool inverted = strValue.indexOf("inverted") != -1;
-                
-                // set led pin if changed
-                if (Led1.getPin() != pin) {
-                   console.info(F("set Led1 to pin %d"), pin);
-                   Led1.setPin(pin);
-                }
-                
-                if (Led1.isInverted() != inverted) {
-                   console.info(F("set Led1 on pin %d to %s logic"), Led1.getPin(), inverted?"inverted":"non-inverted");
-                   Led1.setInverted(inverted);
-                }
              }
           } else {
              println(F("load environment variable.\nusage: load <env>"));
