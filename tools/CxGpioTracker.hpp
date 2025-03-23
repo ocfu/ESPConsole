@@ -8,6 +8,8 @@
 #ifndef CxGpioTracker_hpp
 #define CxGpioTracker_hpp
 
+#include "CxESPConsole.hpp"
+
 #include <map>
 
 #ifdef ESP32
@@ -306,6 +308,22 @@ private:
    int8_t _nPin;                 // The GPIO pin number
    uint8_t _nPwmChannel;         // PWM channel associated with the pin
 
+protected:
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
+
+   typedef void (*isr_t)();
+   uint8_t __isrMode = 0;
+   uint8_t __isrId = -1;
+   isr_t __isr = nullptr;
+
+   void setISR(uint8_t id, isr_t p, uint8_t mode = RISING) { setIsrId(id); __isr=p; setIsrMode(mode);}
+   void setIsrId(uint8_t set) {__isrId = set;}
+   int getIsrId() {return __isrId;}
+   
+   void setIsrMode(uint8_t set) {__isrMode = set;}
+   int getIsrMode() {return __isrMode;}
+
+
 public:
    /**
     * @brief Constructor for CxGPIO.
@@ -321,6 +339,12 @@ public:
       }
    }
    CxGPIO() : CxGPIO(-1) {}
+   
+   
+   // special constructors (input, interrupt etc.)
+   CxGPIO(uint8_t nPin, isr_t p, uint8_t mode = 0x1) {setPin(nPin);setPinMode(INPUT_PULLUP); setISR(0, p, mode);}
+//   CxGPIO(int nPin, INPUT_PULLUP, int id = 0, isr_t p = nullptr, int mode = RISING) {setPinMode(nPin, eMode, eUse);setISR(id, p, mode);}
+
    
    /**
     * @brief Set the pin number for this instance.
@@ -360,6 +384,46 @@ public:
    }
    
    bool isValid() {return (isValidPin(_nPin));}
+   
+   void enableISR() {
+      if (__isr != nullptr) {
+         int nMode = __isrMode;
+         
+         switch (__isrMode) {
+            case LOW:
+               nMode = (isInverted()) ? HIGH : LOW;
+               break;
+#if 0  // not available for all boards! ref https://www.arduino.cc/reference/en/language/functions/external-interrupts/attachinterrupt/
+            case HIGH:
+               nMode = (isInverted()) ? LOW : HIGH;
+               break;
+#endif
+            case CHANGE:
+               break;
+            case RISING:
+               nMode = (isInverted()) ? FALLING : RISING;
+               break;
+            case FALLING:
+               nMode = (isInverted()) ? RISING : FALLING;
+               break;
+         }
+#ifdef ARDUINO
+         //__console.debug(F("GPIO%02d: attchInterrupt to pin %d, mode=%d, pinMode=%s"), getPin(), getPin(), nMode, _gpioTracker.getPinModeString().c_str());
+         attachInterrupt(digitalPinToInterrupt(getPin()), __isr, nMode);
+#endif
+         delay(10);
+      }
+   }
+   void disableISR() {
+      if (__isr != nullptr) {
+#ifdef ARDUINO
+         detachInterrupt(digitalPinToInterrupt(getPin()));
+#endif
+         delay(10);
+      }
+   }
+
+
    
    ///
    /// @brief Verifies a valid mode id.
@@ -421,6 +485,10 @@ public:
    bool getDigitalState() {
       bool state = _gpioTracker.getDigitalState(_nPin);
       return isInverted() ? !state : state;
+   }
+   
+   uint16_t getAnalogValue() {
+      return _gpioTracker.getAnalogValue(_nPin);
    }
    
    // Write a value to the pin and sets the mode implicitly
