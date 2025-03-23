@@ -656,6 +656,7 @@ bool writeSSID(const char* szSSID) {
    // address for the SSID in eeprom is 0x7, length 20 bytes
    EEPROM.begin(512);
    EEPROM_writeAnything(0x7, buf);
+   EEPROM.commit();
    EEPROM.end();
    return true;
 #else
@@ -696,6 +697,7 @@ bool writePassword(const char* szPassword) {
    // address for the password in eeprom is 0x1B, length 25 bytes
    EEPROM.begin(512);
    EEPROM_writeAnything(0x1B, buf);
+   EEPROM.commit();
    EEPROM.end();
    return true;
 #else
@@ -736,6 +738,7 @@ bool writeHostName(const char* szHostname) {
    // address for the hostname in eeprom is 0x34, length 80 bytes
    EEPROM.begin(512);
    EEPROM_writeAnything(0x34, buf);
+   EEPROM.commit();
    EEPROM.end();
    return true;
 #else
@@ -799,12 +802,31 @@ bool writeOtaPassword(const char* szPassword) {
    // address for the password in eeprom is 0x8A, length 25 bytes
    EEPROM.begin(512);
    EEPROM_writeAnything(0x8A, buf);
+   EEPROM.commit();
    EEPROM.end();
    return true;
 #else
    return false;
 #endif
 }
+
+void readSettings(Settings_t& settings) {
+#ifdef ARDUINO
+   EEPROM.begin(512);
+   EEPROM_readAnything(0x100, settings);
+   EEPROM.end();
+#endif
+}
+
+void writeSettings(Settings_t& settings) {
+#ifdef ARDUINO
+   EEPROM.begin(512);
+   EEPROM_writeAnything(0x100, settings);
+   EEPROM.commit();
+   EEPROM.end();
+#endif
+}
+
 
 const char* getHeapFragmentation() {
 #ifdef ARDUINO

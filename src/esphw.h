@@ -20,7 +20,21 @@
 #include <ESP8266WiFi.h>
 #endif // end ESP32
 #endif
+#else
+#include "devenv.h"
 #endif
+
+// additional settings hosted in eeprom at 0x100
+typedef struct s_settings {
+
+   uint32_t _loopDelay;
+   
+   s_settings() : _loopDelay(0) {}
+} Settings_t;
+
+
+void readSettings(Settings_t& settings);
+void writeSettings(Settings_t& settings);
 
 size_t getStackSize();
 void reboot();
