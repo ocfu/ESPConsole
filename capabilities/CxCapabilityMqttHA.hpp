@@ -82,6 +82,8 @@ private:
    CxMqttHADevice& _mqttHAdev = CxMqttHADevice::getInstance();
    CxMqttManager& __mqttManager = CxMqttManager::getInstance();
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();
+   CxGPIODeviceManagerManager& _gpioDeviceManager = CxGPIODeviceManagerManager::getInstance();
+
 
    bool _bHAEnabled = false;
 
@@ -91,6 +93,10 @@ private:
    /// maps of Home Assistant diagnostics and sensors
    std::map<uint8_t, std::unique_ptr<CxMqttHADiagnostic>> _mapHADiag;
    std::vector<std::unique_ptr<CxMqttHASensor>> _vHASensor;
+   
+   std::vector<std::unique_ptr<CxMqttHAButton>> _vHAButton;
+   std::vector<std::unique_ptr<CxMqttHASwitch>> _vHASwitch; // for relay devices
+   
 
 public:
    /// Default constructor and default capabilities methods.
@@ -110,6 +116,8 @@ public:
       enableHA(false);
       _mapHADiag.clear();
       _vHASensor.clear();
+      _vHAButton.clear();
+      _vHASwitch.clear();
    }
    
    /// Setup method to initialize the capability and register
@@ -212,6 +220,7 @@ public:
          printCommands();
       }    if (cmd == "ha") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
+         String strSub2Cmd = TKTOCHAR(tkArgs, 2);
          String strEnv = ".ha";
          if (strSubCmd == "enable") {
             _bHAEnabled = (bool)TKTOINT(tkArgs, 2, 0);
@@ -219,13 +228,25 @@ public:
          } else if (strSubCmd == "list") {
             _mqttHAdev.printList(getIoStream());
          } else if (strSubCmd == "sensor") {
-            String strSensorCmd = TKTOCHAR(tkArgs, 2);
-            if (strSensorCmd == "add") {
+            if (strSub2Cmd == "add") {
                addSensor(TKTOCHAR(tkArgs, 3));
-            } else if (strSensorCmd == "del") {
+            } else if (strSub2Cmd == "del") {
                deleteSensor(TKTOCHAR(tkArgs, 3));
             }
-         } else if (strSubCmd == "save") {
+         } else if (strSubCmd == "button") {
+            if (strSub2Cmd == "add") {
+               addButton(TKTOCHAR(tkArgs, 3));
+            } else if (strSub2Cmd == "del") {
+               deleteButton(TKTOCHAR(tkArgs, 3));
+            }
+         } else if (strSubCmd == "switch") {
+            if (strSub2Cmd == "add") {
+               addSwitch(TKTOCHAR(tkArgs, 3));
+            } else if (strSub2Cmd == "del") {
+               deleteSwitch(TKTOCHAR(tkArgs, 23));
+            }
+         }
+         else if (strSubCmd == "save") {
             CxConfigParser Config;
             Config.addVariable("enabled", _bHAEnabled);
             
@@ -235,14 +256,28 @@ public:
                JsonObject sensor = sensors.createNestedObject();
                sensor["na"] = pHASensor->getName();
             }
+            
+            // TODO: testing
+            JsonArray buttons = doc.createNestedArray("buttons");
+            for (auto& pHAButton : _vHAButton) {
+               JsonObject button = buttons.createNestedObject();
+               button["na"] = pHAButton->getName();
+            }
+            
+            JsonArray haswitches = doc.createNestedArray("switches");
+            for (auto& pHASwitch : _vHASwitch) {
+               JsonObject haswitch = haswitches.createNestedObject();
+               haswitch["na"] = pHASwitch->getName();
+            }
+            
 #ifdef ARDUINO
-            String strSensors;
-            serializeJson(doc, strSensors);
-            Config.addVariable("json", strSensors);
+            String strJson;
+            serializeJson(doc, strJson);
+            Config.addVariable("json", strJson);
 #else
-            char szSensors[1024];
-            serializeJson(doc, szSensors, sizeof(szSensors));
-            Config.addVariable("json", szSensors);
+            char szJson[1024];
+            serializeJson(doc, szJson, sizeof(szJson));
+            Config.addVariable("json", szJson);
 #endif
             
             console.saveEnv(strEnv, Config.getConfigStr());
@@ -261,6 +296,17 @@ public:
                   for (JsonObject sensor : sensors) {
                      addSensor(sensor["na"].as<const char*>());
                   }
+                  
+                  // TODO: testing
+                  JsonArray gpios = doc["buttons"].as<JsonArray>();
+                  for (JsonObject gpio : gpios) {
+                     addButton(gpio["na"].as<const char*>());
+                  }
+                  
+                  JsonArray relays = doc["switches"].as<JsonArray>();
+                  for (JsonObject relay : relays) {
+                     addSwitch(relay["na"].as<const char*>());
+                  }
                }
             }
          } else {
@@ -272,6 +318,10 @@ public:
             println(F("  load"));
             println(F("  sensor add <name>"));
             println(F("  sensor del <name>"));
+            println(F("  button add <name>"));
+            println(F("  button del <name>"));
+            println(F("  switch add <name>"));
+            println(F("  switch del <name>"));
          }
       } else {
          return false;
@@ -333,6 +383,99 @@ public:
          }
       }
    }
+   
+   void addButton(const char* szName) {
+      CxButton* pDevice = static_cast<CxButton*>(_gpioDeviceManager.getDevice(szName));
+      if (pDevice) {
+         String strType = pDevice->getTypeSz();
+         if (strType == "button") {
+            if (!_mqttHAdev.findItem(szName)) {
+               _vHAButton.push_back(std::make_unique<CxMqttHAButton>(pDevice));
+               pDevice->addCallback([this, pDevice](CxGPIODevice* dev, uint8_t id, const char* cmd) {
+                  for (auto& pButton : _vHAButton) {
+                     if (strcmp(pButton->getName(), pDevice->getName()) == 0) {
+                        if (id == (uint8_t)CxButton::EBtnEvent::pressed) {
+                           pButton->publishState("pressed");
+                        } else if (id == CxButton::EBtnEvent::singlepress) {
+                           pButton->publishState("single");
+                        }
+                        pButton->publishState("");
+                        break;
+                     }
+                  }
+               });
+            }
+         } else {
+            console.printf(F("Device '%s' is not a button."), szName);
+         }
+      } else {
+         console.printf(F("Button '%s' not found."), szName);
+      }
+   }
+   
+   void deleteButton(const char* szName) {
+      for (auto it = _vHAButton.begin(); it != _vHAButton.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->publishAvailability(false);
+            _vHAButton.erase(it);
+            break;
+         }
+      }
+   }
+   
+   void addSwitch(const char* szName) {
+      CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(szName));
+      if (pRelay) {
+         String strType = pRelay->getTypeSz();
+         if (strType == "relay") {
+            // set call back to publish the state of the relay on change
+            pRelay->addCallback([this, pRelay](CxGPIODevice* dev, uint8_t id, const char* cmd) {
+               for (auto& pSwitch : _vHASwitch) {
+                  if (strcmp(pSwitch->getName(), pRelay->getName()) == 0) {
+                     if (id == CxRelay::ERelayEvent::relayon) {
+                        pSwitch->publishState(pRelay->isOn());
+                     } else if (id == CxRelay::ERelayEvent::relayoff) {
+                        pSwitch->publishState(pRelay->isOn());
+                     }
+                     return;
+                  }
+               }
+            });
+               
+            if (!_mqttHAdev.findItem(szName)) _vHASwitch.push_back(std::make_unique<CxMqttHASwitch>(pRelay, [this, pRelay](const char* topic, uint8_t* payload, unsigned int len) -> bool {
+               // this callback handles commands on the subscribed topic (./cmd)
+               for (auto& pSwitch : _vHASwitch) {
+                  if (strcmp(pSwitch->getName(), pRelay->getName()) == 0) {
+                     if (strncmp((char*)payload, "ON", 2) == 0) {
+                        pRelay->on();
+                     } else if (strncmp((char*)payload, "OFF", 3) == 0) {
+                        pRelay->off();
+                     } else {
+                        return false;
+                     }
+                     return true;
+                  }
+               }
+               return false;
+            }));
+         } else {
+            console.printf(F("Device '%s' is not a relay."), szName);
+         }
+      } else {
+         console.printf(F("Relay '%s' not found."), szName);
+      }
+   }
+   
+   void deleteSwitch(const char* szName) {
+      for (auto it = _vHASwitch.begin(); it != _vHASwitch.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->publishAvailability(false);
+            _vHASwitch.erase(it);
+            break;
+         }
+      }
+   }
+
 };
 
 #endif /* CxCapabilityMqttHA_hpp */
