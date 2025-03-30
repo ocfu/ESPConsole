@@ -23,7 +23,7 @@ class CxLed : public CxGPIODevice {
    
    
 public:
-   CxLed(int nPin, const char* name = "", bool bInverted = false) : CxGPIODevice(nPin, OUTPUT, bInverted) {setName(name);}
+   CxLed(int nPin, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, OUTPUT, bInverted, cmd) {addCallback(fp);setName(name);}
    
    virtual const char* getTypeSz() override {return "led";}
    

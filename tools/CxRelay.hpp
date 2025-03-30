@@ -16,9 +16,6 @@ class CxRelay : public CxGPIODevice {
 public:
    enum ERelayEvent {relayon, relayoff};
    
-public:
-   typedef void (*cb_t)(CxRelay::ERelayEvent);
-
 private:
    uint8_t _nId = 0;
 
@@ -27,15 +24,9 @@ private:
    bool _bEnabled = true;
    bool m_bDefaultOn = false;
    
-protected:
-   // callback for button event
-   // TODO: make it a function pointer
-   cb_t __cb = nullptr;
-   
-
 public:
    CxRelay() : CxRelay(-1) {}
-   CxRelay(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cb_t fp = nullptr) : CxGPIODevice(nPin, OUTPUT, bInverted, cmd) {__cb = fp;setName(name);}
+   CxRelay(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, OUTPUT, bInverted, cmd) {addCallback(fp);setName(name);}
 
    virtual ~CxRelay() {}
 
@@ -74,8 +65,6 @@ public:
          __console.printf(F("| %9d | %10s "), getOffTime(), isDefaultOn() ? "on" : "off");
       }
    }
-
-   void setCallback(cb_t fp) {__cb = fp;}
    
    void setPin(uint8_t nPin) {CxGPIODevice::setPin(nPin); setPinMode(OUTPUT);} // overwrite virtual base function. RELAY is always an output
 
@@ -89,7 +78,7 @@ public:
       }
       if (!isHigh()) {
          setHigh();
-         if (__cb) __cb(ERelayEvent::relayon);
+         callCb(ERelayEvent::relayon);
          __console.info(F("RLY: Relay on GPIO%02d switched on"), getPin());
          if (_timerOff.getPeriod() > 0) {
             __console.info(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
@@ -107,7 +96,7 @@ public:
       }
       if (!isLow()) {
          setLow();
-         if (__cb) __cb(ERelayEvent::relayoff);
+         callCb(ERelayEvent::relayoff);
          __console.info(F("RLY: Relay on GPIO%02d switched off"), getPin());
       }
    }

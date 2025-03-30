@@ -16,8 +16,6 @@ class CxButton : public CxGPIODevice {
 public:
    enum EBtnEvent {pressed, singlepress, pressed10s, reset, doublepress, multiplepress, cleared};
    
-public:
-   typedef void (*cb_t)(CxButton::EBtnEvent, const char* cmd);
    
 private:
    uint8_t _nId = 0;
@@ -33,15 +31,9 @@ private:
    const uint32_t _nShortPressTime = 250; // ms
    const uint32_t _nIdleTime = 2000; // ms
    const uint32_t _nDebounceTime = 100; // ms
-   
-   //CxRelay* m_pRelay = nullptr;
-   
-protected:
-   // callback for button event
-   cb_t __cb = nullptr;
-   
+         
 public:
-   CxButton(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cb_t fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) {__cb = fp;setName(name);}
+   CxButton(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) {addCallback(fp);setName(name);}
    //CxButton(uint8_t nPin = -1, bool bInverted = false, const char* name = "", isr_t isr = nullptr) : CxGPIODevice(nPin, isr) {setName(name);setInverted(bInverted);}
 
    virtual ~CxButton() {end();}
@@ -57,7 +49,7 @@ public:
          disableISR();
       }
    };
-   
+      
    virtual const char* getTypeSz() override {return "button";}
    
    bool isResetButton() {return _bRebootButton;}
@@ -90,7 +82,7 @@ public:
                _nState = 1;
                _timer.start(_nLongPressTime, false); // set timer for long time pressed
                if (_pLed != nullptr) _pLed->on();
-               if (__cb != nullptr && !bDegraded) __cb(CxButton::EBtnEvent::pressed, getCmd());
+               if (!bDegraded) callCb(CxButton::EBtnEvent::pressed, getCmd());
                __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was pressed! (%dx)"), getPin(), cnt);
             }
             break;
@@ -99,8 +91,8 @@ public:
             if (isHigh()) {
                // do nothing untill button is released...or long time pressed
                if (_timer.isDue()) {
-                  if (__cb != nullptr && !bDegraded) {
-                     __cb(CxButton::EBtnEvent::pressed10s, getCmd());
+                  if (!bDegraded) {
+                     callCb(CxButton::EBtnEvent::pressed10s, getCmd());
                   } else if (isResetButton()) {
                      if(_pLed != nullptr) _pLed->blinkBusy();
                   }
@@ -124,9 +116,9 @@ public:
             }
             if (_timer.isDue()) {
                if (cnt == 1) {
-                  if (__cb != nullptr && !bDegraded) {
+                  if (!bDegraded) {
                      __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was single pressed!"), getPin());
-                     __cb(CxButton::EBtnEvent::singlepress, getCmd());
+                     callCb(CxButton::EBtnEvent::singlepress, getCmd());
                   }
                   /*
                   if (m_pRelay != nullptr && !bDegraded) {
@@ -141,12 +133,12 @@ public:
                   }
                   */
                } else {
-                  if (__cb != nullptr && !bDegraded) {
+                  if (!bDegraded) {
                      __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was pressed %dx!"), getPin(), cnt);
                      if (cnt == 2) {
-                        __cb(CxButton::EBtnEvent::doublepress, getCmd());
+                        callCb(CxButton::EBtnEvent::doublepress, getCmd());
                      } else {
-                        __cb(CxButton::EBtnEvent::multiplepress, getCmd());
+                        callCb(CxButton::EBtnEvent::multiplepress, getCmd());
                      }
                   }
                }
@@ -156,8 +148,8 @@ public:
             }
          case 3: // idle state. useful to indicate button state in home assistant for a while
             if (_timer.isDue()) {
-               if (__cb != nullptr && !bDegraded) {
-                  __cb(CxButton::EBtnEvent::cleared, getCmd());
+               if (!bDegraded) {
+                  callCb(CxButton::EBtnEvent::cleared, getCmd());
                }
                _nState = 0;
                cnt = 0;
@@ -176,8 +168,8 @@ public:
             } else { // button finally released after 10+s
                // factory reset after 10+ seconds
                __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was long pressed!"), getPin());
-               if (__cb != nullptr && !bDegraded) {
-                  __cb(CxButton::EBtnEvent::reset, getCmd());
+               if (!bDegraded) {
+                  callCb(CxButton::EBtnEvent::reset, getCmd());
                } else if (isResetButton()) {
                   if(_pLed != nullptr) _pLed->off();
                   //::factoryReset();
@@ -193,7 +185,7 @@ public:
 
 class CxButtonReset : public CxButton {
 public:
-   CxButtonReset(int nPin = -1, const char* name = "", bool bInverted = false, cb_t fp = nullptr) : CxButton(nPin, name, bInverted, "reset", fp) {setPin(nPin); setPinMode(INPUT); setResetButton(true);}
+   CxButtonReset(int nPin = -1, const char* name = "", bool bInverted = false, cbFunc fp = nullptr) : CxButton(nPin, name, bInverted, "reset", fp) {setPin(nPin); setPinMode(INPUT); setResetButton(true);}
    
    const char* getTypeSz() {return "reset";}
    

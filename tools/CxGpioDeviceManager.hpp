@@ -27,6 +27,24 @@ class CxGPIODevice : public CxGPIO {
    void unregisterGPIODevice();
    
 public:
+   typedef std::function<void(CxGPIODevice* dev, uint8_t id, const char* cmd)> cbFunc;
+   
+   void addCallback(cbFunc fp) {__cbVec.push_back(fp);}
+   
+protected:
+   // callback vector
+   std::vector<cbFunc> __cbVec;
+   
+   void callCb(uint8_t id, const char* cmd = nullptr) {
+      for (auto& cb : __cbVec) {
+         if (cb != nullptr) {
+            cb(this, id, cmd ? cmd : getCmd());
+         }
+      }
+   }
+
+   
+public:
    CxGPIODevice(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false, const char* cmd = "") : CxGPIO(pin, mode, inverted), _strCmd(cmd) {
       registerGPIODevice();
    }
