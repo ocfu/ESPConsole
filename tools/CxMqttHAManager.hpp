@@ -937,7 +937,12 @@ public:
 
 class CxMqttHAButton : public CxMqttHABase {
 //https://www.home-assistant.io/integrations/button.mqtt/
+
+   CxGPIODevice* _pButton;
+   
 public:
+   
+   CxMqttHAButton(CxGPIODevice* pButton) : CxMqttHAButton(pButton->getName(), pButton->getName(), false, nullptr, nullptr, false) {_pButton = pButton;}
    
    CxMqttHAButton(const char* fn, const char* name, bool available = false, CxMqttManager::tCallback cb = nullptr, const char* topic = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb, topic, retain) {
       
@@ -1018,7 +1023,11 @@ class CxMqttHASwitch : public CxMqttHABase {
 // https://www.home-assistant.io/integrations/switch.mqtt/
 private:
    
+   CxGPIODevice* _pSwitch;
+   
 public:
+   
+   CxMqttHASwitch(CxGPIODevice* pSwitch, CxMqttManager::tCallback cb = nullptr) : CxMqttHASwitch(pSwitch->getName(), pSwitch->getName(), false, cb, false) {_pSwitch = pSwitch;}
    
    CxMqttHASwitch(const char* fn, const char* name, bool available = false, CxMqttManager::tCallback cb = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb, nullptr, retain) {
       
