@@ -192,23 +192,23 @@ class CxCapabilityExt : public CxCapability {
    /// timer for updating stack info and sensor data
    CxTimer10s _timerUpdate;
    
-   static void _btnAction(CxButton::EBtnEvent e, const char* cmd) {
+   static void _btnAction(CxGPIODevice* dev, uint8_t id, const char* cmd) {
       String strCmd;
       strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.
       strCmd = cmd;
       
-      if (e == CxButton::EBtnEvent::singlepress) {
+      if (id == CxButton::EBtnEvent::singlepress) {
          ESPConsole.processCmd(cmd);
-      } else if (e == CxButton::EBtnEvent::doublepress) {
+      } else if (id == CxButton::EBtnEvent::doublepress) {
          strCmd += " #double";
          ESPConsole.processCmd(strCmd.c_str());
-      } else if (e == CxButton::EBtnEvent::multiplepress) {
+      } else if (id == CxButton::EBtnEvent::multiplepress) {
          strCmd += " #multi";
          ESPConsole.processCmd(strCmd.c_str());
-      } else if (e == CxButton::EBtnEvent::pressed10s) {
+      } else if (id == CxButton::EBtnEvent::pressed10s) {
          strCmd += " #long";
          ESPConsole.processCmd(strCmd.c_str());
-      } else if (e == CxButton::EBtnEvent::reset) {
+      } else if (id == CxButton::EBtnEvent::reset) {
          strCmd += " #reset";
          ESPConsole.processCmd(cmd);
       }
@@ -521,9 +521,7 @@ public:
                device["na"] = _gpioDeviceManager.getDevice(i)->getName();
                device["ty"] = _gpioDeviceManager.getDevice(i)->getTypeSz();
                device["in"] = _gpioDeviceManager.getDevice(i)->isInverted();
-               if (strType == "button") {
-                  device["cmd"] = _gpioDeviceManager.getDevice(i)->getCmd();
-               }
+               device["cmd"] = _gpioDeviceManager.getDevice(i)->getCmd();
                if (strType == "relay") {
                   CxRelay* p = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(i));
                   if (p) {
@@ -574,6 +572,7 @@ public:
                               Led1.setPinMode(OUTPUT);
                               Led1.setName(strName.c_str());
                               Led1.setInverted(bInverted);
+                              Led1.setCmd(strCmd.c_str());
                               Led1.off();
                            } else {
                               if (_gpioDeviceManager.isPinInUse(nPin)) {
@@ -599,10 +598,13 @@ public:
                            if (_gpioDeviceManager.isPinInUse(nPin)) {
                               console.error(F("pin already in use!"));
                            } else {
-                              CxRelay* p = new CxRelay(nPin, device["na"].as<const char*>(), bInverted);
+                              CxRelay* p = new CxRelay(nPin, device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>());
                               if (p) {
                                  p->setOffTime(device["ot"].as<uint32_t>());
                                  p->setDefaultOn(device["on"].as<bool>());
+                                 p->addCallback([this](CxGPIODevice* dev, uint8_t id, const char* cmd) {
+                                    console.processCmd(cmd);
+                                 });
                                  p->begin();
                               }
                            }
@@ -677,7 +679,20 @@ public:
                }
                _gpioDeviceManager.removeDevice(strName.c_str());
             }
-         } else {
+         } else if (strSubCmd == "let") {
+            String strOpertor = TKTOCHAR(tkArgs, 3);
+            CxGPIODevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
+            CxGPIODevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
+            
+            if (dev1 && dev2) {
+               if (strOpertor == "=") {
+                  dev1->set(dev2->get());
+               }
+            } else {
+               println(F("device not found!"));
+            }
+         }
+         else {
             _gpioTracker.printAllStates(getIoStream());
             println(F("gpio commands:"));
             println(F("  state [<pin>]"));
@@ -689,6 +704,7 @@ public:
             println(F("  list"));
             println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
             println(F("  del <name>"));
+            println(F("  let <name> = <name>"));
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
