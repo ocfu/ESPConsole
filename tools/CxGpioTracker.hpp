@@ -606,6 +606,16 @@ public:
       }
    }
    
+   void set(bool state) {
+      if (state) {
+         setHigh();
+      } else {
+         setLow();
+      }
+   }
+   
+   bool get() { return isHigh(); }
+      
    // Toggle the pin state
    void toggle() {
       if (isOutput()) {
