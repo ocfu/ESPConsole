@@ -32,8 +32,31 @@ private:
    const uint32_t _nIdleTime = 2000; // ms
    const uint32_t _nDebounceTime = 100; // ms
          
+   
+   static void _btnAction(CxGPIODevice* dev, uint8_t id, const char* cmd) {
+      String strCmd;
+      strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.
+      strCmd = cmd;
+      
+      if (id == CxButton::EBtnEvent::singlepress) {
+         ESPConsole.processCmd(cmd);
+      } else if (id == CxButton::EBtnEvent::doublepress) {
+         strCmd += " #double";
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (id == CxButton::EBtnEvent::multiplepress) {
+         strCmd += " #multi";
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (id == CxButton::EBtnEvent::pressed10s) {
+         strCmd += " #long";
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (id == CxButton::EBtnEvent::reset) {
+         strCmd += " #reset";
+         ESPConsole.processCmd(strCmd.c_str());
+      }
+   };
+
 public:
-   CxButton(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) {addCallback(fp);setName(name);}
+   CxButton(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) {addCallback(_btnAction); addCallback(fp);setName(name);}
    //CxButton(uint8_t nPin = -1, bool bInverted = false, const char* name = "", isr_t isr = nullptr) : CxGPIODevice(nPin, isr) {setName(name);setInverted(bInverted);}
 
    virtual ~CxButton() {end();}

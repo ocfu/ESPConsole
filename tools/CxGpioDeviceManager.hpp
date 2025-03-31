@@ -29,7 +29,7 @@ class CxGPIODevice : public CxGPIO {
 public:
    typedef std::function<void(CxGPIODevice* dev, uint8_t id, const char* cmd)> cbFunc;
    
-   void addCallback(cbFunc fp) {__cbVec.push_back(fp);}
+   void addCallback(cbFunc fp) {if(fp)__cbVec.push_back(fp);}
    
 protected:
    // callback vector
@@ -87,17 +87,17 @@ public:
       } else {
          __console.printf(" ");
       }
-      __console.printf("%-5s ", getDigitalState() ? "on" : "off");
+      __console.printf(F("%-5s "), getDigitalState() ? "on" : "off");
    }
    
    virtual void printData(bool bGeneral = true) {
-      __console.printf("%-3s | ", isPWM() ? "yes" : "no");
+      __console.printf(F("| %-3s | "), isPWM() ? "yes" : "no");
       if (isAnalog()) {
-         __console.printf(" %6d | ", getAnalogValue());
+         __console.printf(F(" %6d | "), getAnalogValue());
       } else {
-         __console.printf("       | ");
+         __console.printf(F("       | "));
       }
-      __console.printf("%s ", getCmd());
+      __console.printf(F("%s "), getCmd());
    }
 
 };

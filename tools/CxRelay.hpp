@@ -24,9 +24,13 @@ private:
    bool _bEnabled = true;
    bool m_bDefaultOn = false;
    
+   static void _rlyAction(CxGPIODevice* dev, uint8_t id, const char* cmd) {
+      ESPConsole.processCmd(cmd);
+   }
+   
 public:
    CxRelay() : CxRelay(-1) {}
-   CxRelay(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, OUTPUT, bInverted, cmd) {addCallback(fp);setName(name);}
+   CxRelay(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, OUTPUT, bInverted, cmd) {addCallback(_rlyAction);addCallback(fp);setName(name);}
 
    virtual ~CxRelay() {}
 
@@ -54,7 +58,7 @@ public:
       if (bGeneral) {
          CxGPIODevice::printHeadLine();
       } else {
-         __console.printf(F(ESC_ATTR_BOLD "| Off-timer | Default-on " ESC_ATTR_RESET ));
+         __console.printf(F(ESC_ATTR_BOLD "| Off-timer | Default-on | Command" ESC_ATTR_RESET ));
       }
    }
    
@@ -62,7 +66,7 @@ public:
       if (bGeneral) {
          CxGPIODevice::printData();
       } else {
-         __console.printf(F("| %9d | %10s "), getOffTime(), isDefaultOn() ? "on" : "off");
+         __console.printf(F("| %9d | %10s | %s"), getOffTimer(), isDefaultOn() ? "on" : "off", getCmd());
       }
    }
    
@@ -82,9 +86,11 @@ public:
          __console.info(F("RLY: Relay on GPIO%02d switched on"), getPin());
          if (_timerOff.getPeriod() > 0) {
             __console.info(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
+            __console.processCmd("led blink");
             _timerOff.start([this](){
                __console.info(F("RLY: Relay on GPIO%02d off-timer ends"));
                off();
+               __console.processCmd("led off");
             }, true); // stop after due
          }
       }
@@ -104,8 +110,8 @@ public:
    bool isOff() {return isLow();}
       
 
-   uint32_t getOffTime() {return _timerOff.getPeriod();}
-   void setOffTime(uint32_t nTime) {
+   uint32_t getOffTimer() {return _timerOff.getPeriod();}
+   void setOffTimer(uint32_t nTime) {
       __console.info(F("RLY: Relay on GPIO%02d set off-timer to %dms"), getPin(), nTime);
       _timerOff.setPeriod(nTime);
    }

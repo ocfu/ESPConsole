@@ -192,28 +192,6 @@ class CxCapabilityExt : public CxCapability {
    /// timer for updating stack info and sensor data
    CxTimer10s _timerUpdate;
    
-   static void _btnAction(CxGPIODevice* dev, uint8_t id, const char* cmd) {
-      String strCmd;
-      strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.
-      strCmd = cmd;
-      
-      if (id == CxButton::EBtnEvent::singlepress) {
-         ESPConsole.processCmd(cmd);
-      } else if (id == CxButton::EBtnEvent::doublepress) {
-         strCmd += " #double";
-         ESPConsole.processCmd(strCmd.c_str());
-      } else if (id == CxButton::EBtnEvent::multiplepress) {
-         strCmd += " #multi";
-         ESPConsole.processCmd(strCmd.c_str());
-      } else if (id == CxButton::EBtnEvent::pressed10s) {
-         strCmd += " #long";
-         ESPConsole.processCmd(strCmd.c_str());
-      } else if (id == CxButton::EBtnEvent::reset) {
-         strCmd += " #reset";
-         ESPConsole.processCmd(cmd);
-      }
-   };
-
 public:
    /// Default constructor and default capabilities methods
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
@@ -525,8 +503,8 @@ public:
                if (strType == "relay") {
                   CxRelay* p = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(i));
                   if (p) {
-                     if (p->getOffTime()) {
-                        device["ot"] = p->getOffTime();
+                     if (p->getOffTimer()) {
+                        device["ot"] = p->getOffTimer();
                      }
                      if (p->isDefaultOn()) {
                         device["on"] = p->isDefaultOn();
@@ -583,28 +561,39 @@ public:
                               }
                            }
                         } else if (strType == "button") {
-                           if (_gpioDeviceManager.isPinInUse(nPin)) {
+                           /// TODO: consider dyanmic cast to ensure correct type
+                           CxButton* pButton = static_cast<CxButton*>(_gpioDeviceManager.getDevice(device["na"].as<const char*>()));
+                           if (pButton) {
+                              pButton->setInverted(bInverted);
+                              pButton->setCmd(strCmd.c_str());
+                              pButton->begin();
+                           } else if (_gpioDeviceManager.isPinInUse(nPin)) {
                               console.error(F("pin already in use!"));
                            } else {
                               if (strCmd == "reset") {
                                  CxButtonReset* p = new CxButtonReset(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted);
                                  if (p) p->begin();
                               } else {
-                                 CxButton* p = new CxButton(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>(), _btnAction);
+                                 CxButton* p = new CxButton(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>());
                                  p->begin();
                               }
                            }
                         } else if (strType == "relay") {
-                           if (_gpioDeviceManager.isPinInUse(nPin)) {
+                           /// TODO: consider dyanmic cast to ensure correct type
+                           CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(device["na"].as<const char*>()));
+                           if (pRelay) {
+                              pRelay->setInverted(bInverted);
+                              pRelay->setCmd(strCmd.c_str());
+                              pRelay->setOffTimer(device["ot"].as<uint32_t>());
+                              pRelay->setDefaultOn(device["on"].as<bool>());
+                              pRelay->begin();
+                           } else if (_gpioDeviceManager.isPinInUse(nPin)) {
                               console.error(F("pin already in use!"));
                            } else {
                               CxRelay* p = new CxRelay(nPin, device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>());
                               if (p) {
-                                 p->setOffTime(device["ot"].as<uint32_t>());
+                                 p->setOffTimer(device["ot"].as<uint32_t>());
                                  p->setDefaultOn(device["on"].as<bool>());
-                                 p->addCallback([this](CxGPIODevice* dev, uint8_t id, const char* cmd) {
-                                    console.processCmd(cmd);
-                                 });
                                  p->begin();
                               }
                            }
@@ -634,7 +623,7 @@ public:
                         CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
                         if (p) p->begin();
                      } else {
-                        CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, strGpioCmd.c_str(), _btnAction);  // will be implizitly registered in the device manager
+                        CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());  // will be implizitly registered in the device manager
                         if (p) p->begin();
                      }
                   }
@@ -850,7 +839,7 @@ public:
                } else if (strSubCmd == "toggle") {
                   p->toggle();
                } else if (strSubCmd == "offtimer") {
-                  p->setOffTime(TKTOINT(tkArgs, 3, 0));
+                  p->setOffTimer(TKTOINT(tkArgs, 3, 0));
                } else if (strSubCmd == "default") {
                   p->setDefaultOn(TKTOINT(tkArgs, 3, 0));
                }
