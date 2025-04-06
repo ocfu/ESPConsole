@@ -184,13 +184,6 @@ public:
  * The screen can be configured to display the value with a specified number of digits and a decimal point.
  */
 class CxCapabilitySegDisplay : public CxCapability {
-   /**
-    * @var _console
-    * @brief The console object.
-    * @details The console object is used to access the console for logging and output.
-    * The console object is initialized with the console singleton instance.
-    */
-   CxESPConsoleMaster& _console = CxESPConsoleMaster::getInstance();
    
    /**
     * @var sensors
@@ -200,6 +193,15 @@ class CxCapabilitySegDisplay : public CxCapability {
     * The sensor manager is used to get sensor data for display on the segment display.
     */
    CxSensorManager& _sensors = CxSensorManager::getInstance();
+
+protected:
+   /**
+    * @var __console
+    * @brief The console object.
+    * @details The console object is used to access the console for logging and output.
+    * The console object is initialized with the console singleton instance.
+    */
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
    /**
@@ -323,10 +325,10 @@ public:
    void setup() override {
       CxCapability::setup();
       
-      setIoStream(*_console.getStream());
+      setIoStream(*__console.getStream());
       __bLocked = false;
       
-      _console.info(F("====  Cap: %s  ===="), getName());
+      __console.info(F("====  Cap: %s  ===="), getName());
       
       execute("seg load"); ///< Load the segment display screens
       init(); ///< Initialize the segment display capability
@@ -346,7 +348,7 @@ public:
          // update timer for display
          if (_timerUpdate.isDue()) {
             // AP mode blink
-            if (_console.isAPMode()) {
+            if (__console.isAPMode()) {
                if (_nBlinkCnt == 0) {
                   _nBlinkCnt = 0xfff0;
                }
@@ -491,10 +493,10 @@ public:
             } else if (strFunc == "del" && tkCmd.count() > 3) {
                delScreen(TKTOCHAR(tkCmd, 3));
             } else {
-               _console.println(F("seg screen commands:"));
-               _console.println(F("  add <name> <type> [<id>]"));
-               _console.println(F("  del <name>"));
-               _console.println(F("  add sensors"));
+               __console.println(F("seg screen commands:"));
+               __console.println(F("  add <name> <type> [<id>]"));
+               __console.println(F("  del <name>"));
+               __console.println(F("  add sensors"));
             }
          } else if (strSubCmd == "show") {
             setActiveScreenIndex(TKTOINT(tkCmd, 2, INVALID_UINT8));
@@ -516,11 +518,11 @@ public:
                   }
                }
             } else if (strFunc == "list") {
-               _console.println(F("Slide show:"));
+               __console.println(F("Slide show:"));
                for (uint8_t n : _vScreenSlideShow) {
                   CxSegScreen* pScreen = findScreen(n);
                   if (pScreen != nullptr) {
-                     _console.printf(F("  %02d %s %s\n"), n, pScreen->getName(), pScreen->getType());
+                     __console.printf(F("  %02d %s %s\n"), n, pScreen->getName(), pScreen->getType());
                   }
                }
             } else if (strFunc == "on") {
@@ -528,12 +530,14 @@ public:
             } else if (strFunc == "off") {
                _bSlideShowOn = false;
             } else {
-               _console.println(F("seg slideshow commands:"));
-               _console.println(F("  add <screen>"));
-               _console.println(F("  del <screen>"));
-               _console.println(F("  list"));
-               _console.println(F("  on"));
-               _console.println(F("  off"));
+#ifndef MINIMAL_HELP
+               __console.println(F("seg slideshow commands:"));
+               __console.println(F("  add <screen>"));
+               __console.println(F("  del <screen>"));
+               __console.println(F("  list"));
+               __console.println(F("  on"));
+               __console.println(F("  off"));
+#endif
             }
          } else if (strSubCmd == "save") {
             /**
@@ -576,14 +580,14 @@ public:
             serializeJson(doc, szJson, sizeof(szJson));
             Config.addVariable("json", szJson);
 #endif
-            _console.saveEnv(strEnv, Config.getConfigStr());
+            __console.saveEnv(strEnv, Config.getConfigStr());
          } else if (strSubCmd == "load") {
             /**
              * @brief Loads the segment display screens and settings.
              * @details Loads the segment display screens and settings from the environment.
              */
             String strValue;
-            if (_console.loadEnv(strEnv, strValue)) {
+            if (__console.loadEnv(strEnv, strValue)) {
                CxConfigParser Config(strValue);
                // extract settings and set, if defined. Keep unchanged, if not set.
                _bEnabled = Config.getBool("enabled", _bEnabled);
@@ -599,9 +603,9 @@ public:
                DeserializationError error = deserializeJson(doc, Config.getSz("json"));
                if (!error) {
                   JsonArray screens = doc["screens"].as<JsonArray>();
-                  _console.info(F("Load %d screens."), screens.size());
+                  _CONSOLE_INFO(F("Load %d screens."), screens.size());
                   for (JsonObject screen : screens) {
-                     _console.info(F("Add screen %s %s."), screen["na"].as<const char*>(), screen["ty"].as<const char*>());
+                     _CONSOLE_INFO(F("Add screen %s %s."), screen["na"].as<const char*>(), screen["ty"].as<const char*>());
                      String name = screen["na"].as<const char*>();
                      String type = screen["ty"].as<const char*>();
                      String param = screen["id"].as<const char*>();
@@ -614,7 +618,7 @@ public:
                   _vScreenSlideShow.clear();
                   JsonArray slideShow = doc["slideshow"]["array"].as<JsonArray>();
                   for (JsonObject slide : slideShow) {
-                     _console.info(F("Add slide %d to slide show."), slide["id"].as<uint8_t>());
+                     _CONSOLE_INFO(F("Add slide %d to slide show."), slide["id"].as<uint8_t>());
                      _vScreenSlideShow.push_back(slide["id"].as<uint8_t>());
                   }
                }
@@ -662,9 +666,9 @@ public:
    bool init() {
       if (_bEnabled) {
          end();
-         _console.info(F("7SEG: start segment display..."));
+         _CONSOLE_INFO(F("7SEG: start segment display..."));
          if (Led1.getPin() == _gpioClk.getPin() || Led1.getPin() == _gpioData.getPin()) {
-            _console.info(F("7SEG: disable Led1, use of same gpio %d."), Led1.getPin());
+            _CONSOLE_INFO(F("7SEG: disable Led1, use of same gpio %d."), Led1.getPin());
             Led1.setPin(-1);
          }
 #ifdef ARDUINO
@@ -693,10 +697,10 @@ public:
                setActiveScreenIndex(getStartScreen());
             } else if (isSlideShowEnabled()) {
             }
-            _console.info(F("7SEG: ready"));
+            _CONSOLE_INFO(F("7SEG: ready"));
             return true;
          } else {
-            _console.error(F("7SEG: ### start failed!"));
+            __console.error(F("7SEG: ### start failed!"));
             return false;
          }
       }
@@ -939,18 +943,18 @@ public:
    void showTime() {
       if (_ptm1637 != NULL) {
          static bool bColon = true;
-         if (_console.isValid()) {
+         if (__console.isValid()) {
             
 #ifdef ARDUINO
             int dots = (bColon) ? TM_DOTS : 0x0;
-            _ptm1637->showNumberDec(_console.getTimeHour(), dots, true, 2, 0);
-            _ptm1637->showNumberDec(_console.getTimeMin(), dots, true, 2, 2);
+            _ptm1637->showNumberDec(__console.getTimeHour(), dots, true, 2, 0);
+            _ptm1637->showNumberDec(__console.getTimeMin(), dots, true, 2, 2);
 #else
             std::cout << "7SEG: '" << "01:23" << "'\n";
 #endif
          } else {
             clear();  // use the object's clear(), this will not reset the colon.
-            if (_console.isAPMode()) {
+            if (__console.isAPMode()) {
                segprint(" AP ");
             } else {
 #ifdef ARDUINO
@@ -1044,13 +1048,13 @@ public:
     */
    void addScreen(const char* szName, const char* szType, const char* szParam = nullptr);
    void delScreen(const char* szName) {
-      _console.debug(F("7SEG: delete screen '%s'"), szName);
+      _CONSOLE_DEBUG(F("7SEG: delete screen '%s'"), szName);
       _mapScreens.erase(szName);
    };
 
    void addScreen(const char* szName, std::unique_ptr<CxSegScreen> pScreen, const char* szParam = nullptr) {
       if (pScreen != nullptr) {
-         _console.debug(F("7SEG: add screen '%s' with screen id %d."), szName, _mapScreens.size());
+         _CONSOLE_DEBUG(F("7SEG: add screen '%s' with screen id %d."), szName, _mapScreens.size());
          pScreen->setDisplay(this);
          pScreen->setId(_mapScreens.size());
          pScreen->setParam(szParam);
@@ -1363,13 +1367,13 @@ void CxCapabilitySegDisplay::addScreen(const char* szName, const char* szType, c
          if (szParam) {
             CxSensor* pSensor = _sensors.getSensor(szParam); // get sensor by name
             if (pSensor == nullptr) {
-               _console.error(F("7SEG: sensor '%s' was not found."), szParam);
+               __console.error(F("7SEG: sensor '%s' was not found."), szParam);
             } else {
-               _console.info(F("7SEG: add sensor '%s' to screen '%s'"), szParam, szName);
+               _CONSOLE_INFO(F("7SEG: add sensor '%s' to screen '%s'"), szParam, szName);
                addScreen(szName, std::make_unique<CxSegScreenOneSensor>(pSensor), szParam);
             }
          } else {
-            _console.error(F("7SEG: sensor screen needs a sensor name."));
+            __console.error(F("7SEG: sensor screen needs a sensor name."));
          }
       }
    }

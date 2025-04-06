@@ -408,7 +408,7 @@ public:
                break;
          }
 #ifdef ARDUINO
-         //__console.debug(F("GPIO%02d: attchInterrupt to pin %d, mode=%d, pinMode=%s"), getPin(), getPin(), nMode, _gpioTracker.getPinModeString().c_str());
+         //__CONSOLE_DEBUG(F("GPIO%02d: attchInterrupt to pin %d, mode=%d, pinMode=%s"), getPin(), getPin(), nMode, _gpioTracker.getPinModeString().c_str());
          attachInterrupt(digitalPinToInterrupt(getPin()), __isr, nMode);
 #endif
          delay(10);

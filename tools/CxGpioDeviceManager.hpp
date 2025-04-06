@@ -16,6 +16,7 @@
 class CxGPIODevice : public CxGPIO {
 
    String _strName;
+   String _strFriendlyName;
    String _strCmd;
    
    uint8_t _id = 0;
@@ -68,7 +69,17 @@ public:
    void setCmd(String strCmd) {_strCmd = strCmd;}
    const char* getCmd() {return _strCmd.c_str();}
    
-   void setName(const char* name) {_strName = name;}
+   void setFriendlyName(const char* name) {_strFriendlyName = name;}
+   const char* getFriendlyName() {
+      if (_strFriendlyName.length()) {
+         return _strFriendlyName.c_str();
+      } else {
+         return getName();
+      }
+   }
+   void setName(const char* name) {
+      _strName = __console.makeFriendlyNameStr(name);
+   }
    const char* getName() {return _strName.c_str();}
    
    void printDefaultHeadLine() {
@@ -105,9 +116,7 @@ public:
 
 class CxGPIODeviceManagerManager {
 private:
-   /// Reference to the console instance
-   CxESPConsoleMaster& _console = CxESPConsoleMaster::getInstance();
-   
+
    /// gpio tracker instance
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
    
@@ -118,6 +127,11 @@ private:
    CxGPIODeviceManagerManager() = default;
    /// Default destructor
    ~CxGPIODeviceManagerManager() = default;
+   
+protected:
+   /// Reference to the console instance
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
+
 
 public:
    /// Access the singleton instance of CxGPIODeviceManagerManager
@@ -243,12 +257,12 @@ public:
          if (n++ == 0) {
             pDevice->printDefaultHeadLine();
             pDevice->printHeadLine(bGeneral);
-            _console.println();
+            __console.println();
          }
 
          pDevice->printDefaultData();
          pDevice->printData(bGeneral);
-         _console.println();
+         __console.println();
       }
    }
 };

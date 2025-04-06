@@ -184,7 +184,7 @@ bool g_bOTAinProgress = false;
  */
 class CxCapabilityExt : public CxCapability {
    /// access to the instances of the master console, GPIO tracker, sensor manager
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
    CxGPIODeviceManagerManager& _gpioDeviceManager = CxGPIODeviceManagerManager::getInstance();
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();
@@ -218,7 +218,7 @@ public:
       
       __bLocked = false;
       
-      console.info(F("====  Cap: %s  ===="), getName());
+      __console.info(F("====  Cap: %s  ===="), getName());
       
       if (!isConnected()) {
          println();
@@ -234,7 +234,7 @@ public:
       }
       
       /// setup OTA service
-      console.info(F("start OTA service"));
+      _CONSOLE_INFO(F("start OTA service"));
       char szOtaPassword[25];
       ::readOtaPassword(szOtaPassword, sizeof(szOtaPassword));
       
@@ -279,7 +279,7 @@ public:
          con.error(F("OTA error: %s [%d]"), strErr.c_str(), error);
       });
       
-      Ota1.begin(console.getHostName(), szOtaPassword);
+      Ota1.begin(__console.getHostName(), szOtaPassword);
    }
    
    /// Loop method to update sensor data, handle OTA updates, and manage LED status and web server requests.
@@ -344,22 +344,26 @@ public:
          
          String strVar = TKTOCHAR(tkArgs, 1);
          if (strVar == "ntp") {
-            console.setNtpServer(TKTOCHAR(tkArgs, 2));
+            __console.setNtpServer(TKTOCHAR(tkArgs, 2));
          } else if (strVar == "tz") {
-            console.setTimeZone(TKTOCHAR(tkArgs, 2));
+            __console.setTimeZone(TKTOCHAR(tkArgs, 2));
          } else {
+#ifndef MINIMAL_HELP
             println(F("set environment variable."));
             println(F("usage: set <env> <server>"));
             println(F("known env variables:\n ntp <server>\n tz <timezone>"));
             println(F("example: set ntp pool.ntp.org"));
             println(F("example: set tz CET-1CEST,M3.5.0,M10.5.0/3"));
+#endif
          }
       } else if (cmd == "eeprom") {
          if (a) {
             ::printEEPROM(getIoStream(), TKTOINT(tkArgs, 1, 0), TKTOINT(tkArgs, 2, 128));
          } else {
+#ifndef MINIMAL_HELP
             println(F("show eeprom content."));
             println(F("usage: eeprom [<start address>] [<length>]"));
+#endif
          }
       } else if (cmd == "wifi") {
          String strCmd = TKTOCHAR(tkArgs, 1);
@@ -381,7 +385,7 @@ public:
             }
          } else if (strCmd == "hostname") {
             if (b) {
-               console.setHostName(TKTOCHAR(tkArgs, 2));
+               __console.setHostName(TKTOCHAR(tkArgs, 2));
                ::writeHostName(TKTOCHAR(tkArgs, 2));
             } else {
                char buf[80];
@@ -393,7 +397,7 @@ public:
          } else if (strCmd == "disconnect") {
             stopWiFi();
          } else if (strCmd == "status") {
-            console.processCmd("net");
+            __console.processCmd("net");
          } else if (strCmd == "scan") {
             ::scanWiFi(getIoStream());
          } else if (strCmd == "otapw") {
@@ -405,10 +409,11 @@ public:
                print(F(ESC_ATTR_BOLD "Password: " ESC_ATTR_RESET)); print(buf); println();
             }
          } else if (strCmd == "ap") {
-            if (console.isWiFiClient()) println(F("switching to AP mode. Note: this disconnects this console!"));
+            if (__console.isWiFiClient()) println(F("switching to AP mode. Note: this disconnects this console!"));
             delay(500);
             _beginAP();
          } else {
+#ifndef MINIMAL_HELP
             println(F("wifi commands:"));
             println(F("  ssid [<ssid>]"));
             println(F("  password [<password>]"));
@@ -420,6 +425,7 @@ public:
             println(F("  otapw [<password>]"));
             println(F("  ap"));
             println(F("  sensor"));
+#endif
          }
       } else if (cmd == "ping") {
          if (!a && !b) {
@@ -497,6 +503,7 @@ public:
                device["id"] = i;
                device["pin"] = _gpioDeviceManager.getDevice(i)->getPin();
                device["na"] = _gpioDeviceManager.getDevice(i)->getName();
+               device["fn"] = _gpioDeviceManager.getDevice(i)->getFriendlyName();
                device["ty"] = _gpioDeviceManager.getDevice(i)->getTypeSz();
                device["in"] = _gpioDeviceManager.getDevice(i)->isInverted();
                device["cmd"] = _gpioDeviceManager.getDevice(i)->getCmd();
@@ -516,16 +523,16 @@ public:
             String strJson;
             serializeJson(doc, strJson);
             Config.addVariable("json", strJson);
-            console.saveEnv(strEnv, Config.getConfigStr());
+            __console.saveEnv(strEnv, Config.getConfigStr());
 #else
             char szJson[1024];
             serializeJson(doc, szJson, sizeof(szJson));
             Config.addVariable("json", szJson);
-            console.saveEnv(strEnv, Config.getConfigStr());
+            __console.saveEnv(strEnv, Config.getConfigStr());
 #endif
          } else if (strSubCmd == "load") {
             String strValue;
-            if (console.loadEnv(strEnv, strValue)) {
+            if (__console.loadEnv(strEnv, strValue)) {
                CxConfigParser Config(strValue.c_str());
                DynamicJsonDocument doc(1024);
                DeserializationError error = deserializeJson(doc, Config.getSz("json"));
@@ -533,12 +540,12 @@ public:
                   JsonArray devices = doc["devices"].as<JsonArray>();
                   for (JsonObject device : devices) {
                      uint8_t nPin = device["pin"].as<uint8_t>();
-                     console.info(F("load device %d %s"), device["id"].as<uint8_t>(), device["na"].as<const char*>());
+                     _CONSOLE_INFO(F("load device %d %s"), device["id"].as<uint8_t>(), device["na"].as<const char*>());
                      if (nPin == INVALID_PIN) {
-                        console.error(F("invalid pin!"));
+                        __console.error(F("invalid pin!"));
                      } else {
                         uint8_t nId = device["id"].as<uint8_t>();
-                        console.info(F("device %d %s on pin %d"), nId, device["na"].as<const char*>(), nPin);
+                        _CONSOLE_INFO(F("device %d %s on pin %d"), nId, device["na"].as<const char*>(), nPin);
                         String strType = device["ty"].as<const char*>();
                         String strCmd = device["cmd"].as<const char*>();
                         bool bInverted = device["in"].as<bool>();
@@ -549,49 +556,62 @@ public:
                               Led1.setPin(nPin);
                               Led1.setPinMode(OUTPUT);
                               Led1.setName(strName.c_str());
+                              Led1.setFriendlyName(device["fn"].as<const char*>());
                               Led1.setInverted(bInverted);
                               Led1.setCmd(strCmd.c_str());
                               Led1.off();
                            } else {
                               if (_gpioDeviceManager.isPinInUse(nPin)) {
-                                 console.error(F("pin already in use!"));
+                                 __console.error(F("pin already in use!"));
                               } else {
                                  CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);
-                                 p->begin();
+                                 if (p) {
+                                    p->setFriendlyName(device["fn"].as<const char*>());
+                                    p->begin();
+                                 }
                               }
                            }
                         } else if (strType == "button") {
                            /// TODO: consider dyanmic cast to ensure correct type
                            CxButton* pButton = static_cast<CxButton*>(_gpioDeviceManager.getDevice(device["na"].as<const char*>()));
                            if (pButton) {
+                              pButton->setFriendlyName(device["fn"].as<const char*>());
                               pButton->setInverted(bInverted);
                               pButton->setCmd(strCmd.c_str());
                               pButton->begin();
                            } else if (_gpioDeviceManager.isPinInUse(nPin)) {
-                              console.error(F("pin already in use!"));
+                              __console.error(F("pin already in use!"));
                            } else {
                               if (strCmd == "reset") {
                                  CxButtonReset* p = new CxButtonReset(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted);
-                                 if (p) p->begin();
+                                 if (p) {
+                                    p->setFriendlyName(device["fn"].as<const char*>());
+                                    p->begin();
+                                 }
                               } else {
                                  CxButton* p = new CxButton(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>());
-                                 p->begin();
+                                 if (p) {
+                                    p->setFriendlyName(device["fn"].as<const char*>());
+                                    p->begin();
+                                 }
                               }
                            }
                         } else if (strType == "relay") {
                            /// TODO: consider dyanmic cast to ensure correct type
                            CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(device["na"].as<const char*>()));
                            if (pRelay) {
+                              pRelay->setFriendlyName(device["fn"].as<const char*>());
                               pRelay->setInverted(bInverted);
                               pRelay->setCmd(strCmd.c_str());
                               pRelay->setOffTimer(device["ot"].as<uint32_t>());
                               pRelay->setDefaultOn(device["on"].as<bool>());
                               pRelay->begin();
                            } else if (_gpioDeviceManager.isPinInUse(nPin)) {
-                              console.error(F("pin already in use!"));
+                              __console.error(F("pin already in use!"));
                            } else {
                               CxRelay* p = new CxRelay(nPin, device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>());
                               if (p) {
+                                 p->setFriendlyName(device["fn"].as<const char*>());
                                  p->setOffTimer(device["ot"].as<uint32_t>());
                                  p->setDefaultOn(device["on"].as<bool>());
                                  p->begin();
@@ -618,7 +638,7 @@ public:
                   if (_gpioDeviceManager.isPinInUse(nPin)) {
                      println(F("pin already in use!"));
                   } else {
-                     console.printf(F("add device type %s on pin %d, cmd=%s\n"), strType.c_str(), nPin, strGpioCmd.c_str());
+                     __console.printf(F("add device type %s on pin %d, cmd=%s\n"), strType.c_str(), nPin, strGpioCmd.c_str());
                      if (strGpioCmd == "reset") {
                         CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
                         if (p) p->begin();
@@ -655,6 +675,7 @@ public:
                println(F("invalid pin!"));
             }
          } else if (strSubCmd == "del") {
+            // FIXME: delete command crashes the system
             String strName = TKTOCHAR(tkArgs, 2);
             if (strName == "led1") {
                Led1.setPin(INVALID_PIN);
@@ -667,6 +688,18 @@ public:
                   println(F("device not found!"));
                }
                _gpioDeviceManager.removeDevice(strName.c_str());
+            }
+         } else if (strSubCmd == "name") {
+            if (CxGPIO::isValidPin(nPin)) {
+               CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+               if (p) {
+                  p->setFriendlyName(strValue.c_str());
+                  p->setName(strValue.c_str());
+               } else {
+                  println(F("device not found!"));
+               }
+            } else {
+               println(F("invalid pin!"));
             }
          } else if (strSubCmd == "let") {
             String strOpertor = TKTOCHAR(tkArgs, 3);
@@ -683,10 +716,12 @@ public:
          }
          else {
             _gpioTracker.printAllStates(getIoStream());
+#ifndef MINIMAL_HELP
             println(F("gpio commands:"));
             println(F("  state [<pin>]"));
             println(F("  set <pin> <mode> (in, out, pwm, inverted, non-inverted"));
             println(F("  set <pin> 0...1023 (set pin state to value)"));
+            println(F("  name <pin> <name>"));
             println(F("  get <pin>"));
             println(F("  save"));
             println(F("  load"));
@@ -694,6 +729,7 @@ public:
             println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
             println(F("  del <name>"));
             println(F("  let <name> = <name>"));
+#endif
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -744,12 +780,14 @@ public:
             Led1.toggle();
          } else {
             printf(F("LED on pin %02d%s\n"), Led1.getPin(), Led1.isInverted() ? ",inverted":"");
+#ifndef MINIMAL_HELP
             println(F("led commands:"));
             println(F("  on|off"));
             println(F("  blink [period] [duty]"));
             println(F("  blink [pattern] (ok, error...)"));
             println(F("  flash [period] [duty] [number]"));
             println(F("  invert"));
+#endif
          }
       } else if (cmd == "sensor") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -785,17 +823,17 @@ public:
             String strJson;
             serializeJson(doc, strJson);
             Config.addVariable("json", strJson);
-            console.saveEnv(strEnv, Config.getConfigStr());
+            __console.saveEnv(strEnv, Config.getConfigStr());
 #else
             char szJson[1024];
             serializeJson(doc, szJson, sizeof(szJson));
             Config.addVariable("json", szJson);
-            console.saveEnv(strEnv, Config.getConfigStr());
+            __console.saveEnv(strEnv, Config.getConfigStr());
 #endif
             
          } else if (strSubCmd == "load") {
             String strValue;
-            if (console.loadEnv(strEnv, strValue)) {
+            if (__console.loadEnv(strEnv, strValue)) {
                CxConfigParser Config(strValue.c_str());
                DynamicJsonDocument doc(256);
                DeserializationError error = deserializeJson(doc, Config.getSz("json"));
@@ -803,18 +841,20 @@ public:
                   JsonArray sensors = doc["sensors"].as<JsonArray>();
                   for (JsonObject sensor : sensors) {
                      uint8_t nId = sensor["id"].as<uint8_t>();
-                     console.info(F("name of sensor %d -> %s"), nId, sensor["na"].as<const char*>());
+                     _CONSOLE_INFO(F("name of sensor %d -> %s"), nId, sensor["na"].as<const char*>());
                      _sensorManager.setSensorName(nId, sensor["na"].as<const char*>());
                   }
                }
             }
          } else {
+//#ifndef MINIMAL_HELP
             println(F("sensor commands:"));
             println(F("  list"));
             println(F("  name <id> <name>"));
             println(F("  get <id>"));
             println(F("  save"));
             println(F("  load"));
+//#endif
          }
       } else if (cmd == "relay") {
          String strName = TKTOCHAR(tkArgs, 1);
@@ -828,7 +868,7 @@ public:
             String strType = pDev->getTypeSz();
             
             if (strType != "relay") {
-               console.println(F("device is not a relay!"));
+               __console.println(F("device is not a relay!"));
             } else {
                CxRelay* p = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(strName.c_str()));
                
@@ -844,10 +884,11 @@ public:
                   p->setDefaultOn(TKTOINT(tkArgs, 3, 0));
                }
                else {
-                  console.println(F("invalid relay command"));
+                  __console.println(F("invalid relay command"));
                }
             }
          } else {
+//#ifndef MINIMAL_HELP
             println(F("relay commands:"));
             println(F("  list")); // TODO: list relays
             println(F("  <name> on"));
@@ -855,6 +896,7 @@ public:
             println(F("  <name> toggle"));
             println(F("  <name> offtimer <seconds>"));
             println(F("  <name> default <0|1>"));
+//#endif
          }
       } else {
          return false;
@@ -890,7 +932,7 @@ public:
       int patch = arduinoVersion % 100;
       printf(F(ESC_ATTR_BOLD "Arduino Ver.:" ESC_ATTR_RESET " %d.%d.%d %s\n"), major, minor, patch, ide);
 #endif
-      if (console.getAppName()[0]) printf(F(ESC_ATTR_BOLD "    Firmware:" ESC_ATTR_RESET " %s Ver.:" ESC_ATTR_RESET " %s\n"), console.getAppName(), console.getAppVer());
+      if (__console.getAppName()[0]) printf(F(ESC_ATTR_BOLD "    Firmware:" ESC_ATTR_RESET " %s Ver.:" ESC_ATTR_RESET " %s\n"), __console.getAppName(), __console.getAppVer());
    }
    
    void printESP() {
@@ -949,19 +991,19 @@ public:
 #else
       printf(F("Size Map:     %s\n"), getMapName());
 #endif
-      printf(F("Size avail.:  %7d Bytes\n"), ESP.getSketchSize() + ESP.getFreeSketchSpace());
-      printf(F("     sketch:  %7d Bytes\n"), ESP.getSketchSize());
-      printf(F("       free:  %7d Bytes\n"), ESP.getFreeSketchSpace());
+      printf(F("Size avail.:  %5d kBytes\n"), (ESP.getSketchSize() + ESP.getFreeSketchSpace())/1024);
+      printf(F("     sketch:  %5d kBytes\n"), (ESP.getSketchSize()/1024));
+      printf(F("       free:  %5d kBytes\n"), (ESP.getFreeSketchSpace()/1024));
 #ifdef ESP32
-      printf(F("   fr.w.OTA:  ? Bytes\n"));
+      printf(F("   OTA room:  ? Bytes\n"));
 #else
-      printf(F("   fr.w.OTA:  %7d Bytes\n"), getFreeSize());
-      if (getFreeSize() < 20000) {
-         printf(F("*** Free size for OTA very low!\n"));
-      } else if (getFreeSize() < 100000) {
-         printf(F("*** Free size for OTA is getting low!\n"));
+      printf(F("   OTA room:  %5d kBytes\n"), getFreeOTA()/1024);
+      if (getFreeOTA() < ESP.getSketchSize()) {
+         printf(F("*** Free room for OTA too low!\n"));
+      } else if (getFreeOTA() < (ESP.getSketchSize() + 10000)) {
+         printf(F("vvv Free room for OTA is getting low!\n"));
       }
-      printf(F("FLASHFS size: %6d Bytes\n"), getFSSize());
+      printf(F("FLASHFS size: %5d kBytes\n"), getFSSize()/1024);
 #endif
       printf(F("\n"));
       printf(F("-FIRMWARE---------------\n"));
@@ -972,11 +1014,11 @@ public:
       printf(F("ESP core:     %s\n"), ESP.getCoreVersion().c_str());
 #endif
       printf(F("ESP sdk:      %s\n"), ESP.getSdkVersion());
-      printf(F("Application:  %s (%s)\n"), console.getAppName(), console.getAppVer());
+      printf(F("Application:  %s (%s)\n"), __console.getAppName(), __console.getAppVer());
       printf(F("\n"));
       printf(F("-BOOT-------------------\n"));
       printf(F("reset reason: %s\n"), getResetInfo());
-      print(F("time to boot: ")); console.printTimeToBoot(getIoStream()); println();
+      print(F("time to boot: ")); __console.printTimeToBoot(getIoStream()); println();
       printf(F("free heap:    %5d Bytes\n"), ESP.getFreeHeap());
       printf(F("\n"));
 #endif
@@ -1006,10 +1048,8 @@ public:
 #else
       printf(F("Sketch start: %X\n"), getSketchStart());
       printf(F("Sketch end:   %X (%d kBytes)\n"), getSketchStart() + ESP.getSketchSize() - 0x1, ESP.getSketchSize()/1024);
-      printf(F("Free start:   %X\n"), getFreeStart());
-      printf(F("Free end:     %X (free: %d kBytes)\n"), getFreeEnd(), getFreeSize()/1024);
-      printf(F("OTA start:    %X (with current sketch size)\n"), getOTAStart());
-      printf(F("OTA end:      %X (%d kBytes)\n"), getOTAEnd(), ESP.getSketchSize()/1024);
+      printf(F("OTA start:    %X (lowest possible addr.)\n"), getOTAStart());
+      printf(F("OTA end:      %X (%d kBytes available)\n"), getOTAEnd(), getFreeOTA()/1024);
       if (getFlashFSStart() < getWIFIEnd()) {
          printf(F("FLASHFS start: %X\n"), getFlashFSStart());
          printf(F("FLASHFS end:   %X (%d kBytes)\n"), getFlashFSEnd() - 0x1, (getFlashFSEnd() - getFlashFSStart())/1024);
@@ -1061,7 +1101,7 @@ public:
    
    void gpioAction() {
       // check for gpio events
-      _gpioDeviceManager.loop(console.isAPMode());
+      _gpioDeviceManager.loop(__console.isAPMode());
    }
 
    void startWiFi(const char* ssid = nullptr, const char* pw = nullptr) {
@@ -1123,11 +1163,11 @@ public:
       
       if (WiFi.status() != WL_CONNECTED) {
          println(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "not connected!" ESC_ATTR_RESET));
-         console.error("WiFi not connected.");
+         __console.error("WiFi not connected.");
          Led1.blinkError();
       } else {
          println(F(ESC_TEXT_BRIGHT_GREEN "connected!" ESC_ATTR_RESET));
-         console.info("WiFi connected.");
+         _CONSOLE_INFO("WiFi connected.");
          Led1.flashOk();
       }
       
@@ -1135,7 +1175,7 @@ public:
    }
    
    void stopWiFi() {
-      console.info(F("WiFi disconnect and switch off."));
+      _CONSOLE_INFO(F("WiFi disconnect and switch off."));
       println(F("WiFi disconnect and switch off."));
 #ifdef ARDUINO
       WiFi.disconnect();
@@ -1224,7 +1264,7 @@ private:
       
 #ifdef ARDUINO
       // Start Access Point
-      WiFi.softAP(console.getHostName(), "12345678");
+      WiFi.softAP(__console.getHostName(), "12345678");
       
       // Start DNS Server
       dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
@@ -1241,9 +1281,9 @@ private:
       // Start the web server
       webServer.begin();
 #endif
-      console.info(F("ESP started in AP mode"));
-      printf(F("ESP started in AP mode. SSID: %s, PW:%s\n"), console.getHostName(), "12345678");
-      console.setAPMode(true);
+      _CONSOLE_INFO(F("ESP started in AP mode"));
+      printf(F("ESP started in AP mode. SSID: %s, PW:%s\n"), __console.getHostName(), "12345678");
+      __console.setAPMode(true);
    }
 
    /// stopping the access point mode
@@ -1256,7 +1296,7 @@ private:
       webServer.close();
       dnsServer.stop();
 #endif
-      console.setAPMode(false);
+      __console.setAPMode(false);
    }
 
 

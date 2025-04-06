@@ -46,14 +46,15 @@ struct FSInfo {
 
 class CxCapabilityFS : public CxCapability {
    
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
-   
+
    String _strLogServer = "";
    uint32_t _nLogPort = 0;
    bool _bLogServerAvailable = false;
    
    CxTimer60s _timer60sLogServer;
 
+protected:
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
 
@@ -83,14 +84,15 @@ public:
       
       __bLocked = false;
       
-      console.info(F("====  Cap: %s  ===="), getName());
+      __console.info(F("====  Cap: %s  ===="), getName());
 
       // load specific environments for this class
+      println("i am here mount()");
       mount();
       
+      println("i am here load...");
       execute("load ntp");
       execute("load tz");
-      execute("load led");
       execute ("log load");
       
       // implement log functions
@@ -166,10 +168,10 @@ public:
           strEnv += TKTOCHAR(tkArgs, 1);
           String strValue;
           if (strEnv == ".ntp") {
-             strValue = console.getNtpServer();
+             strValue = __console.getNtpServer();
              saveEnv(strEnv, strValue);
           } else if (strEnv == ".tz") {
-             strValue = console.getTimeZone();
+             strValue = __console.getTimeZone();
              saveEnv(strEnv, strValue);
           } else if (strEnv == ".mqtt") {
              strValue = cmd.substring(5);
@@ -186,17 +188,17 @@ public:
           String strValue;
           if (strEnv == ".ntp") {
              if (loadEnv(strEnv, strValue)) {
-                console.setNtpServer(strValue.c_str());
-                console.info(F("NTP server set to %s"), console.getNtpServer());
+                __console.setNtpServer(strValue.c_str());
+                __console.info(F("NTP server set to %s"), __console.getNtpServer());
              } else {
-                console.warn(F("NTP server env variable (ntp) not found!"));
+                __console.warn(F("NTP server env variable (ntp) not found!"));
              }
           } else if (strEnv == ".tz") {
              if (loadEnv(strEnv, strValue)) {
-                console.setTimeZone(strValue.c_str());
-                console.info(F("Timezone set to %s"), console.getTimeZone());
+                __console.setTimeZone(strValue.c_str());
+                _CONSOLE_INFO(F("Timezone set to %s"), __console.getTimeZone());
              } else {
-                console.warn(F("Timezone env variable (tz) not found!"));
+                __console.warn(F("Timezone env variable (tz) not found!"));
              }
           } else {
              println(F("load environment variable.\nusage: load <env>"));
@@ -212,17 +214,17 @@ public:
           String strEnv = ".log";
           if (strSubCmd == "server") {
              _strLogServer = TKTOCHAR(tkArgs, 2);
-             _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
+             _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
              if (!_bLogServerAvailable) println(F("server not available!"));
           } else if (strSubCmd == "port") {
              _nLogPort = TKTOINT(tkArgs, 2, 0);
-             _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
+             _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
              if (!_bLogServerAvailable) println(F("server not available!"));
           } else if (strSubCmd == "level") {
-             console.setLogLevel(TKTOINT(tkArgs, 2, console.getLogLevel()));
+             __console.setLogLevel(TKTOINT(tkArgs, 2, __console.getLogLevel()));
           } else if (strSubCmd == "save") {
              CxConfigParser Config;
-             Config.addVariable("level", console.getLogLevel());
+             Config.addVariable("level", __console.getLogLevel());
              Config.addVariable("server", _strLogServer);
              Config.addVariable("port", _nLogPort);
              saveEnv(strEnv, Config.getConfigStr());
@@ -231,7 +233,7 @@ public:
              if (loadEnv(strEnv, strValue)) {
                 CxConfigParser Config(strValue);
                 // extract settings and set, if defined. Keep unchanged, if not set.
-                console.setLogLevel(Config.getInt("level", console.getLogLevel()));
+                __console.setLogLevel(Config.getInt("level", __console.getLogLevel()));
                 _strLogServer = Config.getSz("server", _strLogServer.c_str());
                 _nLogPort = Config.getInt("port", _nLogPort);
                 if (_strLogServer.length() && _nLogPort > 0) {
@@ -250,17 +252,19 @@ public:
           } else if (strSubCmd == "debug_ext") {
              _debug_ext(TKTOINT(tkArgs, 3, 0), a);
           } else {
-             printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), console.getLogLevel());printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), console.getUsrLogLevel());
-             printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), console.getDebugFlag());
+             printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), __console.getLogLevel());printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), __console.getUsrLogLevel());
+             printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __console.getDebugFlag());
              printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
              printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
+//#ifndef MINIMAL_HELP
              println(F("log commands:"));
              println(F("  server <server>"));
              println(F("  port <port>"));
              println(F("  level <level>"));
              println(F("  save"));
              println(F("  load"));
-             console.info(F("test log message"));
+//#endif
+             _CONSOLE_INFO(F("test log message"));
           }
        } else {
           return false;
@@ -391,7 +395,7 @@ public:
                   
                   if (bAll) {
                      printf(F("%7d "), file.size());
-                     console.printFileDateTime(getIoStream(), file.getCreationTime(), file.getLastWrite());
+                     __console.printFileDateTime(getIoStream(), file.getCreationTime(), file.getLastWrite());
                   }
                   printf(F(" %s\n"), file.name());
                }
@@ -410,7 +414,7 @@ public:
             // print file size and date/time
             if (bLong) {
                printf(F("%7d "), file.size());
-               console.printFileDateTime(getIoStream(), file.getCreationTime(), file.getLastWrite());
+               __console.printFileDateTime(getIoStream(), file.getCreationTime(), file.getLastWrite());
             }
             printf(F(" %s\n"), file.name());
             total += file.size();
@@ -540,7 +544,7 @@ public:
       if (!hasFS()) {
 #ifdef ARDUINO
          if (!LittleFS.begin()) {
-            console.error("LittleFS mount failed");
+            __console.error("LittleFS mount failed");
             return;
          }
 #else
@@ -563,7 +567,7 @@ public:
       if (hasFS()) {
          println(F("LittleFS still mounted! -> 'umount' first"));
       } else {
-//         console.promptUserYN("Are you sure you want to format?", [](bool confirmed) {
+//         __console.promptUserYN("Are you sure you want to format?", [](bool confirmed) {
 //            if (confirmed) {
 #ifdef ARDUINO
                LittleFS.format();
@@ -577,7 +581,7 @@ public:
    
    void saveEnv(String& strEnv, String& strValue) {
       if (hasFS()) {
-         console.debug(F("save env variable %s, value=%s"), strEnv.c_str(), strValue.c_str());
+         _CONSOLE_DEBUG(F("save env variable %s, value=%s"), strEnv.c_str(), strValue.c_str());
 #ifdef ARDUINO
          File file = LittleFS.open(strEnv.c_str(), "w");
          if (file) {
@@ -592,7 +596,7 @@ public:
    
    bool loadEnv(String& strEnv, String& strValue) {
       if (hasFS()) {
-         console.debug(F("load env variable %s"), strEnv.c_str());
+         _CONSOLE_DEBUG(F("load env variable %s"), strEnv.c_str());
 #ifdef ARDUINO
          File file = LittleFS.open(strEnv.c_str(), "r");
          if (file) {
@@ -642,7 +646,7 @@ private:
          }
       }
       
-      //console.debug(F("receive header: %s"), header.c_str());
+      //__CONSOLE_DEBUG(F("receive header: %s"), header.c_str());
       
       // analyse header
       if (header.startsWith("GET ")) {
@@ -661,22 +665,22 @@ private:
          
          if (expectedSize > getDf() * 0.9) {
             println(F("not enough space available for the file!"));
-            console.error(F("not enough space available for the file!"));
+            __console.error(F("not enough space available for the file!"));
             return false;
          }
          
-         console.info(F("receive file: %s (size: %d Bytes)"), filename.c_str(), expectedSize);
+         _CONSOLE_INFO(F("receive file: %s (size: %d Bytes)"), filename.c_str(), expectedSize);
          
          // file open
          file = LittleFS.open(filename, "w");
          if (!file) {
             println(F("error: create file"));
-            console.error(F("error: create file %s"), filename.c_str());
+            __console.error(F("error: create file %s"), filename.c_str());
             return false;
          }
       } else {
          println(F("error: invalid header"));
-         console.error(F("error: invalid header received during file transfer"));
+         __console.error(F("error: invalid header received during file transfer"));
          return false;
       }
       
@@ -690,10 +694,10 @@ private:
             file.write((uint8_t *)buffer, bytesRead);
             receivedSize += bytesRead;
             //printProgress(receivedSize, expectedSize, filename.c_str(), "bytes");
-            console.printProgressBar((uint32_t)receivedSize, (uint32_t)expectedSize, filename.c_str());
+            __console.printProgressBar((uint32_t)receivedSize, (uint32_t)expectedSize, filename.c_str());
             timerTO.restart(); // reset timeout
          } else if (timerTO.isDue()) { // timeout
-            console.error(F("timeout receiving a file"));
+            __console.error(F("timeout receiving a file"));
             bError = true;
             break;
          }
@@ -704,10 +708,10 @@ private:
       
       // Empfang überprüfen
       if (receivedSize == expectedSize) {
-         console.info(F("file transfer finished."));
+         _CONSOLE_INFO(F("file transfer finished."));
       } else {
          printf(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "Warning: received size of data (%d bytes) not same as expected file size (%d bytes) !\n" ESC_ATTR_RESET), receivedSize, expectedSize);
-         console.error(F("received size of data (%d bytes) not same as expected file size (%d bytes)!"), receivedSize, expectedSize);
+         __console.error(F("received size of data (%d bytes) not same as expected file size (%d bytes)!"), receivedSize, expectedSize);
       }
 #endif
       return true;
@@ -716,7 +720,7 @@ private:
    bool _sendFile(WiFiClient* client, const char* filename) {
 #ifdef ARDUINO
       // without the log capability, it would print to __ioStream, which is the client stream for the file transfer!
-      //console.debug(F("download file: %s"), filename);
+      //_CONSOLE_DEBUG(F("download file: %s"), filename);
       
       File file = LittleFS.open(filename, "r");
       if (!file) {
@@ -727,7 +731,7 @@ private:
       
       size_t fileSize = file.size();
       client->printf("SIZE: %d\n", fileSize);
-      //console.info("Sending file: %s (%d bytes)\n", filename, fileSize);
+      //_CONSOLE_INFO("Sending file: %s (%d bytes)\n", filename, fileSize);
 
       static char buffer[64];
       size_t bytesRead;
@@ -740,7 +744,7 @@ private:
       }
       
       file.close();
-      //console.info("File transfer complete.");
+      //_CONSOLE_INFO("File transfer complete.");
       
 #endif
       return true;
@@ -776,62 +780,62 @@ private:
 #endif
       } else {
          if (_timer60sLogServer.isDue()) {
-            _bLogServerAvailable = console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
+            _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
          }
       }
       
       if (bAvailable != _bLogServerAvailable) {
          if (!_bLogServerAvailable) {
-            console.warn(F("log server %s OFFLINE, next attemp after 60s."), _strLogServer.c_str());
+            __console.warn(F("log server %s OFFLINE, next attemp after 60s."), _strLogServer.c_str());
          } else {
-            console.info(F("log server %s online"), _strLogServer.c_str());
+            _CONSOLE_INFO(F("log server %s online"), _strLogServer.c_str());
          }
       }
    }
    
    void _debug(const char *buf) {
-      if (console.getUsrLogLevel() >= LOGLEVEL_DEBUG) {
+      if (__console.getUsrLogLevel() >= LOGLEVEL_DEBUG) {
          print(F(ESC_ATTR_DIM));
          println(buf);
          print(F(ESC_ATTR_RESET));
       }
-      if (console.getLogLevel() >= LOGLEVEL_DEBUG) _print2logServer(buf);
+      if (__console.getLogLevel() >= LOGLEVEL_DEBUG) _print2logServer(buf);
    }
    
    void _debug_ext(uint32_t flag, const char *buf) {
-      if (console.getUsrLogLevel() >= LOGLEVEL_DEBUG_EXT) {
+      if (__console.getUsrLogLevel() >= LOGLEVEL_DEBUG_EXT) {
          print(F(ESC_ATTR_DIM));
          println(buf);
          print(F(ESC_ATTR_RESET));
       }
-      if (console.getLogLevel() >= LOGLEVEL_DEBUG_EXT) _print2logServer(buf);
+      if (__console.getLogLevel() >= LOGLEVEL_DEBUG_EXT) _print2logServer(buf);
    }
    
    void _info(const char *buf) {
-      if (console.getUsrLogLevel() >= LOGLEVEL_INFO) {
+      if (__console.getUsrLogLevel() >= LOGLEVEL_INFO) {
          println(buf);
          print(F(ESC_ATTR_RESET));
       }
-      if (console.getLogLevel() >= LOGLEVEL_INFO) _print2logServer(buf);
+      if (__console.getLogLevel() >= LOGLEVEL_INFO) _print2logServer(buf);
    }
    
    void _warn(const char *buf) {
-      if (console.getUsrLogLevel() >= LOGLEVEL_WARN) {
+      if (__console.getUsrLogLevel() >= LOGLEVEL_WARN) {
          print(F(ESC_TEXT_YELLOW));
          println(buf);
          print(F(ESC_ATTR_RESET));
       }
-      if (console.getLogLevel() >= LOGLEVEL_WARN) _print2logServer(buf);
+      if (__console.getLogLevel() >= LOGLEVEL_WARN) _print2logServer(buf);
    }
    
    void _error(const char *buf) {
-      if (console.getUsrLogLevel() >= LOGLEVEL_ERROR) {
+      if (__console.getUsrLogLevel() >= LOGLEVEL_ERROR) {
          print(F(ESC_ATTR_BOLD));
          print(F(ESC_TEXT_BRIGHT_RED));
          println(buf);
          print(F(ESC_ATTR_RESET));
       }
-      if (console.getLogLevel() >= LOGLEVEL_ERROR) _print2logServer(buf);
+      if (__console.getLogLevel() >= LOGLEVEL_ERROR) _print2logServer(buf);
    }
 
 };

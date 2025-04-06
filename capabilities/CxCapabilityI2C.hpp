@@ -183,7 +183,7 @@ class CxCapabilityI2C : public CxCapability {
     * @var console
     * @brief Reference to the console instance.
     */
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
    bool _bEnabled = true;
    
@@ -246,10 +246,10 @@ public:
    void setup() override {
       CxCapability::setup();
       
-      setIoStream(*console.getStream());
+      setIoStream(*__console.getStream());
       __bLocked = false;
       
-      console.info(F("====  Cap: %s  ===="), getName());
+      __console.info(F("====  Cap: %s  ===="), getName());
       
       execute("i2c load");
       init();
@@ -318,10 +318,10 @@ public:
             Config.addVariable("sda", _gpioSda.getPin());
             Config.addVariable("scl", _gpioScl.getPin());
             Config.addVariable("vu", _gpioVu.getPin());
-            console.saveEnv(strEnv, Config.getConfigStr());
+            __console.saveEnv(strEnv, Config.getConfigStr());
          } else if (strSubCmd == "load") {
             String strValue;
-            if (console.loadEnv(strEnv, strValue)) {
+            if (__console.loadEnv(strEnv, strValue)) {
                CxConfigParser Config(strValue);
                // extract settings and set, if defined. Keep unchanged, if not set.
                _bEnabled = Config.getBool("enabled", _bEnabled);
@@ -331,6 +331,10 @@ public:
             }
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
+            printf(F(ESC_ATTR_BOLD " SDA Pin:      " ESC_ATTR_RESET "%d\n"), _gpioSda.getPin());
+            printf(F(ESC_ATTR_BOLD " SCL Pin:      " ESC_ATTR_RESET "%d\n"), _gpioScl.getPin());
+            printf(F(ESC_ATTR_BOLD " VU Pin:       " ESC_ATTR_RESET "%d\n"), _gpioVu.getPin());
+//#ifndef MINIMAL_HELP
             println(F("i2c commands:"));
             println(F("  enable 0|1"));
             println(F("  setpins <sda> <scl> [<vu>]"));
@@ -338,6 +342,7 @@ public:
             println(F("  scan"));
             println(F("  save"));
             println(F("  load"));
+//#endif            
          }
       } else {
          // command not handled here
@@ -356,10 +361,10 @@ public:
          if (hasValidPins()) {
             // power on I2C sensor device first
             if (hasValidVuPin()) {
-               _CONSOLE_DEBUG(F("I2C: power on gpio=%d"), _gpioVu.getPin());
+               _CONSOLE_INFO(F("I2C: power on gpio=%d"), _gpioVu.getPin());
                reset();
             }
-            _CONSOLE_DEBUG(F("I2C: begin Wire on sda=%d, scl=%d, clock: %d kHz"), _gpioSda.getPin(), _gpioScl.getPin(), getClock()/1000);
+            _CONSOLE_INFO(F("I2C: begin Wire on sda=%d, scl=%d, clock: %d kHz"), _gpioSda.getPin(), _gpioScl.getPin(), getClock()/1000);
 #ifdef ARDUINO
             Wire.setClock(getClock());
             Wire.begin(_gpioSda.getPin(), _gpioScl.getPin());
@@ -502,7 +507,7 @@ public:
     * @param lFreq The frequency to scan.
     */
    void scan(unsigned long lFreq) {
-      _CONSOLE_DEBUG(F("I2C: start scan with freq = %d kHz..."), lFreq/1000);
+      _CONSOLE_INFO(F("I2C: start scan with freq = %d kHz..."), lFreq/1000);
       
       int  nError = -1;
       _bError = false;
@@ -536,7 +541,7 @@ public:
             }
             
             if (pDev) {
-               _CONSOLE_DEBUG(F("I2C: found Device at 0x%02X (%s) at freq %d kHz"), i, pDev->getTypeSz(), lFreq/1000);
+               _CONSOLE_INFO(F("I2C: found Device at 0x%02X (%s) at freq %d kHz"), i, pDev->getTypeSz(), lFreq/1000);
                if (pDev->getType() == CxI2CDevice::EI2CDeviceType::bme) {
                   _bBme = true;
                }
@@ -549,17 +554,17 @@ public:
             _bError = true;
             _bChanged = true;
             if (i == 1) {
-               _CONSOLE_DEBUG(F("I2C: ### general bus error"));
+               __console.error(F("I2C: ### general bus error"));
                _bOnline = false;
                break;
             } else {
-               _CONSOLE_DEBUG(F("I2C: ### error 4 at address %02X"), i);
+               __console.error(F("I2C: ### error 4 at address %02X"), i);
                if (pDev) pDev->setError(true);
             }
          } else if (pDev) {
             _bError = true;
             _bChanged = true;
-            _CONSOLE_DEBUG(F("I2C: lost Device at 0x%02X (error %d)"), i, nError);
+            __console.error(F("I2C: ### lost Device at 0x%02X (error %d)"), i, nError);
             if (pDev) pDev->setError(true);
          }
       }

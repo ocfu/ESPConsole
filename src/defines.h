@@ -111,9 +111,25 @@
 
 #ifndef debug
 #ifdef DEBUG_BUILD
-#define _CONSOLE_DEBUG(...) console.debug(__VA_ARGS__)
+#define _CONSOLE_DEBUG(...) __console.debug(__VA_ARGS__)
 #else
 #define _CONSOLE_DEBUG(...) ((void)0)
+#endif
+#endif
+
+#ifndef debug_ext
+#ifdef DEBUG_BUILD
+#define _CONSOLE_DEBUG_EXT(...) __console.debug_ext(__VA_ARGS__)
+#else
+#define _CONSOLE_DEBUG_EXT(...) ((void)0)
+#endif
+#endif
+
+#ifndef info
+#ifdef MINIMAL_HELP
+#define _CONSOLE_INFO(...) ((void)0)
+#else
+#define _CONSOLE_INFO(...) __console.info(__VA_ARGS__)
 #endif
 #endif
 

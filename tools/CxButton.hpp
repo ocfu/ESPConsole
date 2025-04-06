@@ -106,7 +106,7 @@ public:
                _timer.start(_nLongPressTime, false); // set timer for long time pressed
                if (_pLed != nullptr) _pLed->on();
                if (!bDegraded) callCb(CxButton::EBtnEvent::pressed, getCmd());
-               __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was pressed! (%dx)"), getPin(), cnt);
+               _CONSOLE_DEBUG_EXT(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was pressed! (%dx)"), getPin(), cnt);
             }
             break;
             
@@ -120,7 +120,7 @@ public:
                      if(_pLed != nullptr) _pLed->blinkBusy();
                   }
                   _nState = 4; // state for long time pressed button
-                  __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d in long pressed state now!"), getPin());
+                  _CONSOLE_DEBUG_EXT(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d in long pressed state now!"), getPin());
                }
                // remain in state 1 while debouncing
             } else if (_timer.getElapsedTime() > _nDebounceTime) { // ensures that button state is not high for 10ms
@@ -140,7 +140,7 @@ public:
             if (_timer.isDue()) {
                if (cnt == 1) {
                   if (!bDegraded) {
-                     __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was single pressed!"), getPin());
+                     _CONSOLE_DEBUG_EXT(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was single pressed!"), getPin());
                      callCb(CxButton::EBtnEvent::singlepress, getCmd());
                   }
                   /*
@@ -157,7 +157,7 @@ public:
                   */
                } else {
                   if (!bDegraded) {
-                     __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was pressed %dx!"), getPin(), cnt);
+                     _CONSOLE_DEBUG_EXT(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was pressed %dx!"), getPin(), cnt);
                      if (cnt == 2) {
                         callCb(CxButton::EBtnEvent::doublepress, getCmd());
                      } else {
@@ -177,7 +177,7 @@ public:
                _nState = 0;
                cnt = 0;
                if(_pLed != nullptr) _pLed->off();
-               __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was cleared!"), getPin());
+               _CONSOLE_DEBUG_EXT(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was cleared!"), getPin());
             } else {
                // wakeup, if button is pressed again and count it
                if (isHigh()) {
@@ -190,7 +190,7 @@ public:
                // still pressed, do nothing
             } else { // button finally released after 10+s
                // factory reset after 10+ seconds
-               __console.debug_ext(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was long pressed!"), getPin());
+               _CONSOLE_DEBUG_EXT(DEBUG_FLAG_GPIO, F("BTTN: Button on GPIO%02d was long pressed!"), getPin());
                if (!bDegraded) {
                   callCb(CxButton::EBtnEvent::reset, getCmd());
                } else if (isResetButton()) {

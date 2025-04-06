@@ -60,7 +60,7 @@
  */
 class CxCapabilityBasic : public CxCapability {
    /// access to the instance of the master console
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    
 public:
    /// Default constructor and default capabilities methods.
@@ -83,10 +83,10 @@ public:
    void setup() override {
       CxCapability::setup();
       
-      setIoStream(*console.getStream());
+      setIoStream(*__console.getStream());
       __bLocked = true;
       
-      console.info(F("====  Cap: %s  ===="), getName());
+      __console.info(F("====  Cap: %s  ===="), getName());
 
    }
    
@@ -117,18 +117,20 @@ public:
          if (tkArgs.count() > 1) {
             String strSubCmd = TKTOCHAR(tkArgs, 1);
             if (strSubCmd == "load" && tkArgs.count() > 2) {
-               console.createCapInstance(TKTOCHAR(tkArgs, 2), "");
+               __console.createCapInstance(TKTOCHAR(tkArgs, 2), "");
             } else if (strSubCmd == "unload" && tkArgs.count() > 2) {
-               console.deleteCapInstance(TKTOCHAR(tkArgs, 2));
+               __console.deleteCapInstance(TKTOCHAR(tkArgs, 2));
             } else if (strSubCmd == "list") {
-               console.listCap();
+               __console.listCap();
             }
          } else {
+#ifndef MINIMAL_HELP
             println(F("usage: cap <cmd> [<param> <...>]"));
             println(F("commands:"));
             println(F(" load <cap. name>"));
             println(F(" unload <cap. name>"));
             println(F(" list"));
+#endif
          }
          return true;
       } else if (cmd == "reboot") {
@@ -139,35 +141,35 @@ public:
             reboot();
          } else {
             // TODO: prompt user to be improved
-            //         console.__promptUserYN("Are you sure you want to reboot?", [this](bool confirmed) {
+            //         __console.__promptUserYN("Are you sure you want to reboot?", [this](bool confirmed) {
             //            if (confirmed) {
-            //               console.reboot();
+            //               __console.reboot();
             //            }
             //         });
          }
       } else if (cmd == "cls") {
-         console.cls();
+         __console.cls();
       } else if (cmd == "info") {
          printInfo();
          println();
       } else if (cmd == "uptime") {
-         console.printUptimeExt();
+         __console.printUptimeExt();
          println();
       } else if (cmd == "ps") {
-         console.printPs();
+         __console.printPs();
          println();
       } else if (cmd == "delay") {
          if (tkArgs.count() > 1) {
-            console.setLoopDelay(TKTOINT(tkArgs, 1, 0));
+            __console.setLoopDelay(TKTOINT(tkArgs, 1, 0));
          } else {
-            print(F("delay = ")); println(console.getLoopDelay());
+            print(F("delay = ")); println(__console.getLoopDelay());
          }
       }
       else if (cmd == "time") {
-         if(console.getStream()) console.printTime(*console.getStream());
+         if(__console.getStream()) __console.printTime(*__console.getStream());
          println();
       } else if (cmd == "date") {
-         if(console.getStream()) console.printDate(*console.getStream());
+         if(__console.getStream()) __console.printDate(*__console.getStream());
          println();
       } else if (cmd == "heap") {
          printHeap();
@@ -192,7 +194,7 @@ public:
 #endif
       } else if (cmd == "exit") {
 #ifndef ESP_CONSOLE_NOWIFI
-         console.info(F("exit wifi client"));
+         _CONSOLE_INFO(F("exit wifi client"));
          //console._abortClient();
 #else
          printf(F("exit has no function!"));
@@ -202,7 +204,7 @@ public:
          printNetworkInfo();
 #endif
       } else if (cmd == "users") {
-         printf(F("%d users\n"), console.users());
+         printf(F("%d users\n"), __console.users());
       } else if (cmd == "usr") {
          // set user specific commands here. The first parameter is the command number, the second the flag
          // and the optional third how to set/clear. (0: clear flag, 1: set flag, default (-1): set the flag as value.)
@@ -214,39 +216,41 @@ public:
          switch (nCmd) {
                // usr 0: be quite, switch all loggings off on the console. log to server/file remains
             case 0:
-               console.setUsrLogLevel(LOGLEVEL_OFF);
+               __console.setUsrLogLevel(LOGLEVEL_OFF);
                break;
                
                // usr 1: set the usr log level to show logs on the console
             case 1:
                if (nValue) {
-                  console.setUsrLogLevel(nValue>LOGLEVEL_MAX ? LOGLEVEL_MAX : nValue);
+                  __console.setUsrLogLevel(nValue>LOGLEVEL_MAX ? LOGLEVEL_MAX : nValue);
                } else {
-                  printf(F("usr log level: %d\n"), console.getUsrLogLevel());
+                  printf(F("usr log level: %d\n"), __console.getUsrLogLevel());
                }
                break;
                
                // usr 2: set extended debug flag
             case 2:
                if (set < 0) {
-                  console.setDebugFlag(nValue);
+                  __console.setDebugFlag(nValue);
                } else if (set == 0) {
-                  console.resetDebugFlag(nValue);
+                  __console.resetDebugFlag(nValue);
                } else {
-                  console.setDebugFlag(console.getDebugFlag() | nValue);
+                  __console.setDebugFlag(__console.getDebugFlag() | nValue);
                }
-               if (console.getDebugFlag()) {
-                  console.setLogLevel(LOGLEVEL_DEBUG_EXT);
+               if (__console.getDebugFlag()) {
+                  __console.setLogLevel(LOGLEVEL_DEBUG_EXT);
                }
                break;
                
             default:
                println(F("usage: usr <cmd> [<flag/value> [<0|1>]]"));
+//#ifndef MINIMAL_HELP
                println(F(" 0           be quiet, switch all log messages off on the console."));
                println(F(" 1  <1..5>   set the log level to show log messages on the console."));
                println(F(" 2  <flag>   set the extended debug flag(s) to the value."));
                println(F(" 2  <flag> 0 clear an extended debug flag."));
                println(F(" 2  <flag> 1 add an extended debug flag."));
+//#endif
                break;
          }
       } else {
@@ -257,7 +261,7 @@ public:
    }
       
    void reboot() {
-      console.warn(F("reboot..."));
+      __console.warn(F("reboot..."));
 #ifdef ARDUINO
       delay(1000); // let some time to handle last network messages
 #ifndef ESP_CONSOLE_NOWIFI
@@ -269,7 +273,7 @@ public:
    
 #ifndef ESP_CONSOLE_NOWIFI
    void printHostName() {
-      print(console.getHostName());
+      print(__console.getHostName());
    }
    
    void printIp() {
@@ -317,7 +321,7 @@ public:
     */
    void printInfo() {
       print(F(ESC_ATTR_BOLD "  Hostname: " ESC_ATTR_RESET));printHostName();printf(F(ESC_ATTR_BOLD " IP: " ESC_ATTR_RESET));printIp();printf(F(ESC_ATTR_BOLD " SSID: " ESC_ATTR_RESET));printSSID();println();
-      print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));console.printUpTimeISO(getIoStream());printf(F(" - %d user(s)"), console.users());    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));console.printStartTime(getIoStream());println();
+      print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));__console.printUpTimeISO(getIoStream());printf(F(" - %d user(s)"), __console.users());    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));__console.printStartTime(getIoStream());println();
       printHeap();println();
       print(F("    "));printStack();println();
    }
@@ -430,14 +434,14 @@ public:
    void printNetworkInfo() {
 #ifndef ESP_CONSOLE_NOWIFI
       print(F(ESC_ATTR_BOLD "Mode: " ESC_ATTR_RESET)); printMode();println();
-      print(F(ESC_ATTR_BOLD "SSID: " ESC_ATTR_RESET)); printSSID(); printf(F(" (%s)"), console.isConnected()? ESC_TEXT_BRIGHT_GREEN "connected" ESC_ATTR_RESET : ESC_TEXT_BRIGHT_RED "not connected" ESC_ATTR_RESET);println();
+      print(F(ESC_ATTR_BOLD "SSID: " ESC_ATTR_RESET)); printSSID(); printf(F(" (%s)"), __console.isConnected()? ESC_TEXT_BRIGHT_GREEN "connected" ESC_ATTR_RESET : ESC_TEXT_BRIGHT_RED "not connected" ESC_ATTR_RESET);println();
       print(F(ESC_ATTR_BOLD "Host: " ESC_ATTR_RESET)); printHostName(); println();
       print(F(ESC_ATTR_BOLD "IP:   " ESC_ATTR_RESET)); printIp(); println();
 #ifdef ARDUINO
       printf(F(ESC_ATTR_BOLD "GW:   " ESC_ATTR_RESET "%s"), WiFi.gatewayIP().toString().c_str());println();
       printf(F(ESC_ATTR_BOLD "DNS:  " ESC_ATTR_RESET "%s" ESC_ATTR_BOLD " 2nd: " ESC_ATTR_RESET "%s"), WiFi.dnsIP().toString().c_str(), WiFi.dnsIP(1).toString().c_str());println();
-      printf(F(ESC_ATTR_BOLD "NTP:  " ESC_ATTR_RESET "%s"), console.getNtpServer());
-      printf(F(ESC_ATTR_BOLD " TZ: " ESC_ATTR_RESET "%s"), console.getTimeZone());println();
+      printf(F(ESC_ATTR_BOLD "NTP:  " ESC_ATTR_RESET "%s"), __console.getNtpServer());
+      printf(F(ESC_ATTR_BOLD " TZ: " ESC_ATTR_RESET "%s"), __console.getTimeZone());println();
 #endif
 #endif
    }

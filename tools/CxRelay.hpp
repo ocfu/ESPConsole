@@ -83,12 +83,12 @@ public:
       if (!isHigh()) {
          setHigh();
          callCb(ERelayEvent::relayon);
-         __console.info(F("RLY: Relay on GPIO%02d switched on"), getPin());
+         _CONSOLE_INFO(F("RLY: Relay on GPIO%02d switched on"), getPin());
          if (_timerOff.getPeriod() > 0) {
-            __console.info(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
+            _CONSOLE_INFO(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
             __console.processCmd("led blink");
             _timerOff.start([this](){
-               __console.info(F("RLY: Relay on GPIO%02d off-timer ends"));
+               _CONSOLE_INFO(F("RLY: Relay on GPIO%02d off-timer ends"));
                off();
                __console.processCmd("led off");
             }, true); // stop after due
@@ -103,7 +103,7 @@ public:
       if (!isLow()) {
          setLow();
          callCb(ERelayEvent::relayoff);
-         __console.info(F("RLY: Relay on GPIO%02d switched off"), getPin());
+         _CONSOLE_INFO(F("RLY: Relay on GPIO%02d switched off"), getPin());
       }
    }
    bool isOn() {return isHigh();}
@@ -112,7 +112,7 @@ public:
 
    uint32_t getOffTimer() {return _timerOff.getPeriod();}
    void setOffTimer(uint32_t nTime) {
-      __console.info(F("RLY: Relay on GPIO%02d set off-timer to %dms"), getPin(), nTime);
+      _CONSOLE_INFO(F("RLY: Relay on GPIO%02d set off-timer to %dms"), getPin(), nTime);
       _timerOff.setPeriod(nTime);
    }
 

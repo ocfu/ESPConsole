@@ -217,7 +217,7 @@ public:
       if (isValid()) {
          __bValidValue = read();
          if (!__bValidValue) {
-            __console.debug_ext(DEBUG_FLAG_SENSOR, F("SENS: %s (%d) value is not ok"), getName(), getId());
+            _CONSOLE_DEBUG_EXT(DEBUG_FLAG_SENSOR, F("SENS: %s (%d) value is not ok"), getName(), getId());
          }
       } else {
          return false;

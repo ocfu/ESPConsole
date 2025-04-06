@@ -23,7 +23,7 @@
 #include "../tools/CxMqttManager.hpp"
 
 class CxCapabilityMqtt : public CxCapability {
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    
    bool _bMqttServerOnline = false;
    
@@ -55,17 +55,17 @@ public:
    void setup() override {
       CxCapability::setup();
       
-      setIoStream(*console.getStream());
+      setIoStream(*__console.getStream());
       __bLocked = false;
       
-      console.info(F("====  Cap: %s  ===="), getName());
+      __console.info(F("====  Cap: %s  ===="), getName());
       
       execute ("mqtt load");
       execute ("mqtt connect");
       
       _pmqttTopicCmd = new CxMqttTopic("cmd", [this](const char* topic, uint8_t* payload, unsigned int len) {
-         console.info(("command is %s"), (char*)payload);
-         console.processCmd((char*)payload, true);
+         _CONSOLE_INFO(("command is %s"), (char*)payload);
+         __console.processCmd((char*)payload, true);
       });
 
       
@@ -74,7 +74,7 @@ public:
    }
    
    void loop() override {
-      if (console.isConnected()) {
+      if (__console.isConnected()) {
          if (_timerHeartbeat.isDue()) {
             __mqttManager.publish("heartbeat", String((uint32_t)millis()).c_str());
          }
@@ -82,13 +82,13 @@ public:
       }
       if (_timer60sMqttServer.isDue()) {
          bool bOnline = _bMqttServerOnline;
-         _bMqttServerOnline = console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
+         _bMqttServerOnline = __console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
          if (_bMqttServerOnline != bOnline) {
             if (bOnline) {
-               console.info(F("mqtt server is online!"));
+               _CONSOLE_INFO(F("mqtt server is online!"));
                __mqttManager.publishWill("online");
             } else {
-               console.error(F("mqtt server %s on port %d is not available!"), __mqttManager.getServer(), __mqttManager.getPort());
+               __console.error(F("mqtt server %s on port %d is not available!"), __mqttManager.getServer(), __mqttManager.getPort());
             }
          }
          publishInfo();
@@ -122,37 +122,34 @@ public:
          if (strSubCmd == "connect") {
             startMqtt(TKTOCHAR(tkArgs, 2), TKTOINT(tkArgs, 3, 0));
          } else if (strSubCmd == "stop") {
-            console.info(F("stop mqtt server"));
+            _CONSOLE_INFO(F("stop mqtt server"));
             stopMqtt();
          } else if (strSubCmd == "server") {
             __mqttManager.setServer(TKTOCHAR(tkArgs, 2));
-            _bMqttServerOnline = console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
+            _bMqttServerOnline = __console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
             if (!_bMqttServerOnline) println(F("server not available!"));
             startMqtt();
          } else if (strSubCmd == "port") {
             __mqttManager.setPort(TKTOINT(tkArgs, 2, 0));
-            _bMqttServerOnline = console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
+            _bMqttServerOnline = __console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
             if (!_bMqttServerOnline) println(F("server not available!"));
             startMqtt();
          } else if (strSubCmd == "qos") {
             __mqttManager.setQoS(TKTOINT(tkArgs, 2, 0));
          } else if (strSubCmd == "root") {
             __mqttManager.setRootPath(TKTOCHAR(tkArgs, 2));
+         } else if (strSubCmd == "name") {
+            __mqttManager.setName(TKTOCHAR(tkArgs, 2));
          } else if (strSubCmd == "heartbeat") {
             int32_t period = TKTOINT(tkArgs, 2, -1);
             if (period == 0 || period >= 1000) _timerHeartbeat.start(period, true);
          } else if (strSubCmd == "will") {
             if (b) {
-               int8_t bWill = (int8_t)TKTOINT(tkArgs, 3, -1);
-               if (bWill > 0) {
-                  // disable or enable will behaviour. In case to will topic was set, the will topic is the rootPath
-                  __mqttManager.setWill(bWill);
-               } else {
-                  // set topic. will behaviour implicitly enabled, if topic length > 0.
-                  __mqttManager.setWillTopic(TKTOCHAR(tkArgs, 2));
-               }
-            } else {
-               __mqttManager.setWillTopic("");
+               int8_t nWill = (int8_t)TKTOINT(tkArgs, 2, -1);
+               // disable or enable will behaviour.
+               __mqttManager.setWill(nWill > 0);
+               // set topic. If no topic was set, the root path is used as will topic
+               __mqttManager.setWillTopic(TKTOCHAR(tkArgs, 3));
             }
          } else if (strSubCmd == "list") {
             __mqttManager.printSubscribtion(getIoStream());
@@ -162,6 +159,7 @@ public:
             Config.addVariable("port", __mqttManager.getPort());
             Config.addVariable("qos", __mqttManager.getQoS());
             Config.addVariable("root", __mqttManager.getRootPath());
+            Config.addVariable("name", __mqttManager.getName());
             Config.addVariable("will", (uint8_t)__mqttManager.isWill());
             Config.addVariable("willtopic", __mqttManager.getWillTopic());
             Config.addVariable("heartbeat", _timerHeartbeat.getPeriod());
@@ -178,13 +176,14 @@ public:
                __mqttManager.setPort(Config.getInt("port", __mqttManager.getPort()));
                __mqttManager.setQoS(Config.getInt("qos", __mqttManager.getQoS()));
                __mqttManager.setRootPath(Config.getSz("root", __mqttManager.getRootPath()));
+               __mqttManager.setName(Config.getSz("name", __mqttManager.getName()));
                __mqttManager.setWill(Config.getInt("will", __mqttManager.isWill()) > 0);
                __mqttManager.setWillTopic(Config.getSz("willtopic", __mqttManager.getWillTopic()));
                int32_t period = Config.getInt("heartbeat", _timerHeartbeat.getPeriod());
                if (period == 0 || period >= 1000) _timerHeartbeat.setPeriod(period);
-               console.info(F("Mqtt server set to %s at port %d, qos=%d"), __mqttManager.getServer(), __mqttManager.getPort(), __mqttManager.getQoS());
-               console.info(F("Mqtt set root path to '%s' and will topic to '%s'"), __mqttManager.getRootPath(), __mqttManager.getWillTopic());
-               console.info(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
+               _CONSOLE_INFO(F("Mqtt server set to %s at port %d, qos=%d"), __mqttManager.getServer(), __mqttManager.getPort(), __mqttManager.getQoS());
+               _CONSOLE_INFO(F("Mqtt set root path to '%s' and will topic to '%s'"), __mqttManager.getRootPath(), __mqttManager.getWillTopic());
+               _CONSOLE_INFO(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
                _timer60sMqttServer.makeDue(); // make timer due to force an immidiate check
                
             }
@@ -196,16 +195,19 @@ public:
             printf(F(ESC_ATTR_BOLD " Port:         " ESC_ATTR_RESET "%d\n"), __mqttManager.getPort());
             printf(F(ESC_ATTR_BOLD " QoS:          " ESC_ATTR_RESET "%d\n"), __mqttManager.getQoS());
             printf(F(ESC_ATTR_BOLD " Root path:    " ESC_ATTR_RESET "%s\n"), __mqttManager.getRootPath());
+            printf(F(ESC_ATTR_BOLD " Name:         " ESC_ATTR_RESET "%s\n"), __mqttManager.getName());
             printf(F(ESC_ATTR_BOLD " Will:         " ESC_ATTR_RESET "%s\n"), __mqttManager.isWill() ? "true" : "false");
             printf(F(ESC_ATTR_BOLD " Will topic:   " ESC_ATTR_RESET "%s\n"), __mqttManager.getWillTopic());
             printf(F(ESC_ATTR_BOLD " Heartb. per.: " ESC_ATTR_RESET "%d"), _timerHeartbeat.getPeriod()); println(F(" ms"));
             println();
+#ifndef MINIMAL_HELP
             println(F(ESC_ATTR_BOLD "mqtt commands:" ESC_ATTR_RESET));
             println(F("  server <server>"));
             println(F("  port <port>"));
             println(F("  qos <qos>"));
             println(F("  root <root path>"));
-            println(F("  will <0|1> | <will topic>"));
+            println(F("  name <name>"));
+            println(F("  will <0|1> [<will topic>]"));
             println(F("  connect [<server>] [<port>]"));
             println(F("  stop"));
             println(F("  heartbeat <period in ms> (0, 1000...n)"));
@@ -213,6 +215,7 @@ public:
             println(F("  save"));
             println(F("  load"));
             println(F("  publish <topic> <message> [<0|1> (retain)]"));
+#endif
          }
       } else {
          return false;
@@ -243,37 +246,37 @@ public:
       
       if (server) __mqttManager.setServer(server);
       if (port > 0) __mqttManager.setPort(port);
-      if (console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort())) {
-         console.info(F("start mqtt service"));
-         console.info(F("connecting mqtt server %s on port %d"), __mqttManager.getServer(), __mqttManager.getPort());
+      if (__console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort())) {
+         _CONSOLE_INFO(F("start mqtt service"));
+         _CONSOLE_INFO(F("connecting mqtt server %s on port %d"), __mqttManager.getServer(), __mqttManager.getPort());
          if (__mqttManager.getRootPath()) {
-            console.info(F("root path is '%s'"), __mqttManager.getRootPath() ? __mqttManager.getRootPath() : "");
+            _CONSOLE_INFO(F("root path is '%s'"), __mqttManager.getRootPath() ? __mqttManager.getRootPath() : "");
          }
          if (__mqttManager.isWill()) {
             if (__mqttManager.getWillTopic() && __mqttManager.getWillMessage()) {
-               console.info(F("last will message is '%s' on topic '%s'"), __mqttManager.getWillMessage(), __mqttManager.getWillTopic());
+               _CONSOLE_INFO(F("last will message is '%s' on topic '%s'"), __mqttManager.getWillMessage(), __mqttManager.getWillTopic());
             }
          } else {
-            console.info(F("no last will was set."));
+            _CONSOLE_INFO(F("no last will was set."));
          }
          _bMqttServerOnline = __mqttManager.begin();
          if (!_bMqttServerOnline) {
-            console.error(F("connecting mqtt server failed!"));
+            __console.error(F("connecting mqtt server failed!"));
          }
          // still needed?
          else {
-            console.info(F("mqtt server is online!"));
+            _CONSOLE_INFO(F("mqtt server is online!"));
             __mqttManager.publishWill("online");
          }
       } else {
-         console.error(F("mqtt server %s on port %d is not available!"), __mqttManager.getServer(), __mqttManager.getPort());
+         __console.error(F("mqtt server %s on port %d is not available!"), __mqttManager.getServer(), __mqttManager.getPort());
          _bMqttServerOnline = false;
       }
       return _bMqttServerOnline;
    }
    
    void stopMqtt() {
-      console.info(F("stop mqtt service"));
+      _CONSOLE_INFO(F("stop mqtt service"));
       
       // stop timer to regular server check.
       _timer60sMqttServer.stop();
@@ -283,14 +286,15 @@ public:
    }
    
    bool isConnectedMqtt() {
-      return console.isConnected() && __mqttManager.isConnected();
+      return __console.isConnected() && __mqttManager.isConnected();
    }
       
    void publishInfo() {
       if (isConnectedMqtt()) {
          publish(F("info/freemem"), getFreeHeap());
          publish(F("info/fragmentation"), getHeapFragmentation());
-         publish(F("info/uptime"), console.getUpTimeISO());
+         publish(F("info/uptime"), __console.getUpTimeISO());
+         publish(F("info/name"), __mqttManager.getName());
          //      publish(F("info/looptime"), Time1.getLoopTimeAvr());
          //      publish(F("info/chip"), CxTools::getChipInfo());
          //      publish(F("info/rssi"), "%d", Wifi1.getRSSI());
