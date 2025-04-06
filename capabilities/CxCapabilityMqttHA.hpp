@@ -78,7 +78,7 @@
 class CxCapabilityMqttHA : public CxCapability {
 private:
    /// access to the instances of the master console, MQTT HA device,  MQTT manager and sensor manager
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    CxMqttHADevice& _mqttHAdev = CxMqttHADevice::getInstance();
    CxMqttManager& __mqttManager = CxMqttManager::getInstance();
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();
@@ -124,10 +124,10 @@ public:
    void setup() override {
       CxCapability::setup();
       
-      setIoStream(*console.getStream());
+      setIoStream(*__console.getStream());
       __bLocked = false;
       
-      console.info(F("====  Cap: %s  ===="), getName());
+      __console.info(F("====  Cap: %s  ===="), getName());
       
       // increase the PubSubClient buffer size as for HA the payload could be pretty long, especially for discovery topics.
       __mqttManager.setBufferSize(1024);
@@ -137,11 +137,11 @@ public:
       _mapHADiag[DIAG_RECONNECTS] = std::make_unique<CxMqttHADiagnostic>("Reconnects/h", "diagreconnects", nullptr, "1/h");
       _mapHADiag[DIAG_LINKQUALITY] = std::make_unique<CxMqttHADiagnostic>("Linkquality", "diaglink", nullptr, "rssi");
       _mapHADiag[DIAG_FREE_MEM] = std::make_unique<CxMqttHADiagnostic>("Free mem", "diagmem", nullptr, "bytes");
-      _mapHADiag[DIAG_LAST_RESTART] = std::make_unique<CxMqttHADiagnostic>("Last Restart", "diagrestart", "timestamp", "", true);
+      _mapHADiag[DIAG_LAST_RESTART] = std::make_unique<CxMqttHADiagnostic>("Last Restart", "diagrestart", "timestamp", "");
       _mapHADiag[DIAG_UPTIME] = std::make_unique<CxMqttHADiagnostic>("Up Time", "diaguptime", "duration", "s");
-      _mapHADiag[DIAG_RESTART_REASON] = std::make_unique<CxMqttHADiagnostic>("Restart Reason", "diagreason", nullptr, nullptr, true);
-      _mapHADiag[DIAG_STACK] = std::make_unique<CxMqttHADiagnostic>("Stack", "diagstack", nullptr, nullptr, true);
-      _mapHADiag[DIAG_STACK_LOW] = std::make_unique<CxMqttHADiagnostic>("Stack Low", "diagstacklow", nullptr, nullptr, true);
+      _mapHADiag[DIAG_RESTART_REASON] = std::make_unique<CxMqttHADiagnostic>("Restart Reason", "diagreason", nullptr, nullptr);
+      _mapHADiag[DIAG_STACK] = std::make_unique<CxMqttHADiagnostic>("Stack", "diagstack", nullptr, "bytes");
+      _mapHADiag[DIAG_STACK_LOW] = std::make_unique<CxMqttHADiagnostic>("Stack Low", "diagstacklow", nullptr, "bytes");
 
       /// load specific environments for this class
       execute ("ha load");
@@ -157,7 +157,7 @@ public:
          if (_mapHADiag[DIAG_STATUS]) {
             StaticJsonDocument<256> doc;
             doc[F("heartbeat")] = millis();
-            doc[F("uptime")] = console.getUpTimeISO();
+            doc[F("uptime")] = __console.getUpTimeISO();
             doc[F("connects")] = __mqttManager.getConnectCntr();
 #ifdef ARDUINO
             doc[F("RSSI")] = WiFi.RSSI();
@@ -185,7 +185,7 @@ public:
          if (_mapHADiag[DIAG_LINKQUALITY]) _mapHADiag[DIAG_LINKQUALITY]->publishState(WiFi.RSSI(), 0);
          if (_mapHADiag[DIAG_FREE_MEM]) _mapHADiag[DIAG_FREE_MEM]->publishState(ESP.getFreeHeap(), 0);
 #endif
-         if (_mapHADiag[DIAG_UPTIME]) _mapHADiag[DIAG_UPTIME]->publishState(console.getUpTimeSeconds(), 0);
+         if (_mapHADiag[DIAG_UPTIME]) _mapHADiag[DIAG_UPTIME]->publishState(__console.getUpTimeSeconds(), 0);
          if (_mapHADiag[DIAG_STACK]) _mapHADiag[DIAG_STACK]->publishState(g_Stack.getSize(), 0);
          if (_mapHADiag[DIAG_STACK_LOW]) _mapHADiag[DIAG_STACK_LOW]->publishState(g_Stack.getLow(), 0);
          
@@ -280,14 +280,14 @@ public:
             Config.addVariable("json", szJson);
 #endif
             
-            console.saveEnv(strEnv, Config.getConfigStr());
+            __console.saveEnv(strEnv, Config.getConfigStr());
          }  else if (strSubCmd == "load") {
             String strValue;
-            if (console.loadEnv(strEnv, strValue)) {
+            if (__console.loadEnv(strEnv, strValue)) {
                CxConfigParser Config(strValue.c_str());
                // extract settings and set, if defined. Keep unchanged, if not set.
                _bHAEnabled = Config.getBool("enabled", _bHAEnabled);
-               console.info(F("Mqtt HA support enabled: %d"), _bHAEnabled);
+               _CONSOLE_INFO(F("Mqtt HA support enabled: %d"), _bHAEnabled);
                
                DynamicJsonDocument doc(1024);
                DeserializationError error = deserializeJson(doc, Config.getSz("json"));
@@ -297,7 +297,6 @@ public:
                      addSensor(sensor["na"].as<const char*>());
                   }
                   
-                  // TODO: testing
                   JsonArray gpios = doc["buttons"].as<JsonArray>();
                   for (JsonObject gpio : gpios) {
                      addButton(gpio["na"].as<const char*>());
@@ -311,6 +310,7 @@ public:
             }
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bHAEnabled);
+#ifndef MINIMAL_HELP
             println(F("ha commands:"));
             println(F("  enable 0|1"));
             println(F("  list"));
@@ -322,6 +322,7 @@ public:
             println(F("  button del <name>"));
             println(F("  switch add <name>"));
             println(F("  switch del <name>"));
+#endif
          }
       } else {
          return false;
@@ -338,13 +339,22 @@ public:
     * @param enabled - true to enable, false to disable.
    */
    void enableHA(bool enabled) {
-      _mqttHAdev.setFriendlyName(console.getAppName());
-      _mqttHAdev.setName(console.getAppName());
-      _mqttHAdev.setTopicBase("ha");
+      if (__mqttManager.getName()[0]) {
+         _mqttHAdev.setFriendlyName(__mqttManager.getName());
+      } else {
+         _mqttHAdev.setFriendlyName(__console.getAppName());
+      }
+      _mqttHAdev.setName(__console.getAppName());
+      
+      // the device defines the topic base by dedault
+      // Note: all topics are relative to the root topiec defined in mqtt
+      char szTopicBase[126];
+      snprintf(szTopicBase, sizeof(szTopicBase), "ha");
+      _mqttHAdev.setTopicBase(szTopicBase);
       _mqttHAdev.setManufacturer("ocfu");
-      _mqttHAdev.setModel("my Model");
-      _mqttHAdev.setSwVersion(console.getAppVer());
-      _mqttHAdev.setHwVersion("ESP");
+      _mqttHAdev.setModel(__console.getModel());
+      _mqttHAdev.setSwVersion(__console.getAppVer());
+      _mqttHAdev.setHwVersion(::getChipType());
       _mqttHAdev.setUrl("");
       _mqttHAdev.setStrId();
    
@@ -353,7 +363,7 @@ public:
       
       if (enabled) {
          if (_mapHADiag[DIAG_RESTART_REASON]) _mapHADiag[DIAG_RESTART_REASON]->publishState(::getResetInfo());
-         if (_mapHADiag[DIAG_LAST_RESTART]) _mapHADiag[DIAG_LAST_RESTART]->publishState(console.getStartTime());
+         if (_mapHADiag[DIAG_LAST_RESTART]) _mapHADiag[DIAG_LAST_RESTART]->publishState(__console.getStartTime());
          
          /// make the timer active for an instant update in the loop()
          _timerUpdate.makeDue();
@@ -369,7 +379,7 @@ public:
       if (pSensor) {
          if (!_mqttHAdev.findItem(szName)) _vHASensor.push_back(std::make_unique<CxMqttHASensor>(pSensor)); /// implicitly registers the new item in the device.
       } else {
-         console.printf(F("Sensor '%s' not found."), szName);
+         __console.printf(F("Sensor '%s' not found."), szName);
       }
    }
    
@@ -406,10 +416,10 @@ public:
                });
             }
          } else {
-            console.printf(F("Device '%s' is not a button."), szName);
+            __console.printf(F("Device '%s' is not a button."), szName);
          }
       } else {
-         console.printf(F("Button '%s' not found."), szName);
+         __console.printf(F("Button '%s' not found."), szName);
       }
    }
    
@@ -459,10 +469,10 @@ public:
                return false;
             }));
          } else {
-            console.printf(F("Device '%s' is not a relay."), szName);
+            __console.printf(F("Device '%s' is not a relay."), szName);
          }
       } else {
-         console.printf(F("Relay '%s' not found."), szName);
+         __console.printf(F("Relay '%s' not found."), szName);
       }
    }
    

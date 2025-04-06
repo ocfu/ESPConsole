@@ -153,6 +153,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    const char* _szUserName = "";
    const char* _szAppName = "";
    const char* _szAppVer = "";
+   const char* _szModel = "";
    
    
    static const int _nMAXLENGTH = 64;   // Max. command line length
@@ -336,6 +337,9 @@ public:
    void setAppNameVer(const char* szName, const char* szVer) {_szAppName = szName;_szAppVer = szVer;}
    const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
    const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
+   
+   void setModel(const char* sz) {_szModel = sz;}
+   const char* getModel() {return _szModel[0] ? _szModel : "-";}
 
    uint8_t users() {return __nUsers;}
 
@@ -695,6 +699,20 @@ public:
       } else {
          return 0;
       }
+   }
+   
+   static String makeFriendlyNameStr(const char* sz) {
+      String id;
+      id.reserve((uint32_t)(strlen(sz) + 1));
+      while (sz && *sz) {
+         char c = *sz++;
+         if (isalnum(c) || c == '_') {
+            id += (char)tolower(c);
+         } else if (c == ' ' || c == '-' || c == '.') {
+            id += '_';
+         }
+      }
+      return id;
    }
 
 };
