@@ -100,7 +100,7 @@ public:
    using tCallback = std::function<void(const char*, uint8_t*, unsigned int)>;
 
 private:
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
    bool         _bIsInitialized; ///< the mqtt manager is ready to use
    WiFiClient   _wifiClient;    ///< WiFi client for underlying network communication.
@@ -114,6 +114,7 @@ private:
    uint16_t _nPort;                      ///< MQTT server port.
    uint8_t  _nQoS;                       ///< Quality of Service level.
    String   _strRootPath;                ///< Root path for topics.
+   String   _strName;                    ///< Functional name of the MQTT client.
    bool     _bReconnect;                 ///< reconnect attempt in the loop, if connection gets lost
    uint32_t _nLastReconnectAttempt;      ///< Timestamp of the last reconnection attempt.
    uint16_t _nBufferSize;                ///< buffer size for pusbuclient
@@ -264,6 +265,30 @@ public:
    const char* getRootPath() {
       return _strRootPath.c_str();
    }
+   
+   /**
+    * @brief Sets the functional name of the MQTT client.
+    * @param name The functional name.
+    */
+   void setName(const char* name) {
+      if (name) {
+         _strName = name;
+      } else {
+         _strName = "";
+      }
+      if (_strName.length() > 0) {
+         _strName.trim();
+      }
+   }
+   
+   /**
+    * @brief Gets the functional name of the MQTT client.
+    * @return The functional name as a C-string.
+    */
+   const char* getName() {
+      return _strName.c_str();
+   }
+   
    
    void setBufferSize(uint16_t size) {
       _nBufferSize = (size > 128) ? size : 128;
@@ -428,8 +453,8 @@ public:
       // is topic given as an absolute path (indicated with a starting '/'), than ignore the root path.
       
 //      if (topic) {
-//         console.print("publish to topic: "); console.println(topic);
-//         console.println(value);
+//         __console.print("publish to topic: "); __console.println(topic);
+//         __console.println(value);
 //      }
 //      
       if (topic && topic[0] == '/' && topic[1]) {

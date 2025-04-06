@@ -86,7 +86,7 @@ private:
    String _strTopicBase;           ///< Base MQTT topic path
    
 protected:
-   CxESPConsoleMaster& console = CxESPConsoleMaster::getInstance();
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
    /**
@@ -256,16 +256,7 @@ public:
     * @param sz Raw name input
     */
    void setName(const char* sz) {
-      String id;
-      while (sz && *sz) {
-         char c = *sz++;
-         if (isalnum(c) || c == '_') {
-            id += (char)tolower(c);
-         } else if (c == ' ' || c == '-' || c == '.') {
-            id += '_';
-         }
-      }
-      _strName = id;
+      _strName = __console.makeFriendlyNameStr(sz);
    }
    
    /**
@@ -447,8 +438,9 @@ public:
     * @param doc JSON document to populate
     */
    void addJsonConfigBase(JsonDocument &doc) {
-      
-      doc["~"] = getTopicBase();
+      char szTopicBase[126];
+      snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getRootPath(), getTopicBase());
+      doc["~"] = szTopicBase;
       doc[F("name")] = getFriendlyName();
       doc[F("uniq_id")] = getId();
       doc[F("obj_id")] = getId(); // pre-defines the entity id in HA
@@ -459,7 +451,9 @@ public:
       if (__pDev) {
          JsonArray array = doc.createNestedArray(F("avty"));
          JsonObject objDev = array.createNestedObject();
-         objDev[F("t")] = getTopicBaseFromDevice<CxMqttHADevice>();
+         char szTopicBase[126];
+         snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getRootPath(), getTopicBaseFromDevice<CxMqttHADevice>()); // tricky way to overcome the incomplete type
+         objDev[F("t")] = szTopicBase;
          if (__eCat != e_cat::diagnostic) {
             JsonObject objSen = array.createNestedObject();
             objSen[F("t")] = "~";
@@ -744,6 +738,9 @@ private:
       __eType = e_type::HAdevice;
    }
 
+protected:
+   std::function<void()> _cbOnEnable = nullptr; ///< Command callback function
+   
 public:
    
    /** @brief Delete copy constructor and assignment operators to prevent copies. */
@@ -765,7 +762,10 @@ public:
       static CxMqttHADevice _instance;
       return _instance;
    }
-
+   
+   void setCallbackOnEnable(std::function<void()> cb) {
+      _cbOnEnable = cb;
+   };
    
    void setManufacturer(const char* mf) {_szManufacturer = mf;}
    void setModel(const char* mdl) {_szModel = mdl;}
@@ -821,12 +821,18 @@ public:
          if ((*it) != this) {
             // the device defines the topic base by dedault
             char szTopicBase[126];
-            snprintf(szTopicBase, sizeof(szTopicBase), "/%s/%s/%s", getRootPath(), getTopicBase(), (*it)->getName());
+            snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getTopicBase(), (*it)->getName());
             (*it)->setTopicBase(szTopicBase);
             (*it)->setDev(this);
             (*it)->setDiscoveryTopic();
             
             (*it)->regDiscovery(bEnable);
+            
+            if (bEnable) {
+               if (_cbOnEnable) {
+                  _cbOnEnable();
+               }
+            }
          }
          it++;
       }
@@ -880,8 +886,9 @@ public:
       _t_vecItems::iterator it = _vecItems.begin();
       
       /// print table header
+#ifndef MINIMAL_HELP
       stream.println(F(ESC_ATTR_BOLD "Nr | Name                 | Friendly Name        | Type       | Available | Retained | Topic Base" ESC_ATTR_RESET));
-      
+#endif
       uint8_t n = 1;
       
       while(it != _vecItems.end())
@@ -942,7 +949,8 @@ class CxMqttHAButton : public CxMqttHABase {
    
 public:
    
-   CxMqttHAButton(CxGPIODevice* pButton) : CxMqttHAButton(pButton->getName(), pButton->getName(), false, nullptr, nullptr, false) {_pButton = pButton;}
+   // constructor for gpio button devices. set availability to true, as the gpio button shal be available by default.
+   CxMqttHAButton(CxGPIODevice* pButton) : CxMqttHAButton(pButton->getFriendlyName(), pButton->getName(), true, nullptr, nullptr, false) {_pButton = pButton;}
    
    CxMqttHAButton(const char* fn, const char* name, bool available = false, CxMqttManager::tCallback cb = nullptr, const char* topic = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb, topic, retain) {
       
@@ -1027,7 +1035,8 @@ private:
    
 public:
    
-   CxMqttHASwitch(CxGPIODevice* pSwitch, CxMqttManager::tCallback cb = nullptr) : CxMqttHASwitch(pSwitch->getName(), pSwitch->getName(), false, cb, false) {_pSwitch = pSwitch;}
+   // constructor for gpio switch devices. set availability to true, as the gpio switch shal be available by default.
+   CxMqttHASwitch(CxGPIODevice* pSwitch, CxMqttManager::tCallback cb = nullptr) : CxMqttHASwitch(pSwitch->getFriendlyName(), pSwitch->getName(), true, cb, false) {_pSwitch = pSwitch;}
    
    CxMqttHASwitch(const char* fn, const char* name, bool available = false, CxMqttManager::tCallback cb = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb, nullptr, retain) {
       
@@ -1290,7 +1299,7 @@ public:
    
    //void publishState() {CxMqttHABase::publishState(getOptionStr().c_str());}
       
-   void addJsonConfig(JsonDocument &doc) const {
+   void addJsonConfig(JsonDocument &doc) const override {
       if (_szOptionsJs) {
          StaticJsonDocument<256> docOptions;
          DeserializationError error = deserializeJson(docOptions, _szOptionsJs); // as array: e.g. "[1,2,3]"
@@ -1302,7 +1311,7 @@ public:
       //doc[F("icon")] = "mdi:palette";
    }
    
-   void addJsonAction(JsonDocument& doc) const {}
+   void addJsonAction(JsonDocument& doc) const override {}
    
 };
 
