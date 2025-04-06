@@ -68,11 +68,10 @@ extern "C" uint32_t _EEPROM_start;
 #define CHIP_DETECT_MAGIC_REG_ADDR             0x40001000  // This ROM address has a different value on each chip model
 #define GET_UINT32(addr) *((volatile uint32_t *)((addr)))
 
-#define OTA_END       (MIN(FLASHFS_START, EPROM_START)  - 0x1)
-#define OTA_START     (OTA_END - ESP.getSketchSize())
-#define FREE_END      (OTA_START - 0x1)
-#define FREE_START    (SKETCH_START + ESP.getSketchSize())
-#define FREE_SIZE     (FREE_END - FREE_START)
+#define OTA_START    (SKETCH_START + ESP.getSketchSize())
+#define OTA_END      (MIN(FLASHFS_START, EPROM_START)  - 0x1)
+#define OTA_ROOM     (OTA_END - OTA_START)
+
 
 #ifdef ARDUINO
 const char * const FLASH_SIZE_MAP_NAMES[] = {
@@ -289,7 +288,7 @@ uint32_t getFreeOTA() {
 #ifdef ESP32
    return 0;
 #else
-   return (FREE_SIZE);
+   return (OTA_ROOM);
 #endif
 #else
    return 0;
@@ -472,14 +471,6 @@ const char* getMapName() {
 #endif
 }
 
-uint32_t getFreeSize() {
-#ifdef ARDUINO
-   return FREE_SIZE;
-#else
-   return 0;
-#endif
-}
-
 uint32_t getFSSize() {
 #ifdef ARDUINO
    return FLASHFS_END - FLASHFS_START;
@@ -496,21 +487,6 @@ uint32_t getSketchStart() {
 #endif
 }
 
-uint32_t getFreeStart() {
-#ifdef ARDUINO
-   return FREE_START;
-#else
-   return 0;
-#endif
-}
-
-uint32_t getFreeEnd() {
-#ifdef ARDUINO
-   return FREE_END;
-#else
-   return 0;
-#endif
-}
 
 uint32_t getOTAStart() {
 #ifdef ARDUINO
