@@ -68,8 +68,9 @@
 #include "CxSensorManager.hpp"
 
 #ifdef ARDUINO
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
+//#include <Adafruit_Sensor.h>
+//#include <Adafruit_BME280.h>
+#include <Bme280.h>
 #endif
 
 // Over/underrun hysteresis checks
@@ -84,7 +85,8 @@
  */
 class CxSensorBme : public CxSensor {
 #ifdef ARDUINO
-   Adafruit_BME280 _bme; /// BME280 sensor object
+   //Adafruit_BME280 _bme; /// BME280 sensor object
+   Bme280TwoWire _bme; /// BME280 sensor object
 #endif
    CxI2CDevice* _pI2CDev = nullptr; /// Pointer to I2C device
    bool _bBme = false; /// Flag to indicate if BME sensor is initialized
@@ -111,15 +113,16 @@ public:
       }
       
       if (!_bBme && _pI2CDev != nullptr) {
-         __console.info(F("SENS: start new BME sensor at addr %02X"), _pI2CDev->getAddr());
+         _CONSOLE_INFO(F("SENS: start new BME sensor at addr %02X"), _pI2CDev->getAddr());
 #ifdef ARDUINO
-         _bBme = _bme.begin(_pI2CDev->getAddr()); /// Initialize BME sensor
+         _bBme = _bme.begin((_pI2CDev->getAddr() == (uint8_t) Bme280TwoWireAddress::Primary) ? Bme280TwoWireAddress::Primary : Bme280TwoWireAddress::Secondary ); /// Initialize BME sensor
+         _bme.setSettings(Bme280Settings::indoor());
 #endif
       }
       
       if (_bBme) {
 #ifdef ARDUINO
-         sensor_t sensor;
+         //sensor_t sensor;
 #endif
          __bValid = true;
          
@@ -127,49 +130,49 @@ public:
          switch (getType()) {
             case ECSensorType::temperature:
 #ifdef ARDUINO
-               _bme.getTemperatureSensor()->getSensor(&sensor);
-               __fMaxValue = sensor.max_value;
-               __fMinValue = sensor.min_value;
-               __fResolution = sensor.resolution;
+               //_bme.getTemperatureSensor()->getSensor(&sensor);
+               __fMaxValue = 85.0;
+               __fMinValue = -40.0;
+               __fResolution = 0.01;
                if (__strName.isEmpty()) {
                   __strName = "temp";
                   __strName += _pI2CDev->getAddr();
                }
-               __strModel = sensor.name;
-               __strUnit = "°C";
-               __nId = sensor.sensor_id;
+               __strModel = F("BME280");
+               __strUnit = F("°C");
+               __nId = _bme.getChipId();
 #endif
                break;
                
             case ECSensorType::humidity:
 #ifdef ARDUINO
-               _bme.getHumiditySensor()->getSensor(&sensor);
-               __fMaxValue = sensor.max_value;
-               __fMinValue = sensor.min_value;
-               __fResolution = sensor.resolution;
+               //_bme.getHumiditySensor()->getSensor(&sensor);
+               __fMaxValue = 100.0;
+               __fMinValue = 0.0;
+               __fResolution = 0.008;
                if (__strName.isEmpty()) {
                   __strName = "hum";
                   __strName += _pI2CDev->getAddr();
                }
-               __strModel = sensor.name;
+               __strModel = F("BME280");
                __strUnit = "%";
-               __nId = sensor.sensor_id;
+               __nId = _bme.getChipId();
 #endif
                break;
                
             case ECSensorType::pressure:
 #ifdef ARDUINO
-               _bme.getPressureSensor()->getSensor(&sensor);
-               __fMaxValue = sensor.max_value;
-               __fMinValue = sensor.min_value;
-               __fResolution = sensor.resolution;
+               //_bme.getPressureSensor()->getSensor(&sensor);
+               __fMaxValue = 1100;
+               __fMinValue = 300;
+               __fResolution = 0.18;
                if (__strName.isEmpty()) {
                   __strName = "pres";
                   __strName += _pI2CDev->getAddr();
                }
-               __strModel = sensor.name;
+               __strModel = F("BME280");
                __strUnit = "hPa";
-               __nId = sensor.sensor_id;
+               __nId = _bme.getChipId();
 #endif
                break;
                
@@ -199,17 +202,17 @@ public:
          switch (getType()) {
             case ECSensorType::temperature:
 #ifdef ARDUINO
-               fValue = _bme.readTemperature();
+               fValue = _bme.getTemperature();
 #endif
                break;
             case ECSensorType::humidity:
 #ifdef ARDUINO
-               fValue = _bme.readHumidity();
+               fValue = _bme.getHumidity();
 #endif
                break;
             case ECSensorType::pressure:
 #ifdef ARDUINO
-               fValue = _bme.readPressure() / 100.0;
+               fValue = _bme.getPressure() / 100.0;
 #endif
                break;
             default:
@@ -227,9 +230,9 @@ public:
          /// Restart sensor if reading fails
          static CxTimer60s timer60s;
          if (timer60s.isDue() && _pI2CDev != nullptr) {
-            __console.info(F("SENS: restart BME sensor at addr %02X"), _pI2CDev->getAddr());
+            _CONSOLE_INFO(F("SENS: restart BME sensor at addr %02X"), _pI2CDev->getAddr());
 #ifdef ARDUINO
-            _bBme = _bme.begin(_pI2CDev->getAddr());
+            _bBme = _bme.begin((_pI2CDev->getAddr() == (uint8_t) Bme280TwoWireAddress::Primary) ? Bme280TwoWireAddress::Primary : Bme280TwoWireAddress::Secondary ); /// Initialize BME sensor
 #endif
             delay(100);
          }
@@ -250,12 +253,14 @@ public:
  * The class is a singleton and enforces the singleton pattern by disabling copying and assignment. The class is constructed on first access and destroyed when the program ends.
  */
 class CxBmeSensorContainer {
-   CxESPConsoleMaster& _console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
-   
+
    /// Vector of BME sensors
    std::vector<std::unique_ptr<CxSensorBme>> _vBmeSensors; /// vector of BME sensors
    
    CxBmeSensorContainer() = default; /// Private constructor to enforce singleton pattern
+
+protected:
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
    
 public:
    /// Disable copying and assignment to enforce singleton pattern
@@ -281,7 +286,7 @@ public:
       CxCapabilityI2C* pI2C = CxCapabilityI2C::getInstance();
       
       if (pI2C) {
-         _console.debug(F("initialise BME sensors..."));
+         _CONSOLE_DEBUG(F("initialise BME sensors..."));
          /// Creates and add a BME sensors to the vector using std::make_unique for save memory management
          _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::temperature));
          _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::humidity));
@@ -297,9 +302,9 @@ public:
    
    /// Print BME sensor information
    void printSensors() {
-      _console.info(F("Registered BME sensors:"));
+      _CONSOLE_INFO(F("Registered BME sensors:"));
       for (auto& sensor : _vBmeSensors) {
-         _console.printf(F("%s %s %.2f %s\n"), sensor->getName(), sensor->getModel(), sensor->getFloatValue(), sensor->getUnit());
+         __console.printf(F("%s %s %.2f %s\n"), sensor->getName(), sensor->getModel(), sensor->getFloatValue(), sensor->getUnit());
       }
    }
    
