@@ -35,6 +35,9 @@
 class CxCapabilityI2C;
 class CxI2CDevice;
 
+tInitializerVector VI2CInitializers;
+
+
 typedef std::map<int, CxI2CDevice*> tI2CDeviceMap;
 
 /**
@@ -251,8 +254,15 @@ public:
       
       __console.info(F("====  Cap: %s  ===="), getName());
       
-      execute("i2c load");
-      init();
+      __console.executeBatch(getName());
+      
+      // loop through all initializers
+      for (auto& pInit : VI2CInitializers) {
+         if (pInit) {
+            pInit->init();
+         }
+      }
+
    }
    
    /**
@@ -329,6 +339,8 @@ public:
                _gpioScl.setPin(Config.getInt("scl", _gpioScl.getPin()));
                _gpioVu.setPin(Config.getInt("vu", _gpioVu.getPin()));
             }
+         } else if (strSubCmd == "init") {
+            init();
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
             printf(F(ESC_ATTR_BOLD " SDA Pin:      " ESC_ATTR_RESET "%d\n"), _gpioSda.getPin());
@@ -342,7 +354,8 @@ public:
             println(F("  scan"));
             println(F("  save"));
             println(F("  load"));
-//#endif            
+            println(F("  init"));
+//#endif
          }
       } else {
          // command not handled here

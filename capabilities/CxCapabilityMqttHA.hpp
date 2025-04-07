@@ -102,7 +102,7 @@ public:
    /// Default constructor and default capabilities methods.
    explicit CxCapabilityMqttHA()
    : CxCapability("mqttha", getCmds()) {}
-   static constexpr const char* getName() { return "mqttha"; }
+   static constexpr const char* getName() { return "ha"; }
    static const std::vector<const char*>& getCmds() {
       static std::vector<const char*> commands = { "ha" };
       return commands;
@@ -143,8 +143,8 @@ public:
       _mapHADiag[DIAG_STACK] = std::make_unique<CxMqttHADiagnostic>("Stack", "diagstack", nullptr, "bytes");
       _mapHADiag[DIAG_STACK_LOW] = std::make_unique<CxMqttHADiagnostic>("Stack Low", "diagstacklow", nullptr, "bytes");
 
-      /// load specific environments for this class
-      execute ("ha load");
+      __console.executeBatch(getName());
+
       
       /// enable MQTT HA
       if (isEnabled()) enableHA(true);

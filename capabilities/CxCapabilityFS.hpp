@@ -61,7 +61,7 @@ public:
    explicit CxCapabilityFS() : CxCapability("fs", getCmds()) {}
    static constexpr const char* getName() { return "fs"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "save", "load", "log" };
+      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "save", "load", "log", "exec" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -87,15 +87,14 @@ public:
       __console.info(F("====  Cap: %s  ===="), getName());
 
       // load specific environments for this class
-      println("i am here mount()");
       mount();
       
-      println("i am here load...");
-      execute("load ntp");
-      execute("load tz");
-      execute ("log load");
-      
-      // implement log functions
+//      execute("load ntp");
+//      execute("load tz");
+//      execute ("log load");
+//      execute("gpio load");
+
+      // implement specific fs functions
       ESPConsole.setFuncDebug([this](const char *c) { this->_debug(c); });
       ESPConsole.setFuncDebugExt([this](uint32_t flag, const char *c) { this->_debug_ext(flag, c); });
       ESPConsole.setFuncInfo([this](const char *c) { this->_info(c); });
@@ -104,7 +103,9 @@ public:
       
       ESPConsole.setFuncLoadEnv([this](String &strEnv, String &strValue)->bool { return this->loadEnv(strEnv, strValue); });
       ESPConsole.setFuncSaveEnv([this](String &strEnv, String &strValue) {this->saveEnv(strEnv, strValue);});
+      ESPConsole.setFuncExecuteBatch([this](const char *sz) { this->executeBatch(sz); });
 
+      __console.executeBatch(getName());
 
    }
    
@@ -265,6 +266,12 @@ public:
              println(F("  load"));
 //#endif
              _CONSOLE_INFO(F("test log message"));
+          }
+       } else if (cmd == "exec") {
+          if (a) {
+             executeBatch(TKTOCHAR(tkArgs, 1));
+          } else {
+             println(F("usage: exec <batchfile>"));
           }
        } else {
           return false;
@@ -836,6 +843,71 @@ private:
          print(F(ESC_ATTR_RESET));
       }
       if (__console.getLogLevel() >= LOGLEVEL_ERROR) _print2logServer(buf);
+   }
+   
+   void executeBatch(const char* path) {
+      String strBatchFile;
+      
+      strBatchFile.reserve((uint32_t)strlen(path) + 5); // +4 for ".bat" and +1 for null terminator
+      strBatchFile = path;
+
+      // veryfy if the file name ends with .bat and if it exists
+      if (strBatchFile.length() > 4 && strBatchFile.endsWith(".bat")) {
+         // execute the batch file
+         // NOTE: executing batch files is will charge the stack as it may call in several depths __console.processCmd()!
+         executeBatch(strBatchFile.c_str());
+      } else if (strBatchFile.length() > 0) {
+         // add extension
+         strBatchFile += ".bat";
+      } else {
+         __console.error(F("Invalid batch file name '%s'. Must end with .bat"), path);
+         return;
+      }
+
+      _CONSOLE_INFO(F("Execute batch file: %s"), strBatchFile.c_str());
+      
+#ifdef ARDUINO
+      if (!LittleFS.exists(strBatchFile.c_str())) {
+         __console.error(F("Batch file '%s' not found"), strBatchFile.c_str());
+         return;
+      }
+      
+      File file = LittleFS.open(strBatchFile.c_str(), "r");
+      if (!file) {
+         __console.error(F("Failed to open batch file '%s"), strBatchFile.c_str());
+         return;
+      }
+      
+      char buffer[128];
+      while (file.available()) {
+         size_t len = file.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
+         buffer[len] = '\0'; // Null-terminate the string
+         trim(buffer); // Remove any leading/trailing whitespace
+         if (strlen(buffer) > 0 && buffer[0] != '#') { // Ignore empty lines and comments
+            _CONSOLE_DEBUG(F("Batch command: %s"), buffer);
+            __console.processCmd(buffer);
+         }
+      }
+      
+      file.close();
+#endif
+   }
+   
+private:
+   void trim(char* str) {
+      char* end;
+      
+      // Trim leading space
+      while (isspace((unsigned char)*str)) str++;
+      
+      if (*str == 0) return;
+      
+      // Trim trailing space
+      end = str + strlen(str) - 1;
+      while (end > str && isspace((unsigned char)*end)) end--;
+      
+      // Write new null terminator
+      *(end + 1) = 0;
    }
 
 };

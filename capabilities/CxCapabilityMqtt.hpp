@@ -59,9 +59,9 @@ public:
       __bLocked = false;
       
       __console.info(F("====  Cap: %s  ===="), getName());
-      
-      execute ("mqtt load");
-      execute ("mqtt connect");
+            
+      __console.executeBatch(getName());
+
       
       _pmqttTopicCmd = new CxMqttTopic("cmd", [this](const char* topic, uint8_t* payload, unsigned int len) {
          _CONSOLE_INFO(("command is %s"), (char*)payload);

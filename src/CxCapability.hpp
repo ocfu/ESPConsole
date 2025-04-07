@@ -129,6 +129,13 @@ public:
    }
 };
 
+class CxInitializer {
+public:
+   virtual void init() {};
+};
+
+typedef std::vector<CxInitializer*> tInitializerVector;
+
 
 #endif /* CxCapability */
 

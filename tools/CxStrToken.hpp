@@ -19,6 +19,7 @@
 #define TKTOCHAR(t,x)    ((t)[(x)].as<const char*>())
 #define TKTOINT(t,x,y)   ((t)[(x)].as<int32_t>((y)))
 #define TKTOFLOAT(t,x,y) ((t)[(x)].as<float>((y)))
+#define TKTOCHARAFTER(t, x)    ((t).getStringAfter((x)))
 
 class CxStrToken {
 private:
@@ -26,6 +27,9 @@ private:
    const char*  _szDelimiters;     // token delimiter as string
    char*        _aszTokens[MAX_TOKENS];    // Maximal n Tokens allowed
    uint8_t      _nCount;           // Count of found tokens
+   
+   mutable char* _result; // Mutable to allow modification in const method
+
    
    void tokenize() {
       if (!_szStrCopy || !_szDelimiters) {
@@ -111,7 +115,7 @@ public:
       }
    };
 
-   CxStrToken() : _szStrCopy(nullptr), _szDelimiters(nullptr), _nCount(0) {}
+   CxStrToken() : _szStrCopy(nullptr), _szDelimiters(nullptr), _nCount(0), _result(nullptr) {}
    CxStrToken(const char* sz, const char* szDelimiters)
    : CxStrToken() {
       setString(sz, szDelimiters);
@@ -119,6 +123,7 @@ public:
    
    ~CxStrToken() {
       delete [] _szStrCopy;
+      delete [] _result;
    }
    
    // set the string to be tokenized
@@ -171,6 +176,32 @@ public:
          return ctkProxy(nullptr); // Ungültiger Index
       }
       return ctkProxy(_aszTokens[i]);
+   }
+   
+   const char* getStringAfter(uint8_t startIndex) const {
+      delete[] _result; // Delete previous result
+      _result = nullptr;
+      
+      if (startIndex >= _nCount) {
+         return ""; // Return empty string if startIndex is out of bounds
+      }
+      
+      size_t totalLength = 0;
+      for (uint8_t i = startIndex; i < _nCount; ++i) {
+         totalLength += strlen(_aszTokens[i]) + 1; // +1 for space or null terminator
+      }
+      
+      _result = new char[totalLength];
+      _result[0] = '\0'; // Initialize as empty string
+      
+      for (uint8_t i = startIndex; i < _nCount; ++i) {
+         strcat(_result, _aszTokens[i]);
+         if (i < _nCount - 1) {
+            strcat(_result, " ");
+         }
+      }
+      
+      return _result;
    }
 
 };

@@ -330,8 +330,8 @@ public:
       
       __console.info(F("====  Cap: %s  ===="), getName());
       
-      execute("seg load"); ///< Load the segment display screens
-      init(); ///< Initialize the segment display capability
+      __console.executeBatch(getName());
+
    }
    
    static CxCapabilitySegDisplay* getInstance() {
@@ -623,6 +623,8 @@ public:
                   }
                }
             }
+         } else if (strSubCmd == "init") {
+            init();
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
             printf(F(ESC_ATTR_BOLD " Brightness:   " ESC_ATTR_RESET "%d\n"), _nBrigthness);
@@ -647,6 +649,7 @@ public:
             println(F("  show <screen>"));
             println(F("  slideshow"));
             println(F("  test"));
+            println(F("  init"));
          }
       } else {
          // command not handled here

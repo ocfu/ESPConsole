@@ -68,7 +68,7 @@ public:
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -253,6 +253,8 @@ public:
 //#endif
                break;
          }
+      } else if (cmd == "echo") {
+         println(TKTOCHARAFTER(tkArgs, 1));
       } else {
          return false;
       }
