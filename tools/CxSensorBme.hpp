@@ -252,12 +252,12 @@ public:
  *
  * The class is a singleton and enforces the singleton pattern by disabling copying and assignment. The class is constructed on first access and destroyed when the program ends.
  */
-class CxBmeSensorContainer {
+class CxBmeSensorContainer : public CxInitializer {
 
    /// Vector of BME sensors
    std::vector<std::unique_ptr<CxSensorBme>> _vBmeSensors; /// vector of BME sensors
    
-   CxBmeSensorContainer() = default; /// Private constructor to enforce singleton pattern
+   CxBmeSensorContainer() {VI2CInitializers.push_back(this);} /// register this instance in the vector of initializers. Will be called in the setup() of the I2C capability.
 
 protected:
    CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
@@ -282,7 +282,7 @@ public:
    
    /// Begin sensor manager
    /// @details Initialise BME sensors using I2C device
-   void begin() {
+   virtual void init() override {
       CxCapabilityI2C* pI2C = CxCapabilityI2C::getInstance();
       
       if (pI2C) {
