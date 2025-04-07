@@ -90,7 +90,6 @@ public:
             _timerOff.start([this](){
                _CONSOLE_INFO(F("RLY: Relay on GPIO%02d off-timer ends"));
                off();
-               __console.processCmd("led off");
             }, true); // stop after due
          }
       }
@@ -104,6 +103,7 @@ public:
          setLow();
          callCb(ERelayEvent::relayoff);
          _CONSOLE_INFO(F("RLY: Relay on GPIO%02d switched off"), getPin());
+         __console.processCmd("led off");
       }
    }
    bool isOn() {return isHigh();}
