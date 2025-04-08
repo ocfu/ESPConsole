@@ -305,7 +305,11 @@ public:
    }
 
 
-   
+   static void loadCap() {
+      CAPREG(CxCapabilityMqtt);
+      CAPLOAD(CxCapabilityMqtt);
+  };
+
 };
 
 #endif /* CxCapabilityMqtt_hpp */

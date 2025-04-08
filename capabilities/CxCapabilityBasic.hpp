@@ -448,8 +448,11 @@ public:
 #endif
    }
 
-
-   
+ 
+   static void loadCap() {
+      CAPREG(CxCapabilityBasic);
+      CAPLOAD(CxCapabilityBasic);
+   };
 };
 
 

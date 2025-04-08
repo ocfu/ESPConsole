@@ -486,6 +486,10 @@ public:
       }
    }
 
+   static void loadCap() {
+      CAPREG(CxCapabilityMqttHA);
+      CAPLOAD(CxCapabilityMqttHA);
+   };
 };
 
 #endif /* CxCapabilityMqttHA_hpp */

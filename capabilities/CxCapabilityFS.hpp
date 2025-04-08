@@ -910,6 +910,11 @@ private:
       *(end + 1) = 0;
    }
 
+public:
+   static void loadCap() {
+      CAPREG(CxCapabilityFS);
+      CAPLOAD(CxCapabilityFS);
+   };
 };
 
 #endif /* CxCapabilityFS */

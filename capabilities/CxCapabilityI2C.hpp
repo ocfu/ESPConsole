@@ -597,6 +597,10 @@ public:
     */
    tI2CDeviceMap& getDeviceMap() {return _mapDevices;}
 
+   static void loadCap() {
+      CAPREG(CxCapabilityI2C);
+      CAPLOAD(CxCapabilityI2C);
+   };
 };
 
 

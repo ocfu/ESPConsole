@@ -1165,6 +1165,11 @@ public:
       std::cout << "7SEG: show level " << level << "\n";
 #endif
    }
+   
+   static void loadCap() {
+      CAPREG(CxCapabilitySegDisplay);
+      CAPLOAD(CxCapabilitySegDisplay);
+   };
 
 };
 

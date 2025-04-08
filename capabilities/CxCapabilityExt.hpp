@@ -1302,8 +1302,14 @@ private:
 
 #endif /* ESP_CONSOLE_NOWIFI */
 
-   
+public:
+   static void loadCap() {
+      CAPREG(CxCapabilityExt);
+      CAPLOAD(CxCapabilityExt);
+   };
 };
+
+
 
 #endif /* CxCapabilityExt */
 
