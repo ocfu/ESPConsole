@@ -68,7 +68,7 @@ public:
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo", "wlcm", "prompt" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -149,6 +149,14 @@ public:
          }
       } else if (cmd == "cls") {
          __console.cls();
+      } else if (cmd == "prompt") {
+         String strPrompt = TKTOCHAR(tkArgs, 1);
+         if (strPrompt.length()) {
+            //__console.setPrompt(strPrompt);
+         }
+         __console.prompt();
+      } else if (cmd == "wlcm") {
+         __console.wlcm();
       } else if (cmd == "info") {
          printInfo();
          println();
@@ -368,7 +376,7 @@ public:
 
    void printHeapSize(bool fmt = false) {
       if (fmt) {
-         printf(F("%s%7lu%s"), g_Heap.size());
+         printf(F("%7lu"), g_Heap.size());
       } else {
          printf(F("%lu"), g_Heap.size());
       }
@@ -411,7 +419,7 @@ public:
    
    void printStackSize(bool fmt = false) {
       if (fmt) {
-         printf(F("%s%7lu%s"), g_Stack.getSize());
+         printf(F("%7lu"), g_Stack.getSize());
       } else {
          printf(F("%lu"), g_Stack.getSize());
       }
