@@ -65,12 +65,7 @@ void CxESPConsole::begin() {
    }
    __nUsers++;
    setConsoleName(""); // shall be set by the last derived class
-   cls();
-   wlcm();
-   println();
-   println();
-   println(F("Enter " ESC_ATTR_BOLD "?" ESC_ATTR_RESET " to get help. Have a nice day :-)"));
-   __prompt();
+   executeBatch("rdy.bat");
 }
 
 void CxESPConsole::wlcm() {
@@ -122,7 +117,7 @@ void CxESPConsole::__handleConsoleInputs() {
          CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _szCmdBuffer);
          _storeCmd(_szCmdBuffer);
          _clearCmdBuffer();
-         __prompt();
+         prompt();
          _iCmdHistoryIndex = -1; // Reset der Historiennavigation
       } else if (c == '\b' || c == 127) { // Backspace or del
          if (_iCmdBufferIndex > 0) {
