@@ -629,7 +629,7 @@ public:
                String strType = TKTOCHAR(tkArgs, 3);
                String strName = TKTOCHAR(tkArgs, 4);
                bool bInverted = TKTOINT(tkArgs, 5, false);
-               String strGpioCmd = TKTOCHAR(tkArgs, 6);
+               String strGpioCmd = TKTOCHARAFTER(tkArgs, 6);
                if (strType == "button") {
                   // FIXME: pointer without proper deletion? even if managed internally? maybe container as for the bme?
                   // TODO: add other gpio devices like led, relay, ...
@@ -638,7 +638,6 @@ public:
                   if (_gpioDeviceManager.isPinInUse(nPin)) {
                      println(F("pin already in use!"));
                   } else {
-                     __console.printf(F("add device type %s on pin %d, cmd=%s\n"), strType.c_str(), nPin, strGpioCmd.c_str());
                      if (strGpioCmd == "reset") {
                         CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
                         if (p) p->begin();
@@ -664,7 +663,7 @@ public:
                   if (_gpioDeviceManager.isPinInUse(nPin)) {
                      println(F("pin already in use!"));
                   } else {
-                     CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
+                     CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());  // will be implizitly registered in the device manager
                      if (p) p->begin();
                   }
                }
@@ -894,7 +893,7 @@ public:
             println(F("  <name> on"));
             println(F("  <name> off"));
             println(F("  <name> toggle"));
-            println(F("  <name> offtimer <seconds>"));
+            println(F("  <name> offtimer <ms>"));
             println(F("  <name> default <0|1>"));
 //#endif
          }
