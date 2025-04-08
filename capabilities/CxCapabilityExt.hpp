@@ -775,8 +775,12 @@ public:
                Led1.setFlash(TKTOINT(tkArgs, 2, 250), TKTOINT(tkArgs, 3, 128), TKTOINT(tkArgs, 4, 1));
             }
          } else if (strSubCmd == "invert") {
-            Led1.setInverted(!Led1.isInverted());
-            Led1.toggle();
+            if (b) {
+               Led1.setInverted(TKTOINT(tkArgs, 2, false));
+            } else {
+               Led1.setInverted(!Led1.isInverted());
+               Led1.toggle();
+            }
          } else {
             printf(F("LED on pin %02d%s\n"), Led1.getPin(), Led1.isInverted() ? ",inverted":"");
 #ifndef MINIMAL_HELP
@@ -785,7 +789,7 @@ public:
             println(F("  blink [period] [duty]"));
             println(F("  blink [pattern] (ok, error...)"));
             println(F("  flash [period] [duty] [number]"));
-            println(F("  invert"));
+            println(F("  invert [0|1]"));
 #endif
          }
       } else if (cmd == "sensor") {
