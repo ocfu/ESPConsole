@@ -153,6 +153,7 @@ public:
 class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcessStatistic {
          
    String _strHostName; // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
+   String _strPrompt; // Prompt string
    
    const char* _szUserName = "";
    const char* _szAppName = "";
@@ -210,7 +211,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
       
       if (_iCmdHistoryIndex == -1) {
          _clearCmdBuffer(); // clear current command, nothing left in the history and show prompt
-         __prompt();
+         prompt();
       } else {
          // restore command from command history buffer
          strncpy(_szCmdBuffer, _aszCmdHistory[(_nCmdHistoryCount - 1 - _iCmdHistoryIndex) % _nCmdHistorySize], _nMAXLENGTH);
@@ -220,7 +221,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    }
    
    void _redrawCmd() {
-      __prompt();
+      prompt();
       print(_szCmdBuffer); // output the command from the buffer
       print(" \b");        // position the cursor behind the command
    }
@@ -290,12 +291,7 @@ protected:
    /// protected virtual methods
    ///
    protected:
-   
-   virtual void __prompt() {
-      print(ESC_CLEAR_LINE);
-      printf(FMT_PROMPT_DEFAULT);
-   }
-   
+      
 public:
    ///
    /// Constructor needed to differenciate between serial and wifi clients to abort the the session, if needed, properly.
@@ -304,7 +300,7 @@ public:
    CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 #endif
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
-   : CxESPConsoleBase(stream), CxESPTime(), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver) {
+   : CxESPConsoleBase(stream), CxESPTime(), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver), _strPrompt("") {
 
       ///
       /// allocate space for the command history buffer with a history up to <size>
@@ -330,6 +326,15 @@ public:
       delete[] _aszCmdHistory;
    }
       
+   virtual void prompt() {
+      print(ESC_CLEAR_LINE);
+      if (_strPrompt.length() == 0) {
+         printf(FMT_PROMPT_DEFAULT);
+      } else {
+         printf(_strPrompt.c_str());
+      }
+   }
+
    bool isWiFiClient() {return __bIsWiFiClient;}
 
    void setHostName(const char* sz) {_strHostName = sz;}
