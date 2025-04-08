@@ -243,15 +243,15 @@ public:
                 }
              }
           } else if (strSubCmd == "error") {
-             _error(a);
+             __console.error(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "info") {
-             _info(a);
+             __console.info(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "warn") {
-             _warn(a);
+             __console.warn(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "debug") {
-             _debug(a);
+             __console.debug(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "debug_ext") {
-             _debug_ext(TKTOINT(tkArgs, 3, 0), a);
+             __console.debug_ext(TKTOINT(tkArgs, 2, 0), TKTOCHARAFTER(tkArgs, 3));
           } else {
              printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), __console.getLogLevel());printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), __console.getUsrLogLevel());
              printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __console.getDebugFlag());
@@ -853,9 +853,7 @@ private:
 
       // veryfy if the file name ends with .bat and if it exists
       if (strBatchFile.length() > 4 && strBatchFile.endsWith(".bat")) {
-         // execute the batch file
-         // NOTE: executing batch files is will charge the stack as it may call in several depths __console.processCmd()!
-         executeBatch(strBatchFile.c_str());
+         // file name is ok
       } else if (strBatchFile.length() > 0) {
          // add extension
          strBatchFile += ".bat";
