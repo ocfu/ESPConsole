@@ -127,7 +127,7 @@ public:
       setIoStream(*__console.getStream());
       __bLocked = false;
       
-      __console.info(F("====  Cap: %s  ===="), getName());
+      _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
       // increase the PubSubClient buffer size as for HA the payload could be pretty long, especially for discovery topics.
       __mqttManager.setBufferSize(1024);

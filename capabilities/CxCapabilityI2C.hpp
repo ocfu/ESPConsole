@@ -252,7 +252,7 @@ public:
       setIoStream(*__console.getStream());
       __bLocked = false;
       
-      __console.info(F("====  Cap: %s  ===="), getName());
+      _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
       __console.executeBatch(getName());
       
@@ -346,7 +346,7 @@ public:
             printf(F(ESC_ATTR_BOLD " SDA Pin:      " ESC_ATTR_RESET "%d\n"), _gpioSda.getPin());
             printf(F(ESC_ATTR_BOLD " SCL Pin:      " ESC_ATTR_RESET "%d\n"), _gpioScl.getPin());
             printf(F(ESC_ATTR_BOLD " VU Pin:       " ESC_ATTR_RESET "%d\n"), _gpioVu.getPin());
-//#ifndef MINIMAL_HELP
+#ifndef MINIMAL_HELP
             println(F("i2c commands:"));
             println(F("  enable 0|1"));
             println(F("  setpins <sda> <scl> [<vu>]"));
@@ -355,7 +355,7 @@ public:
             println(F("  save"));
             println(F("  load"));
             println(F("  init"));
-//#endif
+#endif
          }
       } else {
          // command not handled here

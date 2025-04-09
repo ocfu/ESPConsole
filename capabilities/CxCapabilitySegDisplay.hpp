@@ -328,7 +328,7 @@ public:
       setIoStream(*__console.getStream());
       __bLocked = false;
       
-      __console.info(F("====  Cap: %s  ===="), getName());
+      _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
       __console.executeBatch(getName());
 

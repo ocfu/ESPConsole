@@ -84,7 +84,7 @@ public:
       
       __bLocked = false;
       
-      __console.info(F("====  Cap: %s  ===="), getName());
+      _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
 
       // load specific environments for this class
       mount();
@@ -190,7 +190,7 @@ public:
           if (strEnv == ".ntp") {
              if (loadEnv(strEnv, strValue)) {
                 __console.setNtpServer(strValue.c_str());
-                __console.info(F("NTP server set to %s"), __console.getNtpServer());
+                _CONSOLE_INFO(F("NTP server set to %s"), __console.getNtpServer());
              } else {
                 __console.warn(F("NTP server env variable (ntp) not found!"));
              }
@@ -257,14 +257,14 @@ public:
              printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __console.getDebugFlag());
              printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
              printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
-//#ifndef MINIMAL_HELP
+#ifndef MINIMAL_HELP
              println(F("log commands:"));
              println(F("  server <server>"));
              println(F("  port <port>"));
              println(F("  level <level>"));
              println(F("  save"));
              println(F("  load"));
-//#endif
+#endif
              _CONSOLE_INFO(F("test log message"));
           }
        } else if (cmd == "exec") {

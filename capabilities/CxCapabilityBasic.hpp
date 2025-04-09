@@ -86,7 +86,7 @@ public:
       setIoStream(*__console.getStream());
       __bLocked = true;
       
-      __console.info(F("====  Cap: %s  ===="), getName());
+      _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
 
    }
    
@@ -252,13 +252,13 @@ public:
                
             default:
                println(F("usage: usr <cmd> [<flag/value> [<0|1>]]"));
-//#ifndef MINIMAL_HELP
+#ifndef MINIMAL_HELP
                println(F(" 0           be quiet, switch all log messages off on the console."));
                println(F(" 1  <1..5>   set the log level to show log messages on the console."));
                println(F(" 2  <flag>   set the extended debug flag(s) to the value."));
                println(F(" 2  <flag> 0 clear an extended debug flag."));
                println(F(" 2  <flag> 1 add an extended debug flag."));
-//#endif
+#endif
                break;
          }
       } else if (cmd == "echo") {
