@@ -347,13 +347,6 @@ public:
       if (_bEnabled) {
          // update timer for display
          if (_timerUpdate.isDue()) {
-            // AP mode blink
-            if (__console.isAPMode()) {
-               if (_nBlinkCnt == 0) {
-                  _nBlinkCnt = 0xfff0;
-               }
-            }
-
             // get active screen
             CxSegScreen *pScreen = findScreen(getActiveScreenIndex());
             
