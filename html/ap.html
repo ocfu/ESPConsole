@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8">
+         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>WiFi Setup</title>
+            <style>
+               body {
+                  font-family: Arial, sans-serif;
+                  background-color: #f4f4f9;
+                  margin: 0;
+                  padding: 0;
+                  display: flex;
+                  justify-content: center;
+                  align-items: center;
+                  height: 100vh;
+               }
+               .container {
+                  text-align: center;
+                  background: white;
+                  border-radius: 10px;
+                  padding: 20px;
+                  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                  width: 300px;
+               }
+               h1 {
+                  margin-bottom: 20px;
+                  font-size: 24px;
+               }
+               form {
+                  display: flex;
+                  flex-direction: column;
+               }
+               label {
+                  margin-bottom: 5px;
+                  text-align: left;
+               }
+               select, input {
+                  margin-bottom: 15px;
+                  padding: 8px;
+                  border: 1px solid #ccc;
+                  border-radius: 5px;
+                  width: 100%;
+               }
+               button {
+                  background-color: #007bff;
+                  color: white;
+                  padding: 10px;
+                  border: none;
+                  border-radius: 5px;
+                  cursor: pointer;
+               }
+               button:hover {
+                  background-color: #0056b3;
+               }
+            </style>
+   </head>
+   <body>
+      <div class="container">
+         <h1>WiFi Setup</h1>
+         <form action="/connect" method="POST">
+            <label for="ssid">WiFi Network:</label>
+            <select id="ssid" name="ssid" required>
+               {{options}}
+            </select>
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+               <button type="submit">Connect</button>
+         </form>
+      </div>
+   </body>
+</html>
+

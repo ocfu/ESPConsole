@@ -91,6 +91,8 @@ const byte DNS_PORT = 53;
 
 #endif /* ARDUINO */
 
+#if !defined(CxCapabilityFS_hpp)
+
 // HTML and CSS as embedded strings
 const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
@@ -167,6 +169,29 @@ const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
+#else
+
+#ifdef ARDUINO
+#include <FS.h>
+#ifdef ESP32
+#include "LITTLEFS.h"
+struct FSInfo {
+   size_t totalBytes;
+   size_t usedBytes;
+   size_t blockSize;
+   size_t pageSize;
+   size_t maxOpenFiles;
+   size_t maxPathLength;
+};
+#define Dir File
+#define LittleFS LITTLEFS
+#else
+#include <LittleFS.h>
+#endif /* ESP32*/
+#endif /* ARDUINO */
+
+#endif /* !defined(CxCapabilityFS_hpp)  */
+
 /// global objects for OTA and LED
 CxOta Ota1;
 CxLed Led1(LED_BUILTIN, "led1");
@@ -218,7 +243,7 @@ public:
       
       __bLocked = false;
       
-      __console.info(F("====  Cap: %s  ===="), getName());
+      _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
       if (!isConnected()) {
          println();
@@ -850,14 +875,14 @@ public:
                }
             }
          } else {
-//#ifndef MINIMAL_HELP
+#ifndef MINIMAL_HELP
             println(F("sensor commands:"));
             println(F("  list"));
             println(F("  name <id> <name>"));
             println(F("  get <id>"));
             println(F("  save"));
             println(F("  load"));
-//#endif
+#endif
          }
       } else if (cmd == "relay") {
          String strName = TKTOCHAR(tkArgs, 1);
@@ -891,7 +916,7 @@ public:
                }
             }
          } else {
-//#ifndef MINIMAL_HELP
+#ifndef MINIMAL_HELP
             println(F("relay commands:"));
             println(F("  list")); // TODO: list relays
             println(F("  <name> on"));
@@ -899,7 +924,7 @@ public:
             println(F("  <name> toggle"));
             println(F("  <name> offtimer <ms>"));
             println(F("  <name> default <0|1>"));
-//#endif
+#endif
          }
       } else {
          return false;
@@ -1192,7 +1217,20 @@ private:
    /// handle the root request from the web client to provide a captive portal for wifi connection.
    static void _handleRoot() {
 #ifdef ARDUINO
-      String htmlPage = htmlPageTemplate;
+      String htmlPage;
+
+#if defined(CxCapabilityFS_hpp) && !defined(ESP_CONSOLE_NOWIFI)
+      File file = LittleFS.open("/ap.html", "r");
+      if (!file) {
+         webServer.send(404, "text/plain", "HTML file not found");
+         return;
+      }
+      
+      htmlPage = file.readString();
+      file.close();
+#else
+      htmlPage = htmlPageTemplate;
+#endif /* CxCapabilityFS_hpp */
       
       // Scan for available Wi-Fi networks
       int n = WiFi.scanNetworks();
@@ -1213,7 +1251,7 @@ private:
       htmlPage.replace("{{options}}", options);
       
       webServer.send(200, "text/html", htmlPage);
-#endif
+#endif /* ARDUINO */
    }
 
    /// Handle the connect request from the captive portal to connect to a WiFi network.

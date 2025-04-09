@@ -1,24 +1,42 @@
-#if defined (ESP_CONSOLE_BASIC)
-#include "../capabilities/CxCapabilityBasic.hpp"
-#elif defined(ESP_CONSOLE_EXT)
-#include "../capabilities/CxCapabilityExt.hpp"
-#elif defined(ESP_CONSOLE_FS)
-#include "../capabilities/CxCapabilityFS.hpp"
-#elif defined(ESP_CONSOLE_MQTT)
-#include "../capabilities/CxCapabilityMqtt.hpp"
-#elif defined(ESP_CONSOLE_MQTTHA)
-#include "../capabilities/CxCapabilityMqttHA.hpp"
-#endif
+//
+// ESPConsole.h
+//
 
 #if defined (ESP_CONSOLE_ALL)
+#define ESP_CONSOLE_BASIC
+#define ESP_CONSOLE_EXT
+#define ESP_CONSOLE_FS
+#define ESP_CONSOLE_MQTT
+#define ESP_CONSOLE_MQTTHA
+#define ESP_CONSOLE_I2C
+#define ESP_CONSOLE_SEGDISPLAY
+#endif
+
+#if defined(ESP_CONSOLE_MQTTHA)
 #include "../capabilities/CxCapabilityMqttHA.hpp"
 #endif
 
-#if defined (ESP_CONSOLE_I2C) || defined (ESP_CONSOLE_ALL)
+#if defined(ESP_CONSOLE_MQTT)
+#include "../capabilities/CxCapabilityMqtt.hpp"
+#endif
+
+#if defined(ESP_CONSOLE_FS)
+#include "../capabilities/CxCapabilityFS.hpp"
+#endif
+
+#if defined(ESP_CONSOLE_EXT)
+#include "../capabilities/CxCapabilityExt.hpp"
+#endif
+
+#if defined (ESP_CONSOLE_BASIC)
+#include "../capabilities/CxCapabilityBasic.hpp"
+#endif
+
+#if defined (ESP_CONSOLE_I2C)
 #include "../capabilities/CxCapabilityI2C.hpp"
 #endif
 
-#if defined (ESP_CONSOLE_SEGDISPLAY) || defined (ESP_CONSOLE_ALL)
+#if defined (ESP_CONSOLE_SEGDISPLAY)
 #include "../capabilities/CxCapabilitySegDisplay.hpp"
 #endif
 
