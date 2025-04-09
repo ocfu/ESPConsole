@@ -1165,7 +1165,7 @@ public:
       ::readHostName(szHostname, sizeof(szHostname));
       
 #ifdef ARDUINO
-      WiFi.persistent(false);
+      WiFi.persistent(false); // Disable persistent WiFi settings, preventing flash wear and keep control of saved settings
       WiFi.mode(WIFI_STA);
       WiFi.begin(szSSID, szPassword);
       WiFi.setAutoReconnect(true);
@@ -1297,34 +1297,44 @@ private:
 #endif
    }
    
-   /// starting the access point mode with the given hostname and password.
+   /// access point mode
    void _beginAP() {
+      _CONSOLE_INFO(F("Starting Access Point..."));
+      
       stopWiFi();
       
       Led1.blinkWait();
       
 #ifdef ARDUINO
-      // Start Access Point
-      WiFi.softAP(__console.getHostName(), "12345678");
+      WiFi.forceSleepWake(); ///< wake up the wifi chip
+      delay(100);
+      WiFi.persistent(false); ///< Disable persistent WiFi settings, preventing flash wear and keep control of saved settings
+      WiFi.mode(WIFI_AP);  ///< Set WiFi mode to AP
       
-      // Start DNS Server
-      dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
-      
-      
-      // Define routes
-      webServer.on("/", _handleRoot);
-      webServer.on("/connect", HTTP_POST, _handleConnect);
-      webServer.onNotFound([]() {
-         webServer.sendHeader("Location", "/", true); // Redirect to root
-         webServer.send(302, "text/plain", "Redirecting to Captive Portal");
-      });
-      
-      // Start the web server
-      webServer.begin();
+      /// Start the Access Point with the given hostname and password
+      if (WiFi.softAP(__console.getHostName(), "12345678")) {
+         // Start DNS Server
+         dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+         
+         // Define routes
+         webServer.on("/", _handleRoot);
+         webServer.on("/connect", HTTP_POST, _handleConnect);
+         webServer.onNotFound([]() {
+            webServer.sendHeader("Location", "/", true); // Redirect to root
+            webServer.send(302, "text/plain", "Redirecting to Captive Portal");
+         });
+         
+         // Start the web server
+         webServer.begin();
+         _CONSOLE_INFO(F("ESP started in AP mode"));
+         printf(F("ESP started in AP mode. SSID: %s, PW: %s, IP: %s\n"), __console.getHostName(), "12345678", WiFi.softAPIP().toString().c_str());
+         
+         __console.setAPMode(true);
+      } else {
+         __console.error(F("Failed to start Access Point, going back to STA mode"));
+         startWiFi();
+      }
 #endif
-      _CONSOLE_INFO(F("ESP started in AP mode"));
-      printf(F("ESP started in AP mode. SSID: %s, PW:%s\n"), __console.getHostName(), "12345678");
-      __console.setAPMode(true);
    }
 
    /// stopping the access point mode
