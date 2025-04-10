@@ -11,7 +11,8 @@ echo Enter ? to get help. Have a nice day :-)
 prompt
 log info System is ready!
 
-exec user.bat
+exec user.bat rdy
 
+rm .safemode  # system start was successful, no safemode needed at next boot
 
 
