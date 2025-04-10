@@ -523,39 +523,70 @@ public:
                String strGpioCmd = TKTOCHARAFTER(tkArgs, 6);
                if (strType == "button") {
                   // FIXME: pointer without proper deletion? even if managed internally? maybe container as for the bme?
-                  // TODO: add other gpio devices like led, relay, ...
-                  
-                  // check, if already exists (by pin)
-                  if (_gpioDeviceManager.isPinInUse(nPin)) {
-                     println(F("pin already in use!"));
+                  /// TODO: consider dyanmic cast to ensure correct type
+                  CxButton* pButton = static_cast<CxButton*>(_gpioDeviceManager.getDeviceByPin(nPin));
+                  if (pButton) {
+                     //pButton->setFriendlyName();
+                     pButton->setName(strName.c_str());
+                     pButton->setInverted(bInverted);
+                     pButton->setCmd(strGpioCmd.c_str());
+                     pButton->begin();
                   } else {
                      if (strGpioCmd == "reset") {
-                        CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
-                        if (p) p->begin();
+                        CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);
+                        if (p) {
+                           //p->setFriendlyName();
+                           p->begin();
+                        }
                      } else {
-                        CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());  // will be implizitly registered in the device manager
-                        if (p) p->begin();
+                        CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                        if (p) {
+                           //p->setFriendlyName();
+                           p->begin();
+                        }
                      }
                   }
                } else if (strType == "led") {
-                  if (_gpioDeviceManager.isPinInUse(nPin)) {
-                     println(F("pin already in use!"));
+                  if (strName == "led1") {
+                     Led1.setPin(nPin);
+                     Led1.setPinMode(OUTPUT);
+                     Led1.setName(strName.c_str());
+                     //Led1.setFriendlyName();
+                     Led1.setInverted(bInverted);
+                     Led1.setCmd(strGpioCmd.c_str());
+                     Led1.off();
                   } else {
-                     if (strName == "led1") {
-                        Led1.setPin(nPin);
-                        Led1.setName(strName.c_str());
-                        Led1.setInverted(bInverted);
+                     CxLed* p = static_cast<CxLed*>(_gpioDeviceManager.getDeviceByPin(nPin));
+                     if (p) {
+                        //p->setFriendlyName();
+                        p->setName(strName.c_str());
+                        p->setInverted(bInverted);
+                        p->setCmd(strGpioCmd.c_str());
+                        p->begin();
+                        p->off();
                      } else {
-                        CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);  // will be implizitly registered in the device manager
-                        if (p) p->begin();
+                        CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);
+                        if (p) {
+                           //p->setFriendlyName();
+                           p->begin();
+                        }
                      }
                   }
                } else if (strType == "relay") {
-                  if (_gpioDeviceManager.isPinInUse(nPin)) {
-                     println(F("pin already in use!"));
-                  } else {
-                     CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());  // will be implizitly registered in the device manager
-                     if (p) p->begin();
+                  /// TODO: consider dyanmic cast to ensure correct type
+                  CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDeviceByPin(nPin));
+                  if (pRelay) {
+                     //pRelay->setFriendlyName();
+                     pRelay->setName(strName.c_str());
+                     pRelay->setInverted(bInverted);
+                     pRelay->setCmd(strGpioCmd.c_str());
+                     pRelay->begin();
+                  }  else {
+                     CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                     if (p) {
+                        //p->setFriendlyName();
+                        p->begin();
+                     }
                   }
                }
                else {
