@@ -827,18 +827,14 @@ public:
       _t_vecItems::iterator it = _vecItems.begin();
       
       _CONSOLE_DEBUG("%s %d items to HA", bEnable?"register":"unregister", _vecItems.size());
-      
-      String strTopicBase;
-      strTopicBase.reserve(126);
-      
+            
       while(it != _vecItems.end())
       {
          if ((*it) != this) {
             // the device defines the topic base by dedault
-            strTopicBase = (*it)->getTopicBase();
-            strTopicBase += "/";
-            strTopicBase += (*it)->getName();
-            (*it)->setTopicBase(strTopicBase.c_str());
+            char szTopicBase[126];
+            snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getTopicBase(), (*it)->getName());
+            (*it)->setTopicBase(szTopicBase);
             (*it)->setDev(this);
             (*it)->setDiscoveryTopic();
             
