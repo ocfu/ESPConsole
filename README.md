@@ -101,7 +101,7 @@ The following capabilities are available and can be loaded on demand:
 |--------------|-----------------|
 | basic        | ?, cap, cls, date, exit, heap, hostname, info, ip, net, ps, reboot, ssid, stack, time, uptime, users, usr |
 | ext          | eeprom, esp, flash, gpio, hw, led, ping, sensor, set, sw, wifi |
-| fs           | cat, cp, df, du, format, fs, load, log, ls, mount, rm, save, size, touch, umount |
+| fs           | cat, cp, df, du, format, fs, log, ls, mount, rm, size, touch, umount |
 | i2c          | i2c |
 | mqtt         | mqtt |
 | mqttha       | ha |

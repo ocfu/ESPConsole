@@ -7,7 +7,6 @@
 fs:
 touch .safemode   # system will boot into safe mode if this file exists on next boot
 loopdelay 1       # sets the delay at the end of each loop in usec
-gpio load
 exec user.bat fs
 
 # I2C capability

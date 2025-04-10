@@ -251,77 +251,12 @@ public:
             } else if (strSub2Cmd == "del") {
                deleteSwitch(TKTOCHAR(tkArgs, 23));
             }
-         }
-         else if (strSubCmd == "save") {
-            CxConfigParser Config;
-            Config.addVariable("enabled", _bHAEnabled);
-            
-            DynamicJsonDocument doc(1024);
-            JsonArray sensors = doc.createNestedArray("sensors");
-            for (auto& pHASensor : _vHASensor) {
-               JsonObject sensor = sensors.createNestedObject();
-               sensor["na"] = pHASensor->getName();
-            }
-            
-            // TODO: testing
-            JsonArray buttons = doc.createNestedArray("buttons");
-            for (auto& pHAButton : _vHAButton) {
-               JsonObject button = buttons.createNestedObject();
-               button["na"] = pHAButton->getName();
-            }
-            
-            JsonArray haswitches = doc.createNestedArray("switches");
-            for (auto& pHASwitch : _vHASwitch) {
-               JsonObject haswitch = haswitches.createNestedObject();
-               haswitch["na"] = pHASwitch->getName();
-            }
-            
-#ifdef ARDUINO
-            String strJson;
-            serializeJson(doc, strJson);
-            Config.addVariable("json", strJson);
-#else
-            char szJson[1024];
-            serializeJson(doc, szJson, sizeof(szJson));
-            Config.addVariable("json", szJson);
-#endif
-            
-            __console.saveEnv(strEnv, Config.getConfigStr());
-         }  else if (strSubCmd == "load") {
-            String strValue;
-            if (__console.loadEnv(strEnv, strValue)) {
-               CxConfigParser Config(strValue.c_str());
-               // extract settings and set, if defined. Keep unchanged, if not set.
-               _bHAEnabled = Config.getBool("enabled", _bHAEnabled);
-               _CONSOLE_INFO(F("Mqtt HA support enabled: %d"), _bHAEnabled);
-               
-               DynamicJsonDocument doc(1024);
-               DeserializationError error = deserializeJson(doc, Config.getSz("json"));
-               if (!error) {
-                  JsonArray sensors = doc["sensors"].as<JsonArray>();
-                  for (JsonObject sensor : sensors) {
-                     addSensor(sensor["na"].as<const char*>());
-                  }
-                  
-                  JsonArray gpios = doc["buttons"].as<JsonArray>();
-                  for (JsonObject gpio : gpios) {
-                     addButton(gpio["na"].as<const char*>());
-                  }
-                  
-                  JsonArray relays = doc["switches"].as<JsonArray>();
-                  for (JsonObject relay : relays) {
-                     addSwitch(relay["na"].as<const char*>());
-                  }
-               }
-            }
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bHAEnabled);
 #ifndef MINIMAL_HELP
             println(F("ha commands:"));
             println(F("  enable 0|1"));
             println(F("  list"));
-            println(F("  save"));
-            println(F("  load"));
             println(F("  sensor add <name>"));
             println(F("  sensor del <name>"));
             println(F("  button add <name>"));

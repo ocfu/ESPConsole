@@ -513,140 +513,6 @@ public:
             } else {
                CxGPIO::printInvalidReason(getIoStream(), nPin);
             }
-         } else if (strSubCmd == "save") {
-            CxConfigParser Config;
-            DynamicJsonDocument doc(1024);
-            String strType;
-            strType.reserve(20); // max. expected type string
-
-            // save the devices
-            JsonArray devices = doc.createNestedArray("devices");
-            for (uint8_t i = 0; i < _gpioDeviceManager.getDeviceCount(); i++) {
-               strType = _gpioDeviceManager.getDevice(i)->getTypeSz();
-               
-               JsonObject device = devices.createNestedObject();
-               device["id"] = i;
-               device["pin"] = _gpioDeviceManager.getDevice(i)->getPin();
-               device["na"] = _gpioDeviceManager.getDevice(i)->getName();
-               device["fn"] = _gpioDeviceManager.getDevice(i)->getFriendlyName();
-               device["ty"] = _gpioDeviceManager.getDevice(i)->getTypeSz();
-               device["in"] = _gpioDeviceManager.getDevice(i)->isInverted();
-               device["cmd"] = _gpioDeviceManager.getDevice(i)->getCmd();
-               if (strType == "relay") {
-                  CxRelay* p = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(i));
-                  if (p) {
-                     if (p->getOffTimer()) {
-                        device["ot"] = p->getOffTimer();
-                     }
-                     if (p->isDefaultOn()) {
-                        device["on"] = p->isDefaultOn();
-                     }
-                  }
-               }
-            }
-#ifdef ARDUINO
-            String strJson;
-            serializeJson(doc, strJson);
-            Config.addVariable("json", strJson);
-            __console.saveEnv(strEnv, Config.getConfigStr());
-#else
-            char szJson[1024];
-            serializeJson(doc, szJson, sizeof(szJson));
-            Config.addVariable("json", szJson);
-            __console.saveEnv(strEnv, Config.getConfigStr());
-#endif
-         } else if (strSubCmd == "load") {
-            String strValue;
-            if (__console.loadEnv(strEnv, strValue)) {
-               CxConfigParser Config(strValue.c_str());
-               DynamicJsonDocument doc(1024);
-               DeserializationError error = deserializeJson(doc, Config.getSz("json"));
-               if (!error) {
-                  JsonArray devices = doc["devices"].as<JsonArray>();
-                  for (JsonObject device : devices) {
-                     uint8_t nPin = device["pin"].as<uint8_t>();
-                     _CONSOLE_INFO(F("load device %d %s"), device["id"].as<uint8_t>(), device["na"].as<const char*>());
-                     if (nPin == INVALID_PIN) {
-                        __console.error(F("invalid pin!"));
-                     } else {
-                        uint8_t nId = device["id"].as<uint8_t>();
-                        _CONSOLE_INFO(F("device %d %s on pin %d"), nId, device["na"].as<const char*>(), nPin);
-                        String strType = device["ty"].as<const char*>();
-                        String strCmd = device["cmd"].as<const char*>();
-                        bool bInverted = device["in"].as<bool>();
-                        
-                        if (strType == "led") {
-                           String strName = device["na"].as<const char*>();
-                           if (strName == "led1") {
-                              Led1.setPin(nPin);
-                              Led1.setPinMode(OUTPUT);
-                              Led1.setName(strName.c_str());
-                              Led1.setFriendlyName(device["fn"].as<const char*>());
-                              Led1.setInverted(bInverted);
-                              Led1.setCmd(strCmd.c_str());
-                              Led1.off();
-                           } else {
-                              if (_gpioDeviceManager.isPinInUse(nPin)) {
-                                 __console.error(F("pin already in use!"));
-                              } else {
-                                 CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);
-                                 if (p) {
-                                    p->setFriendlyName(device["fn"].as<const char*>());
-                                    p->begin();
-                                 }
-                              }
-                           }
-                        } else if (strType == "button") {
-                           /// TODO: consider dyanmic cast to ensure correct type
-                           CxButton* pButton = static_cast<CxButton*>(_gpioDeviceManager.getDevice(device["na"].as<const char*>()));
-                           if (pButton) {
-                              pButton->setFriendlyName(device["fn"].as<const char*>());
-                              pButton->setInverted(bInverted);
-                              pButton->setCmd(strCmd.c_str());
-                              pButton->begin();
-                           } else if (_gpioDeviceManager.isPinInUse(nPin)) {
-                              __console.error(F("pin already in use!"));
-                           } else {
-                              if (strCmd == "reset") {
-                                 CxButtonReset* p = new CxButtonReset(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted);
-                                 if (p) {
-                                    p->setFriendlyName(device["fn"].as<const char*>());
-                                    p->begin();
-                                 }
-                              } else {
-                                 CxButton* p = new CxButton(device["pin"].as<uint8_t>(), device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>());
-                                 if (p) {
-                                    p->setFriendlyName(device["fn"].as<const char*>());
-                                    p->begin();
-                                 }
-                              }
-                           }
-                        } else if (strType == "relay") {
-                           /// TODO: consider dyanmic cast to ensure correct type
-                           CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(device["na"].as<const char*>()));
-                           if (pRelay) {
-                              pRelay->setFriendlyName(device["fn"].as<const char*>());
-                              pRelay->setInverted(bInverted);
-                              pRelay->setCmd(strCmd.c_str());
-                              pRelay->setOffTimer(device["ot"].as<uint32_t>());
-                              pRelay->setDefaultOn(device["on"].as<bool>());
-                              pRelay->begin();
-                           } else if (_gpioDeviceManager.isPinInUse(nPin)) {
-                              __console.error(F("pin already in use!"));
-                           } else {
-                              CxRelay* p = new CxRelay(nPin, device["na"].as<const char*>(), bInverted, device["cmd"].as<const char*>());
-                              if (p) {
-                                 p->setFriendlyName(device["fn"].as<const char*>());
-                                 p->setOffTimer(device["ot"].as<uint32_t>());
-                                 p->setDefaultOn(device["on"].as<bool>());
-                                 p->begin();
-                              }
-                           }
-                        }
-                     }
-                  }
-               }
-            }
          } else if (strSubCmd == "list") {
             _gpioDeviceManager.printList();
          } else if (strSubCmd == "add") {
@@ -747,8 +613,6 @@ public:
             println(F("  set <pin> 0...1023 (set pin state to value)"));
             println(F("  name <pin> <name>"));
             println(F("  get <pin>"));
-            println(F("  save"));
-            println(F("  load"));
             println(F("  list"));
             println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
             println(F("  del <name>"));
@@ -836,52 +700,12 @@ public:
             } else {
                println(F("invalid sensor id!"));
             }
-         } else if (strSubCmd == "save") {
-            CxConfigParser Config;
-            DynamicJsonDocument doc(1024);
-            
-            // save the sensors
-            JsonArray sensors = doc.createNestedArray("sensors");
-            for (uint8_t i = 0; i < _sensorManager.getSensorCount(); i++) {
-               JsonObject sensor = sensors.createNestedObject();
-               sensor["id"] = i;
-               sensor["na"] = _sensorManager.getSensorName(i);
-            }
-#ifdef ARDUINO
-            String strJson;
-            serializeJson(doc, strJson);
-            Config.addVariable("json", strJson);
-            __console.saveEnv(strEnv, Config.getConfigStr());
-#else
-            char szJson[1024];
-            serializeJson(doc, szJson, sizeof(szJson));
-            Config.addVariable("json", szJson);
-            __console.saveEnv(strEnv, Config.getConfigStr());
-#endif
-            
-         } else if (strSubCmd == "load") {
-            String strValue;
-            if (__console.loadEnv(strEnv, strValue)) {
-               CxConfigParser Config(strValue.c_str());
-               DynamicJsonDocument doc(256);
-               DeserializationError error = deserializeJson(doc, Config.getSz("json"));
-               if (!error) {
-                  JsonArray sensors = doc["sensors"].as<JsonArray>();
-                  for (JsonObject sensor : sensors) {
-                     uint8_t nId = sensor["id"].as<uint8_t>();
-                     _CONSOLE_INFO(F("name of sensor %d -> %s"), nId, sensor["na"].as<const char*>());
-                     _sensorManager.setSensorName(nId, sensor["na"].as<const char*>());
-                  }
-               }
-            }
          } else {
 #ifndef MINIMAL_HELP
             println(F("sensor commands:"));
             println(F("  list"));
             println(F("  name <id> <name>"));
             println(F("  get <id>"));
-            println(F("  save"));
-            println(F("  load"));
 #endif
          }
       } else if (cmd == "relay") {

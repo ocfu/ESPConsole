@@ -345,26 +345,6 @@ public:
          /// Create a unique ID for the sensor
          uint8_t nId = createId();
          
-         /// load .sensors file
-         String strValue;
-         String strEnv = ".sensors";
-
-         /// Load the sensor configuration
-         if (__console.loadEnv(strEnv, strValue)) {
-            CxConfigParser Config(strValue.c_str());
-            DynamicJsonDocument doc(256);
-            DeserializationError error = deserializeJson(doc, Config.getSz("json"));
-            if (!error) {
-               JsonArray sensors = doc["sensors"].as<JsonArray>();
-               for (JsonObject sensor : sensors) {
-                  uint8_t nIdSensor = sensor["id"].as<uint8_t>();
-                  if (nId == nIdSensor) {
-                     pSensor->setName(sensor["na"].as<const char*>());
-                  }
-               }
-            }
-         }
-
          /// Set the unique ID for the sensor
          pSensor->setId(nId);
          

@@ -61,7 +61,7 @@ public:
    explicit CxCapabilityFS() : CxCapability("fs", getCmds()) {}
    static constexpr const char* getName() { return "fs"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "save", "load", "log", "exec" };
+      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "log", "exec" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -100,8 +100,6 @@ public:
       ESPConsole.setFuncWarn([this](const char *c) { this->_warn(c); });
       ESPConsole.setFuncError([this](const char *c) { this->_error(c); });
       
-      ESPConsole.setFuncLoadEnv([this](String &strEnv, String &strValue)->bool { return this->loadEnv(strEnv, strValue); });
-      ESPConsole.setFuncSaveEnv([this](String &strEnv, String &strValue) {this->saveEnv(strEnv, strValue);});
       ESPConsole.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
 
       __console.executeBatch("init", getName());
@@ -154,57 +152,6 @@ public:
        else if (cmd == "fs") {
           printFsInfo();
           println();
-       } else if (cmd == "save") {
-          ///
-          /// known env variables:
-          /// - ntp
-          /// - tz
-          ///
-          /// environment variables are stored in files. the file name is the name of the variable, with a trailing '.',
-          /// which indicates that it is a hidden file. the content of the file is the value of the variable.
-          ///
-          
-          String strEnv = ".";
-          strEnv += TKTOCHAR(tkArgs, 1);
-          String strValue;
-          if (strEnv == ".ntp") {
-             strValue = __console.getNtpServer();
-             saveEnv(strEnv, strValue);
-          } else if (strEnv == ".tz") {
-             strValue = __console.getTimeZone();
-             saveEnv(strEnv, strValue);
-          } else if (strEnv == ".mqtt") {
-             strValue = cmd.substring(5);
-             strValue.trim();
-             saveEnv(strEnv, strValue);
-          } else {
-             println(F("save environment variable. \nusage: save <env>"));
-             println(F("known env variables:\n ntp \n tz "));
-             println(F("example: save ntp"));
-          }
-       } else if (cmd == "load") {
-          String strEnv = ".";
-          strEnv += TKTOCHAR(tkArgs, 1);
-          String strValue;
-          if (strEnv == ".ntp") {
-             if (loadEnv(strEnv, strValue)) {
-                __console.setNtpServer(strValue.c_str());
-                _CONSOLE_INFO(F("NTP server set to %s"), __console.getNtpServer());
-             } else {
-                __console.warn(F("NTP server env variable (ntp) not found!"));
-             }
-          } else if (strEnv == ".tz") {
-             if (loadEnv(strEnv, strValue)) {
-                __console.setTimeZone(strValue.c_str());
-                _CONSOLE_INFO(F("Timezone set to %s"), __console.getTimeZone());
-             } else {
-                __console.warn(F("Timezone env variable (tz) not found!"));
-             }
-          } else {
-             println(F("load environment variable.\nusage: load <env>"));
-             println(F("known env variables:\n ntp \n tz "));
-             println(F("example: load ntp"));
-          }
        } else if (cmd == "$UPLOAD$") {
           _handleFile();
        } else if (cmd == "$DOWNLOAD$") {
@@ -219,25 +166,6 @@ public:
              if (!_bLogServerAvailable) println(F("server not available!"));
           } else if (strSubCmd == "level") {
              __console.setLogLevel(TKTOINT(tkArgs, 2, __console.getLogLevel()));
-          } else if (strSubCmd == "save") {
-             CxConfigParser Config;
-             Config.addVariable("level", __console.getLogLevel());
-             Config.addVariable("server", _strLogServer);
-             Config.addVariable("port", _nLogPort);
-             saveEnv(strEnv, Config.getConfigStr());
-          } else if (strSubCmd == "load") {
-             String strValue;
-             if (loadEnv(strEnv, strValue)) {
-                CxConfigParser Config(strValue);
-                // extract settings and set, if defined. Keep unchanged, if not set.
-                __console.setLogLevel(Config.getInt("level", __console.getLogLevel()));
-                _strLogServer = Config.getSz("server", _strLogServer.c_str());
-                _nLogPort = Config.getInt("port", _nLogPort);
-                if (_strLogServer.length() && _nLogPort > 0) {
-                   _bLogServerAvailable = true;
-                   _timer60sLogServer.makeDue();
-                }
-             }
           } else if (strSubCmd == "error") {
              __console.error(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "info") {
@@ -257,8 +185,6 @@ public:
              println(F("log commands:"));
              println(F("  server <server> <port>"));
              println(F("  level <level>"));
-             println(F("  save"));
-             println(F("  load"));
 #endif
              _CONSOLE_INFO(F("test log message"));
           }
@@ -580,41 +506,7 @@ public:
 //#endif
       }
    }
-   
-   void saveEnv(String& strEnv, String& strValue) {
-      if (hasFS()) {
-         _CONSOLE_DEBUG(F("save env variable %s, value=%s"), strEnv.c_str(), strValue.c_str());
-#ifdef ARDUINO
-         File file = LittleFS.open(strEnv.c_str(), "w");
-         if (file) {
-            file.print(strValue.c_str());
-            file.close();
-         }
-#endif
-      } else {
-         println(F("file system not mounted!"));
-      }
-   }
-   
-   bool loadEnv(String& strEnv, String& strValue) {
-      if (hasFS()) {
-         _CONSOLE_DEBUG(F("load env variable %s"), strEnv.c_str());
-#ifdef ARDUINO
-         File file = LittleFS.open(strEnv.c_str(), "r");
-         if (file) {
-            while (file.available()) {
-               strValue += (char)file.read();
-            }
-            file.close();
-            return true;
-         }
-#endif
-      } else {
-         println(F("file system not mounted!"));
-      }
-      return false;
-   }
-   
+      
    bool fileExists(const char* szFn) {
 #ifdef ARDUINO
       return LittleFS.exists(szFn);

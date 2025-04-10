@@ -537,88 +537,6 @@ public:
                __console.println(F("  off"));
 #endif
             }
-         } else if (strSubCmd == "save") {
-            /**
-             * @brief Saves the segment display screens and settings.
-             * @details Saves the segment display screens and settings to the environment.
-             * The method saves the segment display screens, slide show settings, and brightness level to the environment.
-             */
-            CxConfigParser Config;
-            Config.addVariable("enabled", _bEnabled);
-            Config.addVariable("clk", _gpioClk.getPin());
-            Config.addVariable("data", _gpioData.getPin());
-            Config.addVariable("br", (uint8_t)_nBrigthness);
-            
-            DynamicJsonDocument doc(1024); ///< The JSON document for storing the segment display screens and settings.
-            // add a screens array to the json
-            JsonArray screens = doc.createNestedArray("screens");
-            for (const auto& [name, screen] : _mapScreens) {
-               JsonObject screenObj = screens.createNestedObject();
-               screenObj["na"] = name.c_str();
-               screenObj["ty"] = screen->getType();
-               screenObj["id"] = screen->getParam();
-            }
-            
-            doc["slideshow"]["enabled"] = _bSlideShowOn;
-            
-            // add slide show array to the json
-            JsonArray slideShow = doc["slideshow"].createNestedArray("array");
-            for (uint8_t n : _vScreenSlideShow) {
-               JsonObject slideObj = slideShow.createNestedObject();
-               slideObj["id"] = n;
-            }
-            
-            // serialize the json
-#ifdef ARDUINO
-            String strJson;
-            serializeJson(doc, strJson);
-            Config.addVariable("json", strJson);
-#else
-            char szJson[1024];
-            serializeJson(doc, szJson, sizeof(szJson));
-            Config.addVariable("json", szJson);
-#endif
-            __console.saveEnv(strEnv, Config.getConfigStr());
-         } else if (strSubCmd == "load") {
-            /**
-             * @brief Loads the segment display screens and settings.
-             * @details Loads the segment display screens and settings from the environment.
-             */
-            String strValue;
-            if (__console.loadEnv(strEnv, strValue)) {
-               CxConfigParser Config(strValue);
-               // extract settings and set, if defined. Keep unchanged, if not set.
-               _bEnabled = Config.getBool("enabled", _bEnabled);
-               _gpioClk.setPin(Config.getInt("clk", _gpioClk.getPin()));
-               _gpioData.setPin(Config.getInt("data", _gpioData.getPin()));
-               _nBrightnessDefault = Config.getInt("br", _nBrigthness);
-               
-               // set the screens
-               _mapScreens.clear();
-               DynamicJsonDocument doc(1024);
-               DeserializationError error = deserializeJson(doc, Config.getSz("json"));
-               if (!error) {
-                  JsonArray screens = doc["screens"].as<JsonArray>();
-                  _CONSOLE_INFO(F("Load %d screens."), screens.size());
-                  for (JsonObject screen : screens) {
-                     _CONSOLE_INFO(F("Add screen %s %s."), screen["na"].as<const char*>(), screen["ty"].as<const char*>());
-                     String name = screen["na"].as<const char*>();
-                     String type = screen["ty"].as<const char*>();
-                     String param = screen["id"].as<const char*>();
-                     addScreen(name.c_str(), type.c_str(), param.c_str());
-                  }
-                  
-                  _bSlideShowOn = doc["slideshow"]["enabled"].as<bool>();
-                  
-                  // set the slide show
-                  _vScreenSlideShow.clear();
-                  JsonArray slideShow = doc["slideshow"]["array"].as<JsonArray>();
-                  for (JsonObject slide : slideShow) {
-                     _CONSOLE_INFO(F("Add slide %d to slide show."), slide["id"].as<uint8_t>());
-                     _vScreenSlideShow.push_back(slide["id"].as<uint8_t>());
-                  }
-               }
-            }
          } else if (strSubCmd == "init") {
             init();
          } else {
@@ -630,8 +548,6 @@ public:
             println(F("  enable 0|1"));
             println(F("  setpins <clk> <data>"));
             println(F("  list"));
-            println(F("  save"));
-            println(F("  load"));
             println(F("  br <brightness> (0..100)"));
             println(F("  print <value>"));
             println(F("  clear"));

@@ -320,23 +320,6 @@ public:
             if (_bEnabled) scan();
          } else if (strSubCmd == "setpins" && (tkCmd.count() >= 4)) {
             setPins(TKTOINT(tkCmd, 2, -1), TKTOINT(tkCmd, 3, -1), TKTOINT(tkCmd, 4, -1));
-         } else if (strSubCmd == "save") {
-            CxConfigParser Config;
-            Config.addVariable("enabled", _bEnabled);
-            Config.addVariable("sda", _gpioSda.getPin());
-            Config.addVariable("scl", _gpioScl.getPin());
-            Config.addVariable("vu", _gpioVu.getPin());
-            __console.saveEnv(strEnv, Config.getConfigStr());
-         } else if (strSubCmd == "load") {
-            String strValue;
-            if (__console.loadEnv(strEnv, strValue)) {
-               CxConfigParser Config(strValue);
-               // extract settings and set, if defined. Keep unchanged, if not set.
-               _bEnabled = Config.getBool("enabled", _bEnabled);
-               _gpioSda.setPin(Config.getInt("sda", _gpioSda.getPin()));
-               _gpioScl.setPin(Config.getInt("scl", _gpioScl.getPin()));
-               _gpioVu.setPin(Config.getInt("vu", _gpioVu.getPin()));
-            }
          } else if (strSubCmd == "init") {
             init();
          } else {
@@ -350,8 +333,6 @@ public:
             println(F("  setpins <sda> <scl> [<vu>]"));
             println(F("  list"));
             println(F("  scan"));
-            println(F("  save"));
-            println(F("  load"));
             println(F("  init"));
 #endif
          }

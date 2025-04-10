@@ -154,40 +154,6 @@ public:
             }
          } else if (strSubCmd == "list") {
             __mqttManager.printSubscribtion(getIoStream());
-         } else if (strSubCmd == "save") {
-            CxConfigParser Config;
-            Config.addVariable("server", __mqttManager.getServer());
-            Config.addVariable("port", __mqttManager.getPort());
-            Config.addVariable("qos", __mqttManager.getQoS());
-            Config.addVariable("root", __mqttManager.getRootPath());
-            Config.addVariable("name", __mqttManager.getName());
-            Config.addVariable("will", (uint8_t)__mqttManager.isWill());
-            Config.addVariable("willtopic", __mqttManager.getWillTopic());
-            Config.addVariable("heartbeat", _timerHeartbeat.getPeriod());
-            
-            String strEnv = ".mqtt";
-            ESPConsole.saveEnv(strEnv, Config.getConfigStr());
-            
-         } else if (strSubCmd == "load") {
-            String strValue;
-            if (ESPConsole.loadEnv(strEnv, strValue)) {
-               CxConfigParser Config(strValue.c_str());
-               // extract settings and set, if defined. Keep unchanged, if not set.
-               __mqttManager.setServer(Config.getSz("server", __mqttManager.getServer()));
-               __mqttManager.setPort(Config.getInt("port", __mqttManager.getPort()));
-               __mqttManager.setQoS(Config.getInt("qos", __mqttManager.getQoS()));
-               __mqttManager.setRootPath(Config.getSz("root", __mqttManager.getRootPath()));
-               __mqttManager.setName(Config.getSz("name", __mqttManager.getName()));
-               __mqttManager.setWill(Config.getInt("will", __mqttManager.isWill()) > 0);
-               __mqttManager.setWillTopic(Config.getSz("willtopic", __mqttManager.getWillTopic()));
-               int32_t period = Config.getInt("heartbeat", _timerHeartbeat.getPeriod());
-               if (period == 0 || period >= 1000) _timerHeartbeat.setPeriod(period);
-               _CONSOLE_INFO(F("Mqtt server set to %s at port %d, qos=%d"), __mqttManager.getServer(), __mqttManager.getPort(), __mqttManager.getQoS());
-               _CONSOLE_INFO(F("Mqtt set root path to '%s' and will topic to '%s'"), __mqttManager.getRootPath(), __mqttManager.getWillTopic());
-               _CONSOLE_INFO(F("Mqtt heartbeat period is set to %d"), _timerHeartbeat.getPeriod());
-               _timer60sMqttServer.makeDue(); // make timer due to force an immidiate check
-               
-            }
          } else if (strSubCmd == "publish") {
             publish(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3), (bool) TKTOINT(tkArgs, 4, 0));
          }
@@ -212,8 +178,6 @@ public:
             println(F("  stop"));
             println(F("  heartbeat <period in ms> (0, 1000...n)"));
             println(F("  list"));
-            println(F("  save"));
-            println(F("  load"));
             println(F("  publish <topic> <message> [<0|1> (retain)]"));
 #endif
          }
