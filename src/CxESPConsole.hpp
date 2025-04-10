@@ -62,10 +62,11 @@ class CxESPConsoleBase : public Print  {
    std::function<void(const char*)> _funcError;
    std::function<bool(String& strEnv, String& strValue)> _funcLoadEnv;
    std::function<void(String& strEnv, String& strValue)> _funcSaveEnv;
-   std::function<void(const char*)> _funcExecuteBatch;
+   std::function<void(const char*, const char*)> _funcExecuteBatch;
 
 protected:
    bool __bIsWiFiClient = false;
+   bool __bIsSafeMode = false;
    
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    
@@ -128,7 +129,9 @@ public:
    
    bool loadEnv(String& strEnv, String& strValue) {if (_funcLoadEnv) return _funcLoadEnv(strEnv, strValue); else return false;}
    void saveEnv(String& strEnv, String& strValue) {if (_funcSaveEnv) _funcSaveEnv(strEnv, strValue);}
-   void executeBatch(const char* sz) {if (_funcExecuteBatch) _funcExecuteBatch(sz);}
+   void executeBatch(const char* sz, const char* label) {if (_funcExecuteBatch) _funcExecuteBatch(sz, label);}
+   bool isSafeMode() {return __bIsSafeMode;}
+   void setSafeMode(bool b) {__bIsSafeMode = b;}
    
    void setFuncDebug(std::function<void(const char*)> f) {_funcDebug = f;}
    void clearFuncDebug() {_funcDebug = nullptr;}
@@ -145,7 +148,7 @@ public:
    void clearFuncLoadEnv() {_funcLoadEnv = nullptr;}
    void setFuncSaveEnv(std::function<void(String&, String&)> f) {_funcSaveEnv = f;}
    void clearFuncSaveEnv() {_funcSaveEnv = nullptr;}
-   void setFuncExecuteBatch(std::function<void(const char*)> f) {_funcExecuteBatch = f;}
+   void setFuncExecuteBatch(std::function<void(const char*, const char*)> f) {_funcExecuteBatch = f;}
    void clearFuncExecuteBatch() {_funcExecuteBatch = nullptr;}
 
 };

@@ -330,7 +330,12 @@ public:
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
-      __console.executeBatch(getName());
+      if (__console.isSafeMode()) {
+         __console.error(F("Safe mode active!"));
+         return;
+      }
+     
+      __console.executeBatch("init", getName());
 
    }
    
@@ -587,8 +592,6 @@ public:
                _gpioClk.setPin(Config.getInt("clk", _gpioClk.getPin()));
                _gpioData.setPin(Config.getInt("data", _gpioData.getPin()));
                _nBrightnessDefault = Config.getInt("br", _nBrigthness);
-               _timerSlideShow.start(5000, false);
-               _timerMsg.start(5000, false);
                
                // set the screens
                _mapScreens.clear();
@@ -691,8 +694,11 @@ public:
             
             if (getStartScreen() >= 0) {
                setActiveScreenIndex(getStartScreen());
-            } else if (isSlideShowEnabled()) {
             }
+            
+            _timerSlideShow.start(5000, false);
+            _timerMsg.start(5000, false);
+
             _CONSOLE_INFO(F("7SEG: ready"));
             return true;
          } else {

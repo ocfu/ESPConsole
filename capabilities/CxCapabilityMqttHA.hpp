@@ -129,6 +129,12 @@ public:
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
+      if (__console.isSafeMode()) {
+         __console.error(F("Safe mode active!"));
+         return;
+      }
+
+      
       // increase the PubSubClient buffer size as for HA the payload could be pretty long, especially for discovery topics.
       __mqttManager.setBufferSize(1024);
       
@@ -143,7 +149,7 @@ public:
       _mapHADiag[DIAG_STACK] = std::make_unique<CxMqttHADiagnostic>("Stack", "diagstack", nullptr, "bytes");
       _mapHADiag[DIAG_STACK_LOW] = std::make_unique<CxMqttHADiagnostic>("Stack Low", "diagstacklow", nullptr, "bytes");
 
-      __console.executeBatch(getName());
+      __console.executeBatch("init", getName());
 
       
       /// enable MQTT HA
@@ -348,9 +354,7 @@ public:
       
       // the device defines the topic base by dedault
       // Note: all topics are relative to the root topiec defined in mqtt
-      char szTopicBase[126];
-      snprintf(szTopicBase, sizeof(szTopicBase), "ha");
-      _mqttHAdev.setTopicBase(szTopicBase);
+      _mqttHAdev.setTopicBase("ha");
       _mqttHAdev.setManufacturer("ocfu");
       _mqttHAdev.setModel(__console.getModel());
       _mqttHAdev.setSwVersion(__console.getAppVer());

@@ -451,7 +451,6 @@ public:
       if (__pDev) {
          JsonArray array = doc.createNestedArray(F("avty"));
          JsonObject objDev = array.createNestedObject();
-         char szTopicBase[126];
          snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getRootPath(), getTopicBaseFromDevice<CxMqttHADevice>()); // tricky way to overcome the incomplete type
          objDev[F("t")] = szTopicBase;
          if (__eCat != e_cat::diagnostic) {
@@ -502,7 +501,7 @@ public:
 
    }
    
-   void getConfigPayload(char* sz, size_t len) {
+   void getConfigPayload(String& str) {
       
       DynamicJsonDocument doc(1024);
       
@@ -515,11 +514,17 @@ public:
       // add device config elements from the linked device
       if (__pDev) ((CxMqttHABase*)__pDev)->addJsonConfig(doc);
       
-      serializeJsonPretty(doc, sz, len);
+#ifdef ARDUINO
+      serializeJsonPretty(doc, str);
+#else
+      char szJson[1024];
+      serializeJsonPretty(doc, szJson, sizeof(szJson));
+      str = szJson;
+#endif
       
    }
    
-   void getActionPayload(char* sz, size_t len) {
+   void getActionPayload(String& str) {
       
       DynamicJsonDocument doc(1024);
 
@@ -532,17 +537,24 @@ public:
       // add device config elements from the linked device
       if (__pDev) ((CxMqttHABase*)__pDev)->addJsonConfig(doc);
       
-      serializeJsonPretty(doc, sz, len);
-      
+#ifdef ARDUINO
+      serializeJsonPretty(doc, str);
+#else
+      char szJson[1024];
+      serializeJsonPretty(doc, szJson, sizeof(szJson));
+      str = szJson;
+#endif
+
    }
    
    void regDiscovery(bool bEnable) {
-      char sz[1024];
+      String strPayload;
+      strPayload.reserve(1024);
 
       if (bEnable) {
-         getConfigPayload(sz, sizeof(sz));
+         getConfigPayload(strPayload);
          
-         publish(getTopicHADiscovery(), sz, true); // set retain flag
+         publish(getTopicHADiscovery(), strPayload.c_str(), true); // set retain flag
          
          if (__bCmd) {
             subscribeCmd();
@@ -553,8 +565,8 @@ public:
          }
          
          if (isAction()) {
-            getActionPayload(sz, sizeof(sz));
-            publish(getTopicHAAction(), sz, true);
+            getActionPayload(strPayload);
+            publish(getTopicHAAction(), strPayload.c_str(), true);
          }
          
          publishAvailability();
@@ -816,13 +828,17 @@ public:
       
       _CONSOLE_DEBUG("%s %d items to HA", bEnable?"register":"unregister", _vecItems.size());
       
+      String strTopicBase;
+      strTopicBase.reserve(126);
+      
       while(it != _vecItems.end())
       {
          if ((*it) != this) {
             // the device defines the topic base by dedault
-            char szTopicBase[126];
-            snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getTopicBase(), (*it)->getName());
-            (*it)->setTopicBase(szTopicBase);
+            strTopicBase = (*it)->getTopicBase();
+            strTopicBase += "/";
+            strTopicBase += (*it)->getName();
+            (*it)->setTopicBase(strTopicBase.c_str());
             (*it)->setDev(this);
             (*it)->setDiscoveryTopic();
             

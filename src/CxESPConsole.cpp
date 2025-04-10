@@ -65,7 +65,7 @@ void CxESPConsole::begin() {
    }
    __nUsers++;
    setConsoleName(""); // shall be set by the last derived class
-   executeBatch("rdy.bat");
+   executeBatch("rdy.bat", "rdy");
 }
 
 void CxESPConsole::wlcm() {

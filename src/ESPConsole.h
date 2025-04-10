@@ -40,6 +40,23 @@
 #include "../capabilities/CxCapabilitySegDisplay.hpp"
 #endif
 
+#ifndef __SKIP_GLOBALS__
+#define __SKIP_GLOBALS__
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+#if defined (BUILD_ID) && defined (_VERSION)
+#define _VERSION "1.0 (" BUILD_ID ")"
+#endif
+// for the identification of the binary (e.g. for archiving purposes)
+#if defined (_NAME) && defined (_VERSION)
+const char* g_szId      PROGMEM = "$$id:" _NAME ":" _VERSION;
+#endif
+#if defined (ESPCONSOLE_VERSION)
+const char* g_szIdmyESP PROGMEM = "$$idm:myESP:" ESPCONSOLE_VERSION;
+#endif
+#pragma GCC pop_options
+
+
 void initESPConsole(const char* app, const char* ver) {
    g_Stack.begin();
    
@@ -74,4 +91,5 @@ void initESPConsole(const char* app, const char* ver) {
 }
 
 
+#endif /*__SKIP_GLOBALS__ */
 

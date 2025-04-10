@@ -254,15 +254,13 @@ public:
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
-      __console.executeBatch(getName());
-      
-      // loop through all initializers
-      for (auto& pInit : VI2CInitializers) {
-         if (pInit) {
-            pInit->init();
-         }
+      if (__console.isSafeMode()) {
+         __console.error(F("Safe mode active!"));
+         return;
       }
-
+      
+      __console.executeBatch("init", getName());
+      
    }
    
    /**
@@ -383,6 +381,13 @@ public:
             Wire.begin(_gpioSda.getPin(), _gpioScl.getPin());
 #endif
             scan();
+            
+            // loop through all initializers
+            for (auto& pInit : VI2CInitializers) {
+               if (pInit) {
+                  pInit->init();
+               }
+            }
          }
       }
    }

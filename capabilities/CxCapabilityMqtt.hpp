@@ -59,8 +59,13 @@ public:
       __bLocked = false;
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
+      
+      if (__console.isSafeMode()) {
+         __console.error(F("Safe mode active!"));
+         return;
+      }
             
-      __console.executeBatch(getName());
+      __console.executeBatch("init", getName());
 
       
       _pmqttTopicCmd = new CxMqttTopic("cmd", [this](const char* topic, uint8_t* payload, unsigned int len) {
@@ -126,11 +131,7 @@ public:
             stopMqtt();
          } else if (strSubCmd == "server") {
             __mqttManager.setServer(TKTOCHAR(tkArgs, 2));
-            _bMqttServerOnline = __console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
-            if (!_bMqttServerOnline) println(F("server not available!"));
-            startMqtt();
-         } else if (strSubCmd == "port") {
-            __mqttManager.setPort(TKTOINT(tkArgs, 2, 0));
+            __mqttManager.setPort(TKTOINT(tkArgs, 3, 8880));
             _bMqttServerOnline = __console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
             if (!_bMqttServerOnline) println(F("server not available!"));
             startMqtt();
@@ -202,8 +203,7 @@ public:
             println();
 #ifndef MINIMAL_HELP
             println(F(ESC_ATTR_BOLD "mqtt commands:" ESC_ATTR_RESET));
-            println(F("  server <server>"));
-            println(F("  port <port>"));
+            println(F("  server <server> <port>"));
             println(F("  qos <qos>"));
             println(F("  root <root path>"));
             println(F("  name <name>"));

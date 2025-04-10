@@ -89,10 +89,9 @@ public:
       // load specific environments for this class
       mount();
       
-//      execute("load ntp");
-//      execute("load tz");
-//      execute ("log load");
-//      execute("gpio load");
+      if (fileExists(".safemode")) {
+         __console.setSafeMode(true);
+      }
 
       // implement specific fs functions
       ESPConsole.setFuncDebug([this](const char *c) { this->_debug(c); });
@@ -103,9 +102,9 @@ public:
       
       ESPConsole.setFuncLoadEnv([this](String &strEnv, String &strValue)->bool { return this->loadEnv(strEnv, strValue); });
       ESPConsole.setFuncSaveEnv([this](String &strEnv, String &strValue) {this->saveEnv(strEnv, strValue);});
-      ESPConsole.setFuncExecuteBatch([this](const char *sz) { this->executeBatch(sz); });
+      ESPConsole.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
 
-      __console.executeBatch(getName());
+      __console.executeBatch("init", getName());
 
    }
    
@@ -215,10 +214,7 @@ public:
           String strEnv = ".log";
           if (strSubCmd == "server") {
              _strLogServer = TKTOCHAR(tkArgs, 2);
-             _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
-             if (!_bLogServerAvailable) println(F("server not available!"));
-          } else if (strSubCmd == "port") {
-             _nLogPort = TKTOINT(tkArgs, 2, 0);
+             _nLogPort = TKTOINT(tkArgs, 3, 1880);
              _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
              if (!_bLogServerAvailable) println(F("server not available!"));
           } else if (strSubCmd == "level") {
@@ -259,8 +255,7 @@ public:
              printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
 #ifndef MINIMAL_HELP
              println(F("log commands:"));
-             println(F("  server <server>"));
-             println(F("  port <port>"));
+             println(F("  server <server> <port>"));
              println(F("  level <level>"));
              println(F("  save"));
              println(F("  load"));
@@ -269,7 +264,7 @@ public:
           }
        } else if (cmd == "exec") {
           if (a) {
-             executeBatch(TKTOCHAR(tkArgs, 1));
+             executeBatch(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2));
           } else {
              println(F("usage: exec <batchfile>"));
           }
@@ -619,6 +614,14 @@ public:
       }
       return false;
    }
+   
+   bool fileExists(const char* szFn) {
+#ifdef ARDUINO
+      return LittleFS.exists(szFn);
+#else
+      return false;
+#endif
+   }
 
    
 private:
@@ -845,7 +848,7 @@ private:
       if (__console.getLogLevel() >= LOGLEVEL_ERROR) _print2logServer(buf);
    }
    
-   void executeBatch(const char* path) {
+   void executeBatch(const char* path, const char* label) {
       String strBatchFile;
       
       strBatchFile.reserve((uint32_t)strlen(path) + 5); // +4 for ".bat" and +1 for null terminator
@@ -861,8 +864,12 @@ private:
          __console.error(F("Invalid batch file name '%s'. Must end with .bat"), path);
          return;
       }
+      
+      if (label == nullptr) {
+         label = "default";
+      };
 
-      _CONSOLE_INFO(F("Execute batch file: %s"), strBatchFile.c_str());
+      _CONSOLE_INFO(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
       
 #ifdef ARDUINO
       if (!LittleFS.exists(strBatchFile.c_str())) {
@@ -877,20 +884,55 @@ private:
       }
       
       char buffer[128];
+      bool processCommands = true; // Start processing commands immediately
+      
       while (file.available()) {
          size_t len = file.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
          buffer[len] = '\0'; // Null-terminate the string
          trim(buffer); // Remove any leading/trailing whitespace
-         if (strlen(buffer) > 0 && buffer[0] != '#') { // Ignore empty lines and comments
-            _CONSOLE_DEBUG(F("Batch command: %s"), buffer);
-            __console.processCmd(buffer);
+         
+         if (strlen(buffer) == 0 || buffer[0] == '#') {
+            // Ignore empty lines and comments
+            continue;
+         }
+         
+         // Remove inline comments starting with #
+         char* commentStart = strchr(buffer, '#');
+         if (commentStart) {
+            *commentStart = '\0'; // Truncate the line at the # character
+            trim(buffer); // Remove any trailing whitespace after truncation
+         }
+         
+         if (strlen(buffer) == 0) {
+            // If the line becomes empty after removing the comment, skip it
+            continue;
+         }
+         
+         // Handle variables in the batch file
+         String command;
+         uint32_t extra_size = strlen(label);
+         
+         command.reserve(strlen(buffer) + extra_size); // Reserve enough space for the command and potential longer label
+         command = buffer;
+         
+         command.replace("$LABEL", label);
+         
+         if (command.endsWith(":")) {
+            // Check for labels
+            processCommands = (command == String(label) + ":");
+            continue;
+         }
+         
+         if (processCommands) {
+            _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
+            __console.processCmd(command.c_str());
          }
       }
       
       file.close();
 #endif
    }
-   
+      
 private:
    void trim(char* str) {
       char* end;
