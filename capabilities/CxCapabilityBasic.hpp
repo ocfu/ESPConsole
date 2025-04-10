@@ -68,7 +68,7 @@ public:
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo", "wlcm", "prompt" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo", "wlcm", "prompt", "loopdelay" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -166,14 +166,15 @@ public:
       } else if (cmd == "ps") {
          __console.printPs();
          println();
-      } else if (cmd == "delay") {
+      } else if (cmd == "loopdelay") {
          if (tkArgs.count() > 1) {
             __console.setLoopDelay(TKTOINT(tkArgs, 1, 0));
          } else {
-            print(F("delay = ")); println(__console.getLoopDelay());
+            print(F("loopdelay = ")); println(__console.getLoopDelay());
          }
-      }
-      else if (cmd == "time") {
+      } else if (cmd == "delay") {
+         delay(TKTOINT(tkArgs, 1, 1));
+      } else if (cmd == "time") {
          if(__console.getStream()) __console.printTime(*__console.getStream());
          println();
       } else if (cmd == "date") {
@@ -263,6 +264,12 @@ public:
          }
       } else if (cmd == "echo") {
          println(TKTOCHARAFTER(tkArgs, 1));
+      } else if (cmd == "@echo") {
+         if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
+            //__console.setEchoOn();
+         } else if (strncmp(TKTOCHAR(tkArgs, 1), "on", 2) == 0) {
+            //__console.setEchoOff();
+         }
       } else {
          return false;
       }
