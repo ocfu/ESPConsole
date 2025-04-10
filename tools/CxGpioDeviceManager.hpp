@@ -216,6 +216,18 @@ public:
       return nullptr;
    }
    
+   /// get a device by its type.
+   /// The first device found will be returned.
+   CxGPIODevice* getDeviceByType(const char* type) {
+      for (auto& it : _mapDevices) {
+         if (strcmp(it.second->getTypeSz(), type) == 0) {
+            return it.second;
+         }
+      }
+      return nullptr;
+   };
+      
+   
    /// pin in use?
    bool isPinInUse(uint8_t pin) {
       for (auto& it : _mapDevices) {
