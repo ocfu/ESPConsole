@@ -22,6 +22,7 @@
 #include "../tools/CxESPTime.hpp"
 #include "../tools/CxStrToken.hpp"
 #include "../tools/CxTimer.hpp"
+#include "../tools/CxPersistentBase.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
@@ -53,7 +54,7 @@ extern CxESPConsoleMaster& ESPConsole;
 ///
 /// and to implement print methods.
 ///
-class CxESPConsoleBase : public Print  {
+class CxESPConsoleBase : public Print, public CxPersistentBase {
    
    std::function<void(const char*)> _funcDebug;
    std::function<void(uint32_t flag, const char*)> _funcDebugExt;

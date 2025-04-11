@@ -67,7 +67,6 @@
 #define CxSensorManager_hpp
 
 #include "CxESPConsole.hpp"
-#include "CxConfigParser.hpp"
 
 #include <map>
 

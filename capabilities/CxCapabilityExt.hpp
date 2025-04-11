@@ -73,7 +73,6 @@
 #include "../tools/CxRelay.hpp"
 #include "esphw.h"
 #include "../tools/CxSensorManager.hpp"
-#include "../tools/CxConfigParser.hpp"
 
 #ifndef ESP_CONSOLE_NOWIFI
 #include "../tools/CxOta.hpp"

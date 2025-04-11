@@ -10,7 +10,6 @@
 
 #include "CxGpioTracker.hpp"
 #include "CxTimer.hpp"
-#include "CxConfigParser.hpp"
 
 
 class CxGPIODevice : public CxGPIO {
@@ -33,6 +32,8 @@ public:
    void addCallback(cbFunc fp) {if(fp)__cbVec.push_back(fp);}
    
 protected:
+   bool __bPersistent = true;
+   
    // callback vector
    std::vector<cbFunc> __cbVec;
    

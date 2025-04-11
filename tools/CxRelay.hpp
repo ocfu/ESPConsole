@@ -43,6 +43,11 @@ public:
    bool isEnabled() {return _bEnabled;}
    
    virtual void begin() override {
+      if (__bPersistent) {
+         _timerOff.setPeriod(__console.loadSettingInt("ot", _timerOff.getPeriod(), getName()));
+         setDefaultOn(__console.loadSettingInt("df", isDefaultOn(), getName()));
+      }
+
       if (isDefaultOn()) {
          on();
       } else {
@@ -72,7 +77,12 @@ public:
    
    void setPin(uint8_t nPin) {CxGPIODevice::setPin(nPin); setPinMode(OUTPUT);} // overwrite virtual base function. RELAY is always an output
 
-   void setDefaultOn(bool set = true) {m_bDefaultOn = set;}
+   void setDefaultOn(bool set = true) {
+      if (set != m_bDefaultOn && __bPersistent) {
+         __console.saveSettingInt("df", set, "", getName());
+      }
+      m_bDefaultOn = set;
+   }
    bool isDefaultOn() {return m_bDefaultOn;}
    
    void toggle() {if (isOn()) off(); else on();}
@@ -112,8 +122,13 @@ public:
 
    uint32_t getOffTimer() {return _timerOff.getPeriod();}
    void setOffTimer(uint32_t nTime) {
-      _CONSOLE_INFO(F("RLY: Relay on GPIO%02d set off-timer to %dms"), getPin(), nTime);
-      _timerOff.setPeriod(nTime);
+      if (nTime != _timerOff.getPeriod()) {
+         _CONSOLE_INFO(F("RLY: Relay on GPIO%02d set off-timer to %dms"), getPin(), nTime);
+         _timerOff.setPeriod(nTime);
+         if (__bPersistent) __console.saveSettingInt("ot", nTime, "", getName());
+      } else {
+         _timerOff.restart();
+      }
    }
 
 };

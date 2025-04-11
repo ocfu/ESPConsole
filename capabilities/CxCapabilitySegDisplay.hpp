@@ -34,7 +34,6 @@
 #include "../capabilities/CxCapabilityFS.hpp"
 
 #include "../tools/CxGpioTracker.hpp"
-#include "../tools/CxConfigParser.hpp"
 #include "../tools/CxTimer.hpp"
 
 #ifdef ARDUINO

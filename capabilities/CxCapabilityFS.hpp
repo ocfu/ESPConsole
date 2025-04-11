@@ -19,8 +19,8 @@
 
 
 #include "../capabilities/CxCapabilityExt.hpp"
+#include "../tools/CxPersistentImpl.hpp"
 
-#include "../tools/CxConfigParser.hpp"
 #include "esphw.h"
 
 #ifndef ESP_CONSOLE_NOWIFI
@@ -101,7 +101,9 @@ public:
       ESPConsole.setFuncError([this](const char *c) { this->_error(c); });
       
       ESPConsole.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
-
+ 
+      CxPersistentImpl::getInstance().setImplementation(ESPConsole);
+ 
       __console.executeBatch("init", getName());
 
    }
