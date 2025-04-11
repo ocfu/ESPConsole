@@ -621,7 +621,17 @@ public:
             } else {
                println(F("invalid pin!"));
             }
-         } else if (strSubCmd == "let") {
+         } else if (strSubCmd == "fn") {
+            CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+            
+            if (p) {
+               p->setFriendlyName(TKTOCHARAFTER(tkArgs, 3));
+            } else {
+               println(F("device not found!"));
+            }
+
+         }
+         else if (strSubCmd == "let") {
             String strOpertor = TKTOCHAR(tkArgs, 3);
             CxGPIODevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
             CxGPIODevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
@@ -642,6 +652,7 @@ public:
             println(F("  set <pin> <mode> (in, out, pwm, inverted, non-inverted"));
             println(F("  set <pin> 0...1023 (set pin state to value)"));
             println(F("  name <pin> <name>"));
+            println(F("  fn <pin> <friendly name>"));
             println(F("  get <pin>"));
             println(F("  list"));
             println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
