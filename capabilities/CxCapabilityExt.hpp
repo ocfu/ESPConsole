@@ -809,8 +809,8 @@ public:
    void printSW() {
 #ifdef ARDUINO
       printf(F(ESC_ATTR_BOLD "   Plattform:" ESC_ATTR_RESET " %s"), ARDUINO_BOARD);
-      printf(F(ESC_ATTR_BOLD " Core Ver.:" ESC_ATTR_RESET " %s\n"), ESP.getCoreVersion().c_str());
-      printf(F(ESC_ATTR_BOLD "    SDK Ver.:" ESC_ATTR_RESET " %s\n"), ESP.getSdkVersion());
+      printf(F(ESC_ATTR_BOLD " Core:" ESC_ATTR_RESET " %s\n"), ESP.getCoreVersion().c_str());
+      printf(F(ESC_ATTR_BOLD "    SDK:" ESC_ATTR_RESET " %s"), ESP.getSdkVersion());
       
       
 #ifdef ARDUINO_CLI_VER
@@ -823,9 +823,22 @@ public:
       int major = arduinoVersion / 10000;
       int minor = (arduinoVersion / 100) % 100;
       int patch = arduinoVersion % 100;
-      printf(F(ESC_ATTR_BOLD "Arduino Ver.:" ESC_ATTR_RESET " %d.%d.%d %s\n"), major, minor, patch, ide);
+      printf(F(ESC_ATTR_BOLD " Arduino:" ESC_ATTR_RESET " %d.%d.%d %s\n"), major, minor, patch, ide);
 #endif
-      if (__console.getAppName()[0]) printf(F(ESC_ATTR_BOLD "    Firmware:" ESC_ATTR_RESET " %s Ver.:" ESC_ATTR_RESET " %s\n"), __console.getAppName(), __console.getAppVer());
+      printf(F(ESC_ATTR_BOLD "    Firmware:" ESC_ATTR_RESET " %s" ESC_ATTR_BOLD " Ver.:" ESC_ATTR_RESET " %s"), __console.getAppName(), __console.getAppVer());
+#ifdef ARDUINO
+      printf(F(ESC_ATTR_BOLD " Sketch size: " ESC_ATTR_RESET));
+      if (ESP.getSketchSize()/1024 < 465) {
+         printf(F( "%d kBytes\n"), ESP.getSketchSize()/1024);
+      } else if (ESP.getSketchSize()) {
+         printf(F(ESC_TEXT_BRIGHT_YELLOW ESC_ATTR_BOLD "%d kBytes\n"), ESP.getSketchSize()/1024);
+      } else if (getFreeOTA() < ESP.getSketchSize()) {
+         printf(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BOLD "%d kBytes\n"), ESP.getSketchSize()/1024);
+      }
+      print(ESC_ATTR_RESET);
+#else
+      println();
+#endif
    }
    
    void printESP() {
