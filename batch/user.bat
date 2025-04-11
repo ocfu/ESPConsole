@@ -18,7 +18,6 @@ log server mac 8880
 
 gpio add 5 button btn 1 relay rly toggle    # add a button
 gpio add 4 relay rly 0 gpio let led1 = rly
-relay rly offtimer 15000
 
 echo -fs------------------------
 stack
