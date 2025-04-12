@@ -18,20 +18,77 @@ CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 
 bool CxESPConsoleMaster::processCmd(const char* cmd, bool bQuiet) {
    if (!cmd) return false;
-   for (auto& entry : _mapCapInstances) {
-      bool bResult = false;
-      
-      entry.second->setIoStream(*__ioStream);
-      
-      bResult = entry.second->processCmd(cmd);
-      if (bResult && *cmd != '?') return true;
+   
+   // Create a copy of the command string to parse
+   char* cmdCopy = strdup(cmd);
+   char* tokenStart = cmdCopy;
+   bool overallResult = false;
+   bool inQuotes = false;
+   
+   for (char* p = cmdCopy; *p; ++p) {
+      if (*p == '"') {
+         inQuotes = !inQuotes; // Toggle the inQuotes flag
+      } else if (*p == ';' && !inQuotes) {
+         // End of a command, null-terminate it
+         *p = '\0';
+         
+         // Process the token
+         char* token = tokenStart;
+         while (*token == ' ') token++; // Skip leading spaces
+         char* end = token + strlen(token) - 1;
+         while (end > token && *end == ' ') *end-- = '\0'; // Remove trailing spaces
+         
+         if (*token) { // Only process non-empty tokens
+            for (auto& entry : _mapCapInstances) {
+               bool bResult = false;
+               
+               entry.second->setIoStream(*__ioStream);
+               bResult = entry.second->processCmd(token);
+               if (bResult && *token != '?') {
+                  overallResult = true;
+                  break; // Stop processing further instances for this command
+               }
+            }
+            
+            if (!overallResult && !bQuiet && strlen(token) > 0 && *token != '?') {
+               println("Unknown command: ");
+               println(token);
+            }
+         }
+         
+         // Move to the next token
+         tokenStart = p + 1;
+      }
    }
    
-   if (!bQuiet && strlen(cmd) > 0 && *cmd != '?') {
-      println("Unknown command: ");
-      println(cmd);
+   // Process the last token (if any)
+   if (*tokenStart) {
+      char* token = tokenStart;
+      while (*token == ' ') token++; // Skip leading spaces
+      char* end = token + strlen(token) - 1;
+      while (end > token && *end == ' ') *end-- = '\0'; // Remove trailing spaces
+      
+      if (*token) { // Only process non-empty tokens
+         for (auto& entry : _mapCapInstances) {
+            bool bResult = false;
+            
+            entry.second->setIoStream(*__ioStream);
+            bResult = entry.second->processCmd(token);
+            if (bResult && *token != '?') {
+               overallResult = true;
+               break; // Stop processing further instances for this command
+            }
+         }
+         
+         if (!overallResult && !bQuiet && strlen(token) > 0 && *token != '?') {
+            println("Unknown command: ");
+            println(token);
+         }
+      }
    }
-   return false;
+   
+   free(cmdCopy); // Free the duplicated string
+   return overallResult;
 }
 
 void CxESPConsoleMaster::begin() {
