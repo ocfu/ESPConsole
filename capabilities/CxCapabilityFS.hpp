@@ -169,15 +169,15 @@ public:
           } else if (strSubCmd == "level") {
              __console.setLogLevel(TKTOINT(tkArgs, 2, __console.getLogLevel()));
           } else if (strSubCmd == "error") {
-             __console.error(TKTOCHARAFTER(tkArgs, 2));
+             __console.error(TKTOCHAR(tkArgs, 2));
           } else if (strSubCmd == "info") {
-             __console.info(TKTOCHARAFTER(tkArgs, 2));
+             __console.info(TKTOCHAR(tkArgs, 2));
           } else if (strSubCmd == "warn") {
-             __console.warn(TKTOCHARAFTER(tkArgs, 2));
+             __console.warn(TKTOCHAR(tkArgs, 2));
           } else if (strSubCmd == "debug") {
-             __console.debug(TKTOCHARAFTER(tkArgs, 2));
+             __console.debug(TKTOCHAR(tkArgs, 2));
           } else if (strSubCmd == "debug_ext") {
-             __console.debug_ext(TKTOINT(tkArgs, 2, 0), TKTOCHARAFTER(tkArgs, 3));
+             __console.debug_ext(TKTOINT(tkArgs, 2, 0), TKTOCHAR(tkArgs, 3));
           } else {
              printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), __console.getLogLevel());printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), __console.getUsrLogLevel());
              printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __console.getDebugFlag());

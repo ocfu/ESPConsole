@@ -16,10 +16,11 @@ set tz CET-1CEST,M3.5.0,M10.5.0/3
 
 log server mac 8880
 
-gpio add 5 button btn 1 relay rly toggle    # add a button
+gpio add 5 button btn 1 "relay rly toggle"    # add a button
 gpio fn 5 Button # friendly name
 
-gpio add 4 relay rly 0 gpio let led1 = rly
+# relay controls led1 and rc
+gpio add 4 relay rly 0 "gpio let led1 = rly; rc let 0 = rly"
 gpio fn 4 Relay
 
 echo -fs------------------------

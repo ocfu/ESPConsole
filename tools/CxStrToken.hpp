@@ -30,7 +30,6 @@ private:
    
    mutable char* _result; // Mutable to allow modification in const method
 
-   
    void tokenize() {
       if (!_szStrCopy || !_szDelimiters) {
          return;
@@ -38,32 +37,50 @@ private:
       
       char* current = _szStrCopy;
       _nCount = 0;
+      bool inQuotes = false;
       
       while (*current) {
-         // skip heading delimiters
-         current += strspn(current, _szDelimiters);
+         // Skip leading delimiters if not inside quotes
+         if (!inQuotes) {
+            current += strspn(current, _szDelimiters);
+         }
          if (*current == '\0') {
-            break; // no token left
+            break; // No token left
          }
          
-         // store pointer to token
+         // Check for the start of a quoted section
+         if (*current == '\"') {
+            inQuotes = !inQuotes; // Toggle quote state
+            ++current; // Skip the quote character
+         }
+         
+         // Store pointer to token
          _aszTokens[_nCount++] = current;
          
-         // find the end of the token
-         current += strcspn(current, _szDelimiters);
+         // Find the end of the token
+         while (*current && (inQuotes || !strchr(_szDelimiters, *current))) {
+            if (*current == '\"') {
+               inQuotes = !inQuotes; // Toggle quote state
+            }
+            ++current;
+         }
          
-         // replace delimiter with '\0'
+         // Remove trailing quote if present
+         if (*(current - 1) == '\"') {
+            *(current - 1) = '\0';
+         }
+         
+         // Replace delimiter with '\0' if not inside quotes
          if (*current != '\0') {
             *current++ = '\0';
          }
          
-         // Maximal 255 Tokens speichern
+         // Stop if maximum tokens are reached
          if (_nCount == MAX_TOKENS) {
             break;
          }
       }
    }
-
 public:
    class ctkProxy {
    private:

@@ -263,7 +263,7 @@ public:
                break;
          }
       } else if (cmd == "echo") {
-         println(TKTOCHARAFTER(tkArgs, 1));
+         println(TKTOCHAR(tkArgs, 1));
       } else if (cmd == "@echo") {
          if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
             //__console.setEchoOn();

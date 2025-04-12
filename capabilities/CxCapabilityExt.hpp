@@ -519,7 +519,7 @@ public:
                String strType = TKTOCHAR(tkArgs, 3);
                String strName = TKTOCHAR(tkArgs, 4);
                bool bInverted = TKTOINT(tkArgs, 5, false);
-               String strGpioCmd = TKTOCHARAFTER(tkArgs, 6);
+               String strGpioCmd = TKTOCHAR(tkArgs, 6);
                if (strType == "button") {
                   // FIXME: pointer without proper deletion? even if managed internally? maybe container as for the bme?
                   /// TODO: consider dyanmic cast to ensure correct type
@@ -625,7 +625,7 @@ public:
             CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
             
             if (p) {
-               p->setFriendlyName(TKTOCHARAFTER(tkArgs, 3));
+               p->setFriendlyName(TKTOCHAR(tkArgs, 3));
             } else {
                println(F("device not found!"));
             }
