@@ -25,3 +25,6 @@ exec user.bat ha
 seg:
 exec user.bat seg
 
+# RC
+rc:
+exec user.bat rc

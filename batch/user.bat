@@ -116,6 +116,18 @@ echo -seg-----------------------
 stack
 echo ---------------------------
 
+#
+# RC switch
+#
+rc:
+rc setpins -1 13 # rx, tx
+rc ch 0 4198421 4198420 0   # channel, on-code, off-code, toggle
+rc ch 1 4210709 4210708 0
+rc fn S20 (Sonoff + RC) # friendly name
+rc enable 1
+rc init
+rc on
+
 
 #
 # Called after the system has been initialized.

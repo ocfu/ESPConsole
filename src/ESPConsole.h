@@ -10,6 +10,7 @@
 #define ESP_CONSOLE_MQTTHA
 #define ESP_CONSOLE_I2C
 #define ESP_CONSOLE_SEGDISPLAY
+#define ESP_CONSOLE_RC
 #endif
 
 #if defined(ESP_CONSOLE_MQTTHA)
@@ -39,6 +40,11 @@
 #if defined (ESP_CONSOLE_SEGDISPLAY)
 #include "../capabilities/CxCapabilitySegDisplay.hpp"
 #endif
+
+#if defined (ESP_CONSOLE_RC)
+#include "../capabilities/CxCapabilityRC.hpp"
+#endif
+
 
 #ifndef __SKIP_GLOBALS__
 #define __SKIP_GLOBALS__
@@ -88,6 +94,10 @@ void initESPConsole(const char* app, const char* ver) {
 #ifdef CxCapabilitySegDisplay_hpp
    CxCapabilitySegDisplay::loadCap();
 #endif
+#ifdef CxCapabilityRC_hpp
+   CxCapabilityRC::loadCap();
+#endif
+
 }
 
 
