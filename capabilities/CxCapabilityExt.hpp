@@ -1075,6 +1075,11 @@ public:
          println(F(ESC_TEXT_BRIGHT_GREEN "connected!" ESC_ATTR_RESET));
          _CONSOLE_INFO("WiFi connected.");
          Led1.flashOk();
+#ifdef ESP32
+         __console.setHostName(WiFi.getHostname().c_str());
+#else
+         __console.setHostName(WiFi.hostname().c_str());
+#endif
       }
       
 #endif /* Arduino */
