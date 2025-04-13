@@ -745,6 +745,17 @@ private:
    void executeBatch(const char* path, const char* label) {
       String strBatchFile;
       
+      // TODO: improve as this String map is worse for the memory fragmentation
+      std::map<String, String> variables; // Map to store variables
+      
+      if (label) variables["LABEL"] = label;
+      variables["HOSTNAME"] = __console.getHostName();
+      
+      if (variables["LABEL"] == "fs") {
+         __console.print("hostname = ");;
+         __console.println(variables["HOSTNAME"]);
+      }
+      
       strBatchFile.reserve((uint32_t)strlen(path) + 5); // +4 for ".bat" and +1 for null terminator
       strBatchFile = path;
 
@@ -802,14 +813,40 @@ private:
             continue;
          }
          
+         
+         // Check if the line is a variable definition
+         char* equalsSign = strchr(buffer, '=');
+         if (equalsSign) {
+            // Ensure the equal sign is in the first word
+            String varName = String(buffer).substring(0, equalsSign - buffer);
+            varName.trim();
+
+            // Ensure the equal sign is part of the first word (no spaces in the variable name), otherwise treat it as a command
+            if (!varName.isEmpty() && varName.indexOf(' ') == -1) {
+               String varValue = String(buffer).substring(equalsSign - buffer + 1);
+               varValue.trim();
+               
+               // Perform variable substitution in the value
+               for (const auto& var : variables) {
+                  varValue.replace("$" + var.first, var.second);
+               }
+
+               variables[varName] = varValue; // Store the variable
+               continue;
+            }
+         }
+         
          // Handle variables in the batch file
          String command;
-         uint32_t extra_size = strlen(label);
+         uint32_t extra_size = 50; // FIXME: max. length of a variable length (to be determined actually)
          
          command.reserve(strlen(buffer) + extra_size); // Reserve enough space for the command and potential longer label
          command = buffer;
          
-         command.replace("$LABEL", label);
+         // Replace variables in the command
+         for (const auto& var : variables) {
+            command.replace("$" + var.first, var.second);
+         }
          
          if (command.endsWith(":")) {
             // Check for labels
