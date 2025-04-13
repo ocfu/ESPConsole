@@ -1,5 +1,6 @@
-# This script is used to set up user specific configurations.
-
+# This script is a template for user specific configurations.
+# Filename syntax for the project: init.<HOSTNAME>.bat
+#
 #
 # Called after the filesystem has been initialized.
 #
