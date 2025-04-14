@@ -23,6 +23,7 @@
 #include "../tools/CxStrToken.hpp"
 #include "../tools/CxTimer.hpp"
 #include "../tools/CxPersistentBase.hpp"
+#include "../tools/CxTablePrinter.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
