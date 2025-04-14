@@ -46,6 +46,8 @@ class CxCapabilityRC : public CxCapability {
       unsigned long nOnCode;
       unsigned long nOffCode;
    } m_aCh[RCCHANNELS];
+   
+   uint8_t _nRepeatTransmit = 4;
 
    String _strFriendlyName;
    
@@ -261,6 +263,8 @@ public:
             else {
                println(F("device not found!"));
             }
+         } else if (strSubCmd == "repeat") {
+            _nRepeatTransmit = TKTOINT(tkCmd, 2, _nRepeatTransmit);
          }
          else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
@@ -274,6 +278,7 @@ public:
             println(F("  ch <channel> <on-code> <off-code> <toggle>"));
             println(F("  test"));
             println(F("  init"));
+            println(F("  repeat <n>"));
          }
       } else {
          // command not handled here
