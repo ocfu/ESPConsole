@@ -51,7 +51,9 @@
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
 #if defined (BUILD_ID) && defined (_VERSION)
-#define _VERSION "1.0 (" BUILD_ID ")"
+#define _VERSION_ID _VERSION "(" BUILD_ID ")"
+#elif defined (_VERSION)
+#define _VERSION_ID _VERSION
 #endif
 // for the identification of the binary (e.g. for archiving purposes)
 #if defined (_NAME) && defined (_VERSION)
