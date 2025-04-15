@@ -900,16 +900,10 @@ public:
       std::vector<String> vHeadLine = {F("Nr"),F("Name"),F("Friendly Name"),F("Type"), F("Available"),F("Retained"),F("Topic Base")};
       std::vector<uint8_t> vWidths =  {  3,  20,  20,  10,   9,   8,  30};
       
-      
       table.printHeader(vHeadLine, vWidths);
-      
      
       _t_vecItems::iterator it = _vecItems.begin();
       
-      /// print table header
-#ifndef MINIMAL_HELP
-//      stream.println(F(ESC_ATTR_BOLD "Nr | Name                 | Friendly Name        | Type       | Available | Retained | Topic Base" ESC_ATTR_RESET));
-#endif
       uint8_t n = 1;
       
       while(it != _vecItems.end())
@@ -922,15 +916,6 @@ public:
          table.printRow((*it)->isRetainedCmd()?"yes":"no");
          table.printRow((*it)->getTopicBase());
          table.printRowEnd();
-
-         
-//         stream.printf(ESC_ATTR_BOLD "%-2d |" ESC_ATTR_RESET, n);
-//         stream.printf(" %-20s |", (*it)->getName());
-//         stream.printf(" %-20s |", (*it)->getFriendlyName());
-//         stream.printf(" %-10s |", (*it)->getTypeSz());
-//         stream.printf(" %-9s |", (*it)->isAvailable()?"yes":"no");
-//         stream.printf(" %-8s |", (*it)->isRetainedCmd()?"yes":"no");
-//         stream.printf(" %s\n", (*it)->getTopicBase());
          it++;
          n++;
       }
