@@ -241,23 +241,22 @@ public:
          } else if (strSubCmd == "init") {
             init();
          } else if (strSubCmd == "let") {
-            String strOpertor = TKTOCHAR(tkCmd, 3);
-            CxGPIODevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkCmd, 2));
-            CxGPIODevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkCmd, 4));
+            // rc let <ch> = <dev name>
+            uint8_t ch = TKTOINT(tkCmd, 2, INVALID_UINT8);
+            String strOperator = TKTOCHAR(tkCmd, 3);
+            CxDevice* dev = _gpioDeviceManager.getDevice(TKTOCHAR(tkCmd, 4));
             
-            if (dev1 && dev2) {
-               if (strOpertor == "=") {
-                  dev1->set(dev2->get());
-               }
-            } else if (dev2) {
-               uint8_t ch = TKTOINT(tkCmd, 2, INVALID_UINT8);
+            println("here");
+
+            if (dev && ch != INVALID_UINT8) {
                
-               if (ch != INVALID_UINT8) {
-                  if (dev2->get()) {
-                     on(ch);
-                  } else {
-                     off(ch);
-                  }
+               print("rc let "); print(ch); print(" "); print(strOperator.c_str()); print(" "); print(dev->getName()); println();
+               print("states: rc="); print(get(ch)); print(" "); print("relay="); print(dev->get()); println();
+               
+               if (strOperator == "=") {
+                  set(ch, dev->get());
+               } else if (strOperator == "!=") {
+                  set(ch, !dev->get());
                }
             }
             else {
