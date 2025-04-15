@@ -635,10 +635,10 @@ public:
    void setPins(int nClkPin, int nDataPin) { ///< Set the clock and data pins for the segment display
       _gpioClk.setPin(nClkPin);
       _gpioClk.setPinMode(OUTPUT);
-      _gpioClk.setName("clk");
+      _gpioClk.setGpioName("clk");
       _gpioData.setPin(nDataPin);
       _gpioData.setPinMode(OUTPUT);
-      _gpioData.setName("data");
+      _gpioData.setGpioName("data");
    }
    
    CxGPIO& getGPIOData() {return _gpioData;}

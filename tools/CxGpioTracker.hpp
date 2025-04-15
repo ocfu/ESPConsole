@@ -309,7 +309,7 @@ private:
    uint8_t _nPwmChannel;         // PWM channel associated with the pin
 
 protected:
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
+   //CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
 
    typedef void (*isr_t)();
    uint8_t __isrMode = 0;
@@ -370,16 +370,16 @@ public:
    uint8_t getPin() {return _nPin;}
    
    static bool isValidPin(uint8_t pin) {
-      return (pin < GPIO_MAX_PIN_NUMBER);
+      return (pin <= GPIO_MAX_PIN_NUMBER);
    }
    
-   void setName(const char* name) {
+   void setGpioName(const char* name) {
       if (isValidPin(_nPin)) {
          _gpioTracker.setName(_nPin, name);
       }
    }
    
-   const char* getName() {
+   const char* getGpioName() {
       return _gpioTracker.getName(_nPin);
    }
    
@@ -476,6 +476,10 @@ public:
    String getPinModeString() {
       return _gpioTracker.getPinModeString(_nPin);
    }
+   
+   const char* getPinModeSz() {
+      return _gpioTracker.getPinModeSz(_nPin);
+   };
    
    // Get the pin mode as a raw value
    uint8_t getPinMode() {

@@ -344,10 +344,10 @@ public:
    void setPins(int nPinRx, int nPinTx) { ///< Set the rx and tx pins for the segment display
       m_gpioRx.setPin(nPinRx);
       m_gpioRx.setPinMode(INPUT);
-      m_gpioRx.setName("rx");
+      m_gpioRx.setGpioName("rx");
       m_gpioTx.setPin(nPinTx);
       m_gpioTx.setPinMode(OUTPUT);
-      m_gpioTx.setName("tx");
+      m_gpioTx.setGpioName("tx");
    }
    
    CxGPIO& getGPIOTx() {return m_gpioTx;}
@@ -414,6 +414,18 @@ public:
          return true;
       }
       return false;
+   }
+   
+   void set(uint8_t ch, bool set) {
+      if (set) {
+         on(ch);
+      } else {
+         off(ch);
+      }
+   }
+   
+   bool get(uint8_t ch) {
+      return isOn(ch);
    }
    
    bool toggle(int iCh) {

@@ -485,11 +485,11 @@ public:
    void setPins(int sda, int scl, int vu) {
       _CONSOLE_DEBUG(F("CI2C: setPins(sda=%d, scl=%d, vu=%d)"), sda, scl, vu);
       _gpioSda.setPin(sda);
-      _gpioSda.setName("sda");
+      _gpioSda.setGpioName("sda");
       _gpioScl.setPin(scl);
-      _gpioScl.setName("scl");
+      _gpioScl.setGpioName("scl");
       _gpioVu.setPin(vu);
-      _gpioVu.setName("vu"); // this pin powers the BME280 to be able to restart the sensor, if data fails
+      _gpioVu.setGpioName("vu"); // this pin powers the BME280 to be able to restart the sensor, if data fails
       _gpioVu.setHigh(); // power on
       
    }

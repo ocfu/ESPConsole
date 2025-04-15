@@ -613,7 +613,7 @@ public:
                Led1.setPin(INVALID_PIN);
                Led1.setName("");
             } else {
-               CxGPIODevice* p = _gpioDeviceManager.getDevice(strName.c_str());
+               CxDevice* p = _gpioDeviceManager.getDevice(strName.c_str());
                if (p) {
                   delete p;
                } else {
@@ -623,7 +623,7 @@ public:
             }
          } else if (strSubCmd == "name") {
             if (CxGPIO::isValidPin(nPin)) {
-               CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+               CxDevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
                if (p) {
                   p->setFriendlyName(strValue.c_str());
                   p->setName(strValue.c_str());
@@ -634,7 +634,7 @@ public:
                println(F("invalid pin!"));
             }
          } else if (strSubCmd == "fn") {
-            CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+            CxDevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
             
             if (p) {
                p->setFriendlyName(TKTOCHAR(tkArgs, 3));
@@ -645,8 +645,8 @@ public:
          }
          else if (strSubCmd == "let") {
             String strOpertor = TKTOCHAR(tkArgs, 3);
-            CxGPIODevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
-            CxGPIODevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
+            CxDevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
+            CxDevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
             
             if (dev1 && dev2) {
                if (strOpertor == "=") {
@@ -674,6 +674,7 @@ public:
                println(F("  del <name>"));
                println(F("  let <name> = <name>"));
 #endif
+            }
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -776,7 +777,7 @@ public:
          String strName = TKTOCHAR(tkArgs, 1);
          String strSubCmd = TKTOCHAR(tkArgs, 2);
          
-         CxGPIODevice* pDev = _gpioDeviceManager.getDevice(strName.c_str());
+         CxDevice* pDev = _gpioDeviceManager.getDevice(strName.c_str());
          
          if (strName == "list") {
             _gpioDeviceManager.printList("relay");

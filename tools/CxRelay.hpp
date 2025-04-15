@@ -24,7 +24,7 @@ private:
    bool _bEnabled = true;
    bool m_bDefaultOn = false;
    
-   static void _rlyAction(CxGPIODevice* dev, uint8_t id, const char* cmd) {
+   static void _rlyAction(CxDevice* dev, uint8_t id, const char* cmd) {
       ESPConsole.processCmd(cmd);
    }
    

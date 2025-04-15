@@ -12,22 +12,16 @@
 #include "CxTimer.hpp"
 
 
-class CxGPIODevice : public CxGPIO {
-
+class CxDevice {
    String _strName;
    String _strFriendlyName;
    String _strCmd;
    
-   uint8_t _id = 0;
-  
-   /// Register the device with the manager
-   void registerGPIODevice();
+   uint8_t _id = INVALID_UINT8;
    
-   /// Unregister the device from the manager
-   void unregisterGPIODevice();
-   
+
 public:
-   typedef std::function<void(CxGPIODevice* dev, uint8_t id, const char* cmd)> cbFunc;
+   typedef std::function<void(CxDevice* dev, uint8_t id, const char* cmd)> cbFunc;
    
    void addCallback(cbFunc fp) {if(fp)__cbVec.push_back(fp);}
    
@@ -44,20 +38,25 @@ protected:
          }
       }
    }
+   
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
 
+   /// Register the device with the manager
+   void registerDevice();
+   
+   /// Unregister the device from the manager
+   void unregisterDevice();
    
 public:
-   CxGPIODevice(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false, const char* cmd = "") : CxGPIO(pin, mode, inverted), _strCmd(cmd) {
-      registerGPIODevice();
+   CxDevice(uint8_t id, const char* name, const char* cmd = "") : _id(id), _strName(name), _strCmd(cmd) {
+      registerDevice();
    }
-   CxGPIODevice() : CxGPIO(-1) {}
-   //CxGPIODevice(uint8_t nPin, isr_t p, uint8_t mode = 0x1) : CxGPIO(nPin, p, mode) {}
    
-   virtual ~CxGPIODevice() {
-      unregisterGPIODevice();
+   virtual ~CxDevice() {
+      unregisterDevice();
       end();
    }
-
+   
    uint8_t getId() {return _id;}
    void setId(uint8_t id) {_id = id;}
    
@@ -83,34 +82,48 @@ public:
    }
    const char* getName() {return _strName.c_str();}
    
-   void printDefaultHeadLine() {
-      __console.printf(F(ESC_ATTR_BOLD "Name         | Type       | GPIO | Mode       | Inv | State " ESC_ATTR_RESET));
+   virtual const std::vector<String> getHeadLine(bool bDefault = true) = 0;
+   virtual const std::vector<uint8_t> getWidths(bool bDefault = true) = 0;
+   virtual const std::vector<String> getData(bool bDefault = true) = 0;
+   
+   virtual void set(bool set) = 0;
+   virtual bool get() = 0;
+
+};
+
+
+class CxGPIODevice : public CxDevice, public CxGPIO {
+   
+public:
+   CxGPIODevice(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false, const char* cmd = "") : CxDevice(pin, "", cmd), CxGPIO(pin, mode, inverted) {
+      registerDevice();
    }
    
-   virtual void printHeadLine(bool bGeneral = true) {
-      __console.printf(F(ESC_ATTR_BOLD "| PWM | Analog | Command " ESC_ATTR_RESET ));
+   virtual ~CxGPIODevice() {
+      unregisterDevice();
+      end();
    }
+
+   virtual void set(bool set) override {CxGPIO::set(set);}
+   virtual bool get() override {return CxGPIO::get();}
    
-   void printDefaultData() {
-      __console.printf(F(ESC_ATTR_BOLD "%-11s " ESC_ATTR_RESET " | %-10s | %02d   | %-10s | %-3s |"), getName(), getTypeSz(), getPin(), getPinModeString().c_str(), isInverted() ? "yes" : "no");
-      
-      if (isInverted()) {
-         __console.printf("!");
-      } else {
-         __console.printf(" ");
-      }
-      __console.printf(F("%-5s "), getDigitalState() ? "on" : "off");
-   }
+   virtual void begin() override {}
+   virtual void loop(bool bDegraded = false) override {}
+   virtual void end() override {}
    
-   virtual void printData(bool bGeneral = true) {
-      __console.printf(F("| %-3s | "), isPWM() ? "yes" : "no");
-      if (isAnalog()) {
-         __console.printf(F(" %6d | "), getAnalogValue());
-      } else {
-         __console.printf(F("       | "));
-      }
-      __console.printf(F("%s "), getCmd());
-   }
+   virtual const char* getTypeSz() override = 0;
+   
+   virtual const std::vector<String> getHeadLine(bool bDefault = true) override {
+      return {F("Id"), F("Name"), F("Type"), F("GPIO"), F("Mode"), F("Inv"), F("State"), F("Cmd")};
+   };
+   
+   virtual const std::vector<uint8_t> getWidths(bool bDefault = true) override {
+      return {2, 11, 10, 4, 10, 3, 5, 20};
+   };
+   
+   virtual const std::vector<String> getData(bool bDefault = true) override {
+      return {String(getId()), getName(), getTypeSz(), String(getPin()).c_str(), getPinModeSz(), isInverted() ? "yes" : "no", getDigitalState() ? "on" : "off", getCmd()};
+   };
 
 };
 
@@ -122,7 +135,7 @@ private:
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
    
    /// Map to store Devices with their unique IDs
-   std::map<uint8_t, CxGPIODevice*> _mapDevices;
+   std::map<uint8_t, CxDevice*> _mapDevices;
    
    /// Private constructor to enforce singleton pattern
    CxGPIODeviceManagerManager() = default;
@@ -158,13 +171,12 @@ public:
    }
    
    /// add Device
-   void addDevice(CxGPIODevice* pDevice) {
+   void addDevice(CxDevice* pDevice) {
       if (pDevice) {
-         uint8_t nId = createId();
-         /// Set the unique ID for the sensor
-         pDevice->setId(nId);
-         /// Add the sensor to the map
-         _mapDevices[nId] = pDevice;
+         if (pDevice && pDevice->getId() != INVALID_UINT8) {
+            /// Add the sensor to the map
+            _mapDevices[pDevice->getId()] = pDevice;
+         }
       }
    }
    
@@ -184,7 +196,7 @@ public:
    }
    
    /// Get a Device by its unique ID
-   CxGPIODevice* getDevice(uint8_t id) {
+   CxDevice* getDevice(uint8_t id) {
       if (_mapDevices.find(id) != _mapDevices.end()) {
          return _mapDevices[id];
       }
@@ -192,7 +204,7 @@ public:
    }
    
    /// Get a Device by its name
-   CxGPIODevice* getDevice(const char* name) {
+   CxDevice* getDevice(const char* name) {
       for (auto& it : _mapDevices) {
          if (strcmp(it.second->getName(), name) == 0) {
             return it.second;
@@ -202,9 +214,9 @@ public:
    }
    
    /// get a device by its pin
-   CxGPIODevice* getDeviceByPin(uint8_t pin) {
+   CxDevice* getDeviceByPin(uint8_t pin) {
       for (auto& it : _mapDevices) {
-         if (it.second->getPin() == pin) {
+         if (it.second->getId() == pin) {
             return it.second;
          }
       }
@@ -219,7 +231,7 @@ public:
    
    /// get a device by its type.
    /// The first device found will be returned.
-   CxGPIODevice* getDeviceByType(const char* type) {
+   CxDevice* getDeviceByType(const char* type) {
       for (auto& it : _mapDevices) {
          if (strcmp(it.second->getTypeSz(), type) == 0) {
             return it.second;
@@ -232,7 +244,7 @@ public:
    /// pin in use?
    bool isPinInUse(uint8_t pin) {
       for (auto& it : _mapDevices) {
-         if (it.second->getPin() == pin) {
+         if (it.second->getId() == pin) {
             return true;
          }
       }
@@ -280,12 +292,12 @@ public:
    }
 };
 
-void CxGPIODevice::registerGPIODevice() {
+void CxDevice::registerDevice() {
    CxGPIODeviceManagerManager::getInstance().addDevice(this);
    
 }
 
-void CxGPIODevice::unregisterGPIODevice() {
+void CxDevice::unregisterDevice() {
    CxGPIODeviceManagerManager::getInstance().removeDevice(getId());
 }
 
