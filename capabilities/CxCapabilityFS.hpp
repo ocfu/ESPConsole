@@ -141,6 +141,7 @@ public:
        } else if (cmd == "cat") {cat(a);
        } else if (cmd == "cp") {cp(a, b);
        } else if (cmd == "rm") {rm(a);
+       } else if (cmd == "mv") {mv(a, b);
        } else if (cmd == "touch") {
           touch(a);
        } else if (cmd == "mount") {
@@ -450,6 +451,31 @@ public:
       }
    }
    
+   void mv(const char *szSrc, const char *szDst) {
+      if (! szSrc || ! szDst) {
+         println(F("usage: mv <src_file> <tgt_file>"));
+         return;
+      }
+      if (hasFS()) {
+#ifdef ARDUINO
+         if (LittleFS.exists(szSrc)) {
+            static char buf[64];
+            
+            // FIXME: cp need y/n query if dst exist, unless -f is given as parameter
+            if (LittleFS.exists(szDst)) LittleFS.remove(szDst);
+            if (!LittleFS.rename(szSrc, szDst)) {
+               println(F("Failed to rename file"));
+            }
+         } else {
+            _printNoSuchFileOrDir("mv", szSrc);
+         }
+#else
+#endif
+      } else {
+         _printNoFS();
+      }
+   }
+
    void touch(const char* szFn) {
       if (! szFn) {
          println(F("usage: touch <file>"));
