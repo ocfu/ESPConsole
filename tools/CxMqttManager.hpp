@@ -654,7 +654,7 @@ public:
    
    bool publish(const char* payload, bool retained = false) { return publish(_strTopic.c_str(), payload, retained); } ///< Publishes a message to the set topic.
    bool publish(const char* topic, const char* payload, bool retained = false) { ///< Publishes to a specific topic.
-      if (_mqttManager.isIntitialized()) {
+      if (_mqttManager.isIntitialized() && _mqttManager.isConnected()) {
          return _mqttManager.publish(topic, payload, retained);
       } else {
          return false;
