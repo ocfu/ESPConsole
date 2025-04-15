@@ -253,17 +253,7 @@ public:
             }
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bHAEnabled);
-#ifndef MINIMAL_HELP
-            println(F("ha commands:"));
-            println(F("  enable 0|1"));
-            println(F("  list"));
-            println(F("  sensor add <name>"));
-            println(F("  sensor del <name>"));
-            println(F("  button add <name>"));
-            println(F("  button del <name>"));
-            println(F("  switch add <name>"));
-            println(F("  switch del <name>"));
-#endif
+            __console.man(getName());
          }
       } else {
          return false;

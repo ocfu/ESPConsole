@@ -527,14 +527,7 @@ public:
             } else if (strFunc == "off") {
                _bSlideShowOn = false;
             } else {
-#ifndef MINIMAL_HELP
-               __console.println(F("seg slideshow commands:"));
-               __console.println(F("  add <screen>"));
-               __console.println(F("  del <screen>"));
-               __console.println(F("  list"));
-               __console.println(F("  on"));
-               __console.println(F("  off"));
-#endif
+               __console.man(strSubCmd.c_str());
             }
          } else if (strSubCmd == "init") {
             init();
@@ -543,24 +536,7 @@ public:
             printf(F(ESC_ATTR_BOLD " Brightness:   " ESC_ATTR_RESET "%d\n"), _nBrigthness);
             printf(F(ESC_ATTR_BOLD " Slide show:   " ESC_ATTR_RESET "%s\n"), (_bSlideShowOn ? "on" : "off"));
             printf(F(ESC_ATTR_BOLD " Screens:      " ESC_ATTR_RESET "%d\n"), _mapScreens.size());
-            println(F("seg commands:"));
-            println(F("  enable 0|1"));
-            println(F("  setpins <clk> <data>"));
-            println(F("  list"));
-            println(F("  br <brightness> (0..100)"));
-            println(F("  print <value>"));
-            println(F("  clear"));
-            println(F("  on"));
-            println(F("  off"));
-            println(F("  blink [<n>]"));
-            println(F("  msg <msg>"));
-            println(F("  opt <n>"));
-            println(F("  level <n> [0|1]"));
-            println(F("  screen"));
-            println(F("  show <screen>"));
-            println(F("  slideshow"));
-            println(F("  test"));
-            println(F("  init"));
+            __console.man(getName());
          }
       } else {
          // command not handled here

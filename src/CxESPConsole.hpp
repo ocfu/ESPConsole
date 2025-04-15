@@ -63,6 +63,7 @@ class CxESPConsoleBase : public Print, public CxPersistentBase {
    std::function<void(const char*)> _funcInfo;
    std::function<void(const char*)> _funcError;
    std::function<void(const char*, const char*)> _funcExecuteBatch;
+   std::function<void(const char*)> _funcMan;
 
 protected:
    bool __bIsWiFiClient = false;
@@ -128,6 +129,7 @@ public:
    }
    
    void executeBatch(const char* sz, const char* label) {if (_funcExecuteBatch) _funcExecuteBatch(sz, label);}
+   void man(const char* sz) {if (_funcMan) _funcMan(sz);}
    bool isSafeMode() {return __bIsSafeMode;}
    void setSafeMode(bool b) {__bIsSafeMode = b;}
    
@@ -144,6 +146,8 @@ public:
    
    void setFuncExecuteBatch(std::function<void(const char*, const char*)> f) {_funcExecuteBatch = f;}
    void clearFuncExecuteBatch() {_funcExecuteBatch = nullptr;}
+   void setFuncMan(std::function<void(const char*)> f) {_funcMan = f;}
+   void clearFuncMan() {_funcMan = nullptr;}
 
 };
 

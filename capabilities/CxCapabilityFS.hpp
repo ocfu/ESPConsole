@@ -61,7 +61,7 @@ public:
    explicit CxCapabilityFS() : CxCapability("fs", getCmds()) {}
    static constexpr const char* getName() { return "fs"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "log", "exec" };
+      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "log", "exec", "mv", "man" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -101,6 +101,7 @@ public:
       ESPConsole.setFuncError([this](const char *c) { this->_error(c); });
       
       ESPConsole.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
+      ESPConsole.setFuncMan([this](const char *sz) { this->man(sz); });
  
       CxPersistentImpl::getInstance().setImplementation(ESPConsole);
  
@@ -183,11 +184,7 @@ public:
              printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __console.getDebugFlag());
              printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
              printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
-#ifndef MINIMAL_HELP
-             println(F("log commands:"));
-             println(F("  server <server> <port>"));
-             println(F("  level <level>"));
-#endif
+             man("log");
              _CONSOLE_INFO(F("test log message"));
           }
        } else if (cmd == "exec") {
@@ -196,7 +193,10 @@ public:
           } else {
              println(F("usage: exec <batchfile>"));
           }
-       } else {
+       } else if (cmd == "man") {
+          man(TKTOCHAR(tkArgs, 1));
+       }
+       else {
           return false;
        }
       g_Stack.update();
@@ -748,25 +748,20 @@ private:
       // TODO: improve as this String map is worse for the memory fragmentation
       std::map<String, String> variables; // Map to store variables
       
-      if (label) variables["LABEL"] = label;
-      variables["HOSTNAME"] = __console.getHostName();
-      
-      if (variables["LABEL"] == "fs") {
-         __console.print("hostname = ");;
-         __console.println(variables["HOSTNAME"]);
-      }
+      if (label) variables[F("LABEL")] = label;
+      variables[F("HOSTNAME")] = __console.getHostName();
       
       strBatchFile.reserve((uint32_t)strlen(path) + 5); // +4 for ".bat" and +1 for null terminator
       strBatchFile = path;
 
       // veryfy if the file name ends with .bat and if it exists
-      if (strBatchFile.length() > 4 && strBatchFile.endsWith(".bat")) {
+      if (strBatchFile.length() > 4 && (strBatchFile.endsWith(".bat") || strBatchFile.endsWith(".man"))) {
          // file name is ok
       } else if (strBatchFile.length() > 0) {
-         // add extension
+         // add extension, presume it is a batch file
          strBatchFile += ".bat";
       } else {
-         __console.error(F("Invalid batch file name '%s'. Must end with .bat"), path);
+         __console.error(F("Invalid batch/man file name '%s'. Must end with .bat or .man"), path);
          return;
       }
       
@@ -862,6 +857,10 @@ private:
       
       file.close();
 #endif
+   }
+   
+   void man(const char* szCap) {
+      executeBatch("man.man", szCap);
    }
       
 private:

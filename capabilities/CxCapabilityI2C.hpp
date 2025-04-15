@@ -326,14 +326,7 @@ public:
             printf(F(ESC_ATTR_BOLD " SDA Pin:      " ESC_ATTR_RESET "%d\n"), _gpioSda.getPin());
             printf(F(ESC_ATTR_BOLD " SCL Pin:      " ESC_ATTR_RESET "%d\n"), _gpioScl.getPin());
             printf(F(ESC_ATTR_BOLD " VU Pin:       " ESC_ATTR_RESET "%d\n"), _gpioVu.getPin());
-#ifndef MINIMAL_HELP
-            println(F("i2c commands:"));
-            println(F("  enable 0|1"));
-            println(F("  setpins <sda> <scl> [<vu>]"));
-            println(F("  list"));
-            println(F("  scan"));
-            println(F("  init"));
-#endif
+            __console.man(getName());
          }
       } else {
          // command not handled here

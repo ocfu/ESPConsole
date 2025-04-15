@@ -1,0 +1,182 @@
+# script to show help for commands
+
+#
+# basic
+#
+cap:
+echo "usage: cap <cmd> [<param> <...>]"
+echo "commands:"
+echo " load <cap. name>"
+echo " unload <cap. name>"
+echo " list"
+
+usr:
+echo "usage: usr <cmd> [<flag/value> [<0|1>]]"
+echo " 0           be quiet, switch all log messages off on the console."
+echo " 1  <1..5>   set the log level to show log messages on the console."
+echo " 2  <flag>   set the extended debug flag(s) to the value."
+echo " 2  <flag> 0 clear an extended debug flag."
+echo " 2  <flag> 1 add an extended debug flag."
+
+#
+# ext
+#
+gpio:
+echo "gpio commands:"
+echo "  state [<pin>]"
+echo "  set <pin> <mode> (in, out, pwm, inverted, non-inverted"
+echo "  set <pin> 0...1023 (set pin state to value)"
+echo "  name <pin> <name>"
+echo "  fn <pin> <friendly name>"
+echo "  get <pin>"
+echo "  list"
+echo "  add <pin> <type> <name> <inverted> [<cmd>]"
+echo "  del <name>"
+echo "  let <name> = <name>"
+
+set:
+echo "set environment variable."
+echo "usage: set <env> <server>"
+echo "known env variables:\n ntp <server>\n tz <timezone>"
+echo "example: set ntp pool.ntp.org"
+echo "example: set tz CET-1CEST,M3.5.0,M10.5.0/3"
+echo "show eeprom content."
+
+eeprom:
+echo "usage: eeprom [<start address>] [<length>]"
+
+wifi:
+echo "wifi commands:"
+echo "  ssid [<ssid>]"
+echo "  password [<password>]"
+echo "  hostname [<hostname>]"
+echo "  connect [<ssid> <password>]"
+echo "  disconnect"
+echo "  status"
+echo "  scan"
+echo "  otapw [<password>]"
+echo "  ap"
+echo "  sensor"
+
+led:
+echo "led commands:"
+echo "  on|off"
+echo "  blink [period] [duty]"
+echo "  blink [pattern] (ok, error...)"
+echo "  flash [period] [duty] [number]"
+echo "  invert [0|1]"
+
+sensor:
+echo "sensor commands:"
+echo "  list"
+echo "  name <id> <name>"
+echo "  get <id>"
+
+relay:
+echo "relay commands:"
+echo "  list"
+echo "  <name> on"
+echo "  <name> off"
+echo "  <name> toggle"
+echo "  <name> offtimer <ms>"
+echo "  <name> default <0|1>"
+
+
+#
+# fs
+#
+log:
+echo "log commands:"
+echo "  server <server> <port>"
+echo "  level <level>"
+
+#
+# mqtt
+#
+mqtt:
+echo "mqtt commands:"
+echo "  server <server> <port>"
+echo "  qos <qos>"
+echo "  root <root path>"
+echo "  name <name>"
+echo "  will <0|1> [<will topic>]"
+echo "  connect [<server>] [<port>]"
+echo "  stop"
+echo "  heartbeat <period in ms> (0, 1000...n)"
+echo "  list"
+echo "  publish <topic> <message> [<0|1> (retain)]"
+
+#
+# ha
+#
+ha:
+echo "ha commands:"
+echo "  enable 0|1"
+echo "  list"
+echo "  sensor add <name>"
+echo "  sensor del <name>"
+echo "  button add <name>"
+echo "  button del <name>"
+echo "  switch add <name>"
+echo "  switch del <name>"
+
+#
+# seg
+#
+seg:
+echo "seg commands:"
+echo "  enable 0|1"
+echo "  setpins <clk> <data>"
+echo "  list"
+echo "  br <brightness> (0..100)"
+echo "  print <value>"
+echo "  clear"
+echo "  on"
+echo "  off"
+echo "  blink [<n>]"
+echo "  msg <msg>"
+echo "  opt <n>"
+echo "  level <n> [0|1]"
+echo "  screen"
+echo "  show <screen>"
+echo "  slideshow"
+echo "  test"
+echo "  init"
+
+slideshow:
+echo "seg slideshow commands:"
+echo "  add <screen>"
+echo "  del <screen>"
+echo "  list"
+echo "  on"
+echo "  off"
+
+
+#
+# i2c
+#
+i2c:
+echo "i2c commands:"
+echo "  enable 0|1"
+echo "  setpins <sda> <scl> [<vu>]"
+echo "  list"
+echo "  scan"
+echo "  init"
+
+#
+# rc
+#
+rc:
+echo "rf commands:"
+echo "  enable 0|1"
+echo "  setpins <rx> <tx>"
+echo "  list"
+echo "  on <ch>"
+echo "  off <ch>"
+echo "  fn <name>"
+echo "  ch <channel> <on-code> <off-code> <toggle>"
+echo "  test"
+echo "  init"
+echo "  repeat <n>"
+echo
+

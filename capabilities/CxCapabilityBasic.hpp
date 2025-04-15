@@ -124,13 +124,17 @@ public:
                __console.listCap();
             }
          } else {
+            if (__console.hasFS()) {
+               __console.man("cap");
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("usage: cap <cmd> [<param> <...>]"));
-            println(F("commands:"));
-            println(F(" load <cap. name>"));
-            println(F(" unload <cap. name>"));
-            println(F(" list"));
+               println(F("usage: cap <cmd> [<param> <...>]"));
+               println(F("commands:"));
+               println(F(" load <cap. name>"));
+               println(F(" unload <cap. name>"));
+               println(F(" list"));
 #endif
+            }
          }
          return true;
       } else if (cmd == "reboot") {
@@ -252,14 +256,18 @@ public:
                break;
                
             default:
-               println(F("usage: usr <cmd> [<flag/value> [<0|1>]]"));
+               if (__console.hasFS()) {
+                  __console.man("usr");
+               } else {
+                  println(F("usage: usr <cmd> [<flag/value> [<0|1>]]"));
 #ifndef MINIMAL_HELP
-               println(F(" 0           be quiet, switch all log messages off on the console."));
-               println(F(" 1  <1..5>   set the log level to show log messages on the console."));
-               println(F(" 2  <flag>   set the extended debug flag(s) to the value."));
-               println(F(" 2  <flag> 0 clear an extended debug flag."));
-               println(F(" 2  <flag> 1 add an extended debug flag."));
+                  println(F(" 0           be quiet, switch all log messages off on the console."));
+                  println(F(" 1  <1..5>   set the log level to show log messages on the console."));
+                  println(F(" 2  <flag>   set the extended debug flag(s) to the value."));
+                  println(F(" 2  <flag> 0 clear an extended debug flag."));
+                  println(F(" 2  <flag> 1 add an extended debug flag."));
 #endif
+               }
                break;
          }
       } else if (cmd == "echo") {

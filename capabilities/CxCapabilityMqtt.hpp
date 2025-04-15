@@ -167,19 +167,7 @@ public:
             printf(F(ESC_ATTR_BOLD " Will topic:   " ESC_ATTR_RESET "%s\n"), __mqttManager.getWillTopic());
             printf(F(ESC_ATTR_BOLD " Heartb. per.: " ESC_ATTR_RESET "%d"), _timerHeartbeat.getPeriod()); println(F(" ms"));
             println();
-#ifndef MINIMAL_HELP
-            println(F(ESC_ATTR_BOLD "mqtt commands:" ESC_ATTR_RESET));
-            println(F("  server <server> <port>"));
-            println(F("  qos <qos>"));
-            println(F("  root <root path>"));
-            println(F("  name <name>"));
-            println(F("  will <0|1> [<will topic>]"));
-            println(F("  connect [<server>] [<port>]"));
-            println(F("  stop"));
-            println(F("  heartbeat <period in ms> (0, 1000...n)"));
-            println(F("  list"));
-            println(F("  publish <topic> <message> [<0|1> (retain)]"));
-#endif
+            __console.man(getName());
          }
       } else {
          return false;

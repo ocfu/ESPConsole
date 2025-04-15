@@ -268,17 +268,8 @@ public:
          }
          else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
-            println(F("rf commands:"));
-            println(F("  enable 0|1"));
-            println(F("  setpins <rx> <tx>"));
-            println(F("  list"));
-            println(F("  on <ch>"));
-            println(F("  off <ch>"));
-            println(F("  fn <name>"));
-            println(F("  ch <channel> <on-code> <off-code> <toggle>"));
-            println(F("  test"));
-            println(F("  init"));
-            println(F("  repeat <n>"));
+            listStates();
+            __console.man(getName());
          }
       } else {
          // command not handled here

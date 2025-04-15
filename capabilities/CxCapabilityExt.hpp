@@ -372,22 +372,30 @@ public:
          } else if (strVar == "tz") {
             __console.setTimeZone(TKTOCHAR(tkArgs, 2));
          } else {
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("set environment variable."));
-            println(F("usage: set <env> <server>"));
-            println(F("known env variables:\n ntp <server>\n tz <timezone>"));
-            println(F("example: set ntp pool.ntp.org"));
-            println(F("example: set tz CET-1CEST,M3.5.0,M10.5.0/3"));
+               println(F("set environment variable."));
+               println(F("usage: set <env> <server>"));
+               println(F("known env variables:\n ntp <server>\n tz <timezone>"));
+               println(F("example: set ntp pool.ntp.org"));
+               println(F("example: set tz CET-1CEST,M3.5.0,M10.5.0/3"));
 #endif
+            }
          }
       } else if (cmd == "eeprom") {
          if (a) {
             ::printEEPROM(getIoStream(), TKTOINT(tkArgs, 1, 0), TKTOINT(tkArgs, 2, 128));
          } else {
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("show eeprom content."));
-            println(F("usage: eeprom [<start address>] [<length>]"));
+               println(F("show eeprom content."));
+               println(F("usage: eeprom [<start address>] [<length>]"));
 #endif
+            }
          }
       } else if (cmd == "wifi") {
          String strCmd = TKTOCHAR(tkArgs, 1);
@@ -437,19 +445,23 @@ public:
             delay(500);
             _beginAP();
          } else {
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("wifi commands:"));
-            println(F("  ssid [<ssid>]"));
-            println(F("  password [<password>]"));
-            println(F("  hostname [<hostname>]"));
-            println(F("  connect [<ssid> <password>]"));
-            println(F("  disconnect"));
-            println(F("  status"));
-            println(F("  scan"));
-            println(F("  otapw [<password>]"));
-            println(F("  ap"));
-            println(F("  sensor"));
+               println(F("wifi commands:"));
+               println(F("  ssid [<ssid>]"));
+               println(F("  password [<password>]"));
+               println(F("  hostname [<hostname>]"));
+               println(F("  connect [<ssid> <password>]"));
+               println(F("  disconnect"));
+               println(F("  status"));
+               println(F("  scan"));
+               println(F("  otapw [<password>]"));
+               println(F("  ap"));
+               println(F("  sensor"));
 #endif
+            }
          }
       } else if (cmd == "ping") {
          if (!a && !b) {
@@ -646,18 +658,21 @@ public:
          }
          else {
             _gpioTracker.printAllStates(getIoStream());
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("gpio commands:"));
-            println(F("  state [<pin>]"));
-            println(F("  set <pin> <mode> (in, out, pwm, inverted, non-inverted"));
-            println(F("  set <pin> 0...1023 (set pin state to value)"));
-            println(F("  name <pin> <name>"));
-            println(F("  fn <pin> <friendly name>"));
-            println(F("  get <pin>"));
-            println(F("  list"));
-            println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
-            println(F("  del <name>"));
-            println(F("  let <name> = <name>"));
+               println(F("gpio commands:"));
+               println(F("  state [<pin>]"));
+               println(F("  set <pin> <mode> (in, out, pwm, inverted, non-inverted"));
+               println(F("  set <pin> 0...1023 (set pin state to value)"));
+               println(F("  name <pin> <name>"));
+               println(F("  fn <pin> <friendly name>"));
+               println(F("  get <pin>"));
+               println(F("  list"));
+               println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
+               println(F("  del <name>"));
+               println(F("  let <name> = <name>"));
 #endif
          }
       } else if (cmd == "led") {
@@ -713,14 +728,18 @@ public:
             }
          } else {
             printf(F("LED on pin %02d%s\n"), Led1.getPin(), Led1.isInverted() ? ",inverted":"");
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("led commands:"));
-            println(F("  on|off"));
-            println(F("  blink [period] [duty]"));
-            println(F("  blink [pattern] (ok, error...)"));
-            println(F("  flash [period] [duty] [number]"));
-            println(F("  invert [0|1]"));
+               println(F("led commands:"));
+               println(F("  on|off"));
+               println(F("  blink [period] [duty]"));
+               println(F("  blink [pattern] (ok, error...)"));
+               println(F("  flash [period] [duty] [number]"));
+               println(F("  invert [0|1]"));
 #endif
+            }
          }
       } else if (cmd == "sensor") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -742,12 +761,16 @@ public:
                println(F("invalid sensor id!"));
             }
          } else {
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("sensor commands:"));
-            println(F("  list"));
-            println(F("  name <id> <name>"));
-            println(F("  get <id>"));
+               println(F("sensor commands:"));
+               println(F("  list"));
+               println(F("  name <id> <name>"));
+               println(F("  get <id>"));
 #endif
+            }
          }
       } else if (cmd == "relay") {
          String strName = TKTOCHAR(tkArgs, 1);
@@ -781,15 +804,19 @@ public:
                }
             }
          } else {
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
 #ifndef MINIMAL_HELP
-            println(F("relay commands:"));
-            println(F("  list")); // TODO: list relays
-            println(F("  <name> on"));
-            println(F("  <name> off"));
-            println(F("  <name> toggle"));
-            println(F("  <name> offtimer <ms>"));
-            println(F("  <name> default <0|1>"));
+               println(F("relay commands:"));
+               println(F("  list")); // TODO: list relays
+               println(F("  <name> on"));
+               println(F("  <name> off"));
+               println(F("  <name> toggle"));
+               println(F("  <name> offtimer <ms>"));
+               println(F("  <name> default <0|1>"));
 #endif
+            }
          }
       } else {
          return false;
