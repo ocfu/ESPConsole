@@ -17,6 +17,10 @@ uint8_t CxESPConsole::__nUsers = 0;
 CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 
 bool CxESPConsoleMaster::processCmd(const char* cmd, bool bQuiet) {
+   // TODO: conditional execution of commands
+   //       cmd1 && cmd2: execute cmd2 only, if cmd1 was successfully, return result of cmd2
+   //       cmd1 || cmd2: execute cmd2 only, if cmd1 was not successfully, return result of first successfull cmd
+   //       cmd1;cmd2: execute cmd1 and cmd2, return result of overall result (if any was successfully)
    if (!cmd) return false;
    
    // Create a copy of the command string to parse
