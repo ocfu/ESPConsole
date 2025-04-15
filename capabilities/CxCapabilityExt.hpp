@@ -92,7 +92,7 @@ const byte DNS_PORT = 53;
 
 #if !defined(CxCapabilityFS_hpp)
 
-// HTML and CSS as embedded strings
+// HTML page for the AP without CSS style to save some bin size
 const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
@@ -100,56 +100,6 @@ const char htmlPageTemplate[] PROGMEM = R"rawliteral(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WiFi Setup</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f4f9;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .container {
-      text-align: center;
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      width: 300px;
-    }
-    h1 {
-      margin-bottom: 20px;
-      font-size: 24px;
-    }
-    form {
-      display: flex;
-      flex-direction: column;
-    }
-    label {
-      margin-bottom: 5px;
-      text-align: left;
-    }
-    select, input {
-      margin-bottom: 15px;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      width: 100%;
-    }
-    button {
-      background-color: #007bff;
-      color: white;
-      padding: 10px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-  </style>
 </head>
 <body>
   <div class="container">
@@ -167,7 +117,6 @@ const char htmlPageTemplate[] PROGMEM = R"rawliteral(
 </body>
 </html>
 )rawliteral";
-
 #else
 
 #ifdef ARDUINO
