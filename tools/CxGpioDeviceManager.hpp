@@ -271,7 +271,9 @@ public:
       /// print table header (ID, name, type,...)
 
       uint8_t n = 0;
-      bool bGeneral = (strType.length() == 0);
+      bool bDefault = (strType.length() == 0);
+      
+      CxTablePrinter table(*__console.getStream());
       
       /// iterate over all sensors and print formated sensor information
       for (const auto& [nId, pDevice] : _mapDevices) {
@@ -280,14 +282,9 @@ public:
          }
          
          if (n++ == 0) {
-            pDevice->printDefaultHeadLine();
-            pDevice->printHeadLine(bGeneral);
-            __console.println();
+            table.printHeader(pDevice->getHeadLine(bDefault), pDevice->getWidths(bDefault));
          }
-
-         pDevice->printDefaultData();
-         pDevice->printData(bGeneral);
-         __console.println();
+         table.printRow(pDevice->getData(bDefault));
       }
    }
 };

@@ -454,7 +454,26 @@ public:
       return false;
    }
 
-
+   void listStates() {
+      // list states
+      CxTablePrinter table(*__console.getStream());
+      
+      table.printHeader("Ch", 3); //, "On", "Toggle", "OnCode", "OffCode");
+      table.printHeader("On", 5);
+      table.printHeader("Toggle", 7);
+      table.printHeader("OnCode", 10);
+      table.printHeader("OffCode", 10);
+      table.printHeaderEnd();
+      
+      for (int i = 0; i < RCCHANNELS; i++) {
+         table.printRow(String(i).c_str());
+         table.printRow(isOn(i) ? "on" : "off");
+         table.printRow(isToggle(i) ? "on" : "off");
+         table.printRow(String(getOnCode(i)).c_str());
+         table.printRow(String(getOffCode(i)).c_str());
+         table.printRowEnd();
+      }
+   }
 
    /**
     * @brief Tests the segment display capability.

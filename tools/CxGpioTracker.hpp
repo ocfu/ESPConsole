@@ -108,6 +108,10 @@ public:
     * @return String representation of the pin mode.
     */
    String getPinModeString(uint8_t pin) {
+      return String(getPinModeSz(pin));
+   }
+   
+   const char* getPinModeSz(uint8_t pin) {
       uint8_t mode = getMode(pin);
       switch (mode) {
          case INPUT:

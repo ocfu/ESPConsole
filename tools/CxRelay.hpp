@@ -59,22 +59,39 @@ public:
       _timerOff.loop();
    }
 
-   virtual void printHeadLine(bool bGeneral = true) override {
-      if (bGeneral) {
-         CxGPIODevice::printHeadLine();
+   virtual const std::vector<String> getHeadLine(bool bDefault = true) override {
+      if (bDefault) {
+         return CxGPIODevice::getHeadLine();
       } else {
-         __console.printf(F(ESC_ATTR_BOLD "| Off-timer | Default-on | Command" ESC_ATTR_RESET ));
+         std::vector<String> headLine = CxGPIODevice::getHeadLine();
+         headLine.push_back(F("Off-timer"));
+         headLine.push_back(F("Default-on"));
+         return headLine;
+      }
+   };
+   
+   virtual const std::vector<uint8_t> getWidths(bool bDefault = true) override {
+      if (bDefault) {
+         return CxGPIODevice::getWidths();
+      } else {
+         std::vector<uint8_t> widths = CxGPIODevice::getWidths();
+         widths.push_back(10); // off-timer
+         widths.push_back(10); // default-on
+         return widths;
+      }
+   };
+   
+   virtual const std::vector<String> getData(bool bDefault = true) override {
+      if (bDefault) {
+         return CxGPIODevice::getData();
+      } else {
+         std::vector<String> data = CxGPIODevice::getData();
+         data.push_back(String(_timerOff.getPeriod()));
+         data.push_back(isDefaultOn() ? "yes" : "no");
+         return data;
       }
    }
-   
-   virtual void printData(bool bGeneral = true) override {
-      if (bGeneral) {
-         CxGPIODevice::printData();
-      } else {
-         __console.printf(F("| %9d | %10s | %s"), getOffTimer(), isDefaultOn() ? "on" : "off", getCmd());
-      }
-   }
-   
+
    void setPin(uint8_t nPin) {CxGPIODevice::setPin(nPin); setPinMode(OUTPUT);} // overwrite virtual base function. RELAY is always an output
 
    void setDefaultOn(bool set = true) {
