@@ -167,7 +167,7 @@ echo "  init"
 # rc
 #
 rc:
-echo "rf commands:"
+echo "rc commands:"
 echo "  enable 0|1"
 echo "  setpins <rx> <tx>"
 echo "  list"
