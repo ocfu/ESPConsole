@@ -71,11 +71,11 @@ protected:
    
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    
-   virtual void __debug(const char* sz) {if(_funcDebug) _funcDebug(sz); else println(sz);}
-   virtual void __debug_ext(uint32_t flag, const char* sz) {if(_funcDebugExt) _funcDebugExt(flag, sz); else println(sz);}
-   virtual void __info(const char* sz) {if(_funcInfo) _funcInfo(sz); else println(sz);}
-   virtual void __warn(const char* sz) {if(_funcWarn) _funcWarn(sz); else println(sz);}
-   virtual void __error(const char* sz) {if(_funcError) _funcError(sz); else println(sz);}
+   virtual void __debug(const char* sz) {if(_funcDebug) _funcDebug(sz); else if (!__bIsWiFiClient) println(sz);}
+   virtual void __debug_ext(uint32_t flag, const char* sz) {if(_funcDebugExt) _funcDebugExt(flag, sz); else if (!__bIsWiFiClient) println(sz);}
+   virtual void __info(const char* sz) {if(_funcInfo) _funcInfo(sz); else if (!__bIsWiFiClient) println(sz);}
+   virtual void __warn(const char* sz) {if(_funcWarn) _funcWarn(sz); else if (!__bIsWiFiClient) println(sz);}
+   virtual void __error(const char* sz) {if(_funcError) _funcError(sz); else if (!__bIsWiFiClient) println(sz);}
 
 public:
    explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream) {}
@@ -129,6 +129,14 @@ public:
    }
    
    void executeBatch(const char* sz, const char* label) {if (_funcExecuteBatch) _funcExecuteBatch(sz, label);}
+   void executeBatch(Stream& stream, const char* sz, const char* label) {
+      if (_funcExecuteBatch) {
+         Stream* pStream = __ioStream;
+         __ioStream = &stream;
+         _funcExecuteBatch(sz, label);
+         __ioStream = pStream;
+      }
+   }
    void man(const char* sz) {if (_funcMan) _funcMan(sz);}
    bool isSafeMode() {return __bIsSafeMode;}
    void setSafeMode(bool b) {__bIsSafeMode = b;}
@@ -445,18 +453,12 @@ class CxESPConsoleClient : public CxESPConsole {
 public:
    CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 
-   virtual void begin() override {
-      info(F("==== CLIENT ===="));
-      
-      CxESPConsole::begin();
-   };
+   virtual void begin() override;
    
    virtual void loop() override {
       CxESPConsole::loop();
    };
    
-   virtual void wlcm() override;
-
 };
 
 
@@ -693,8 +695,6 @@ public:
       begin();
    };
 #endif
-   
-   virtual void wlcm() override;
    
    void setLoopDelay(uint32_t delay) {
       if ( delay < 1000) {

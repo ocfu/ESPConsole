@@ -126,7 +126,7 @@ void CxESPConsole::begin() {
    }
    __nUsers++;
    setConsoleName(""); // shall be set by the last derived class
-   executeBatch("rdy.bat", "rdy");
+   executeBatch("rdy", "ma");
 }
 
 void CxESPConsole::wlcm() {
@@ -139,19 +139,17 @@ void CxESPConsole::wlcm() {
    println();
 }
 
-void CxESPConsoleMaster::wlcm() {
-   CxESPConsole::wlcm();
-   _mapCapInstances["basic"]->execute("info");
-}
-
-void CxESPConsoleClient::wlcm() {
-   CxESPConsole::wlcm();
-   CxESPConsoleMaster::getInstance().processCmd(*__ioStream, "info");
-}
-
 bool CxESPConsole::hasFS() {
    return false;
 }
+
+void CxESPConsoleClient::begin() {
+   CxESPConsole& con = CxESPConsoleMaster::getInstance();
+   con.setUsrLogLevel(LOGLEVEL_OFF);
+   info(F("==== CLIENT ===="));
+   CxESPConsole::begin();
+   con.executeBatch(*__ioStream, "rdy", "cl");
+};
 
 
 void CxESPConsole::__handleConsoleInputs() {
