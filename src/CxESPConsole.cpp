@@ -333,12 +333,14 @@ bool CxESPConsoleMaster::isHostAvailable(const char* szHost, int nPort) {
 
 // logging functions
 uint32_t CxESPConsole::_addPrefix(char c, char* buf, uint32_t lenmax) {
+   if (!buf) return 0;
    snprintf(buf, lenmax, "%s [%c] ", getTime(true), c);
    return (uint32_t)strlen(buf);
 }
 
 void CxESPConsole::debug(const char *fmt, ...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -358,7 +360,8 @@ void CxESPConsole::debug(const char *fmt, ...) {
 }
 
 void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -378,7 +381,8 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
 }
 
 void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -399,7 +403,8 @@ void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
 }
 
 void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -420,7 +425,8 @@ void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
 }
 
 void CxESPConsole::info(const char *fmt, ...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -440,7 +446,8 @@ void CxESPConsole::info(const char *fmt, ...) {
 }
 
 void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -460,7 +467,8 @@ void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
 }
 
 void CxESPConsole::warn(const char *fmt, ...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -480,7 +488,8 @@ void CxESPConsole::warn(const char *fmt, ...) {
 }
 
 void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
@@ -500,6 +509,7 @@ void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
 }
 
 void CxESPConsole::error(const char *fmt, ...) {
+   if (!fmt) return;
    
    va_list args;
    va_start(args, fmt);
@@ -520,7 +530,8 @@ void CxESPConsole::error(const char *fmt, ...) {
 }
 
 void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
-   
+   if (!fmt) return;
+
    va_list args;
    va_start(args, fmt);
    
