@@ -335,6 +335,8 @@ public:
          printf(_strPrompt.c_str());
       }
    }
+   
+   void setPrompt(const char* set) { _strPrompt = set;}
 
    bool isWiFiClient() {return __bIsWiFiClient;}
 

@@ -776,6 +776,7 @@ private:
       
       if (label) variables[F("LABEL")] = label;
       variables[F("HOSTNAME")] = __console.getHostName();
+      variables[F("USER")] = __console.getUserName();
       
       strBatchFile.reserve((uint32_t)strlen(path) + 5); // +4 for ".bat" and +1 for null terminator
       strBatchFile = path;

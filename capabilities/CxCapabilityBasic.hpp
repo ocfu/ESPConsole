@@ -154,9 +154,13 @@ public:
       } else if (cmd == "cls") {
          __console.cls();
       } else if (cmd == "prompt") {
-         String strPrompt = TKTOCHAR(tkArgs, 1);
-         if (strPrompt.length()) {
-            //__console.setPrompt(strPrompt);
+         if (TKTOCHAR(tkArgs, 1)) {
+            String strPrompt;
+            strPrompt.reserve(30);
+            strPrompt = FMT_PROMPT_START;
+            strPrompt += TKTOCHAR(tkArgs, 1);
+            strPrompt += FMT_PROMPT_END;
+            __console.setPrompt(strPrompt.c_str());
          }
          __console.prompt();
       } else if (cmd == "wlcm") {
