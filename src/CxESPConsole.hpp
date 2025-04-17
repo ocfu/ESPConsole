@@ -48,6 +48,9 @@ class CxESPConsoleMaster;
 
 extern CxESPConsoleMaster& ESPConsole;
 
+extern std::map<String, String> _mapVariables; // Map to store environment variables
+
+
 
 ///
 /// CxESPConsoleBase class
@@ -371,11 +374,17 @@ public:
 
    bool isWiFiClient() {return __bIsWiFiClient;}
 
-   void setHostName(const char* sz) {_strHostName = sz;}
+   void setHostName(const char* sz) {
+      _strHostName = sz;
+      addVariable("HOSTNAME", sz);
+   }
    const char* getHostNameForPrompt() {return isWiFiClient() ? (_strHostName.length() ? _strHostName.c_str() : "host") : "serial";}
    const char* getHostName() {return _strHostName.c_str();}
    const char* getUserName() {return _szUserName[0] ? _szUserName : "esp";}
-   void setUserName(const char* sz) {_szUserName = sz;}
+   void setUserName(const char* sz) {
+      _szUserName = sz;
+      addVariable("USER", sz);
+   }
 
    void setAppNameVer(const char* szName, const char* szVer) {_szAppName = szName;_szAppVer = szVer;}
    const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
@@ -470,6 +479,37 @@ public:
       printf(F(" up %d days, %02d:%02d,"), days, hours, minutes);
       printf(F(" %d user, load: %.2f average: %.2f, loop time: %d"), users(), load(), avgload(), avglooptime());
    }
+   
+   void addVariable(const char* szName, const char* szValue) {
+      _mapVariables[szName] = szValue;
+   }
+   
+   const char* getVariable(const char* szName) {
+      auto it = _mapVariables.find(szName);
+      if (it != _mapVariables.end()) {
+         return it->second.c_str();
+      }
+      return nullptr;
+   }
+   
+   void removeVariable(const char* szName) {
+      _mapVariables.erase(szName);
+   }
+   
+   void printVariables(Stream& stream) {
+      CxTablePrinter table(stream);
+      table.printHeader({"Name", "Value"}, {10, 40});
+      
+      for (const auto& entry : _mapVariables) {
+         table.printRow({entry.first.c_str(), entry.second.c_str()});
+      }
+      
+   }
+   
+   std::map<String, String>& getVariables() {
+      return _mapVariables;
+   }
+
 };
 
 class CxESPConsoleClient : public CxESPConsole {

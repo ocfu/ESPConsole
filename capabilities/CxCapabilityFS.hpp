@@ -771,13 +771,6 @@ private:
    void executeBatch(const char* path, const char* label) {
       String strBatchFile;
       
-      // TODO: improve as this String map is worse for the memory fragmentation
-      std::map<String, String> variables; // Map to store variables
-      
-      if (label) variables[F("LABEL")] = label;
-      variables[F("HOSTNAME")] = __console.getHostName();
-      variables[F("USER")] = __console.getUserName();
-      
       strBatchFile.reserve((uint32_t)strlen(path) + 5); // +4 for ".bat" and +1 for null terminator
       strBatchFile = path;
 
@@ -849,11 +842,11 @@ private:
                varValue.trim();
                
                // Perform variable substitution in the value
-               for (const auto& var : variables) {
+               for (const auto& var : __console.getVariables()) {
                   varValue.replace("$" + var.first, var.second);
                }
 
-               variables[varName] = varValue; // Store the variable
+               __console.addVariable(varName.c_str(), varValue.c_str()); // Store the variable
                continue;
             }
          }
@@ -866,7 +859,7 @@ private:
          command = buffer;
          
          // Replace variables in the command
-         for (const auto& var : variables) {
+         for (const auto& var : __console.getVariables()) {
             command.replace("$" + var.first, var.second);
          }
          

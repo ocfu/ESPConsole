@@ -291,7 +291,14 @@ public:
                break;
          }
       } else if (cmd == "echo") {
-         println(TKTOCHAR(tkArgs, 1));
+         String strValue = TKTOCHAR(tkArgs, 1);
+         
+         // Perform variable substitution in the value
+         for (const auto& var : __console.getVariables()) {
+            strValue.replace("$" + var.first, var.second);
+         }
+
+         println(strValue.c_str());
       } else if (cmd == "@echo") {
          if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
             //__console.setEchoOn();

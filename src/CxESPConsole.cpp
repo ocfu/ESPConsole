@@ -14,6 +14,8 @@ CxESPStackTracker g_Stack;
 
 uint8_t CxESPConsole::__nUsers = 0;
 std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
+std::map<String, String> _mapVariables; // Map to store environment variables
+
 
 CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 

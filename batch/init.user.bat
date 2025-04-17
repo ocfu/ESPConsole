@@ -8,8 +8,8 @@ fs:
 
 #led invert 1
 led off
-set ntp fritz.box
-set tz CET-1CEST,M3.5.0,M10.5.0/3
+set NTP fritz.box
+set TZ CET-1CEST,M3.5.0,M10.5.0/3
 log server mac 8880
 
 #

@@ -310,28 +310,29 @@ public:
          printFlashMap();
       } else if (cmd == "set") {
          ///
-         /// known env variables:
-         /// - ntp <server>
-         /// - tz <timezone>
+         /// fix env variables:
+         /// - NTP <server>
+         /// - TZ <timezone>
          ///
          
          String strVar = TKTOCHAR(tkArgs, 1);
-         if (strVar == "ntp") {
+         if (strVar == "NTP") {
             __console.setNtpServer(TKTOCHAR(tkArgs, 2));
-         } else if (strVar == "tz") {
+            __console.addVariable(strVar.c_str(), TKTOCHAR(tkArgs, 2));
+         } else if (strVar == "TZ") {
             __console.setTimeZone(TKTOCHAR(tkArgs, 2));
-         } else {
-            if (__console.hasFS()) {
-               __console.man(cmd.c_str());
+            __console.addVariable(strVar.c_str(), TKTOCHAR(tkArgs, 2));
+         } else if (strVar.length() > 0) {
+            String strValue = TKTOCHAR(tkArgs, 2);
+            
+            if (strValue.length() > 0) {
+               __console.addVariable(strVar.c_str(), strValue.c_str());
             } else {
-#ifndef MINIMAL_HELP
-               println(F("set environment variable."));
-               println(F("usage: set <env> <server>"));
-               println(F("known env variables:\n ntp <server>\n tz <timezone>"));
-               println(F("example: set ntp pool.ntp.org"));
-               println(F("example: set tz CET-1CEST,M3.5.0,M10.5.0/3"));
-#endif
+               __console.removeVariable(strVar.c_str());
             }
+         } else {
+            /// print all variables
+            __console.printVariables(getIoStream());
          }
       } else if (cmd == "eeprom") {
          if (a) {
