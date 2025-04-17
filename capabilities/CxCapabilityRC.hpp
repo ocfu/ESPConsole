@@ -245,14 +245,7 @@ public:
             uint8_t ch = TKTOINT(tkCmd, 2, INVALID_UINT8);
             String strOperator = TKTOCHAR(tkCmd, 3);
             CxDevice* dev = _gpioDeviceManager.getDevice(TKTOCHAR(tkCmd, 4));
-            
-            println("here");
-
             if (dev && ch != INVALID_UINT8) {
-               
-               print("rc let "); print(ch); print(" "); print(strOperator.c_str()); print(" "); print(dev->getName()); println();
-               print("states: rc="); print(get(ch)); print(" "); print("relay="); print(dev->get()); println();
-               
                if (strOperator == "=") {
                   set(ch, dev->get());
                } else if (strOperator == "!=") {
