@@ -1,6 +1,8 @@
 # This script is used to finalize the initialization and signal ready state
 userscript = init.$HOSTNAME.bat
 
+set tz CET-1CEST,M3.5.0,M10.5.0/3
+
 cls
 wlcm
 info
