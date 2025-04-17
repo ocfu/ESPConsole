@@ -487,6 +487,7 @@ public:
 
 // Master console at serial port and manage capabilities
 // Instance shall exist only once
+extern std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
 
 class CxESPConsoleMaster : public CxESPConsole {
       
@@ -498,8 +499,7 @@ class CxESPConsoleMaster : public CxESPConsole {
 #endif
    
    std::map<String, std::unique_ptr<CxCapability> (*)(const char*)> _mapCapRegistry;  // Function pointers for constructors
-   std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
-   
+
 #ifndef ESP_CONSOLE_NOWIFI
     CxESPConsoleClient* _createClientInstance(WiFiClient& wifiClient, const char* app = "", const char* ver = "") const {
       return new CxESPConsoleClient(wifiClient, app, ver);

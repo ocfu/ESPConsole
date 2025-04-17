@@ -13,6 +13,7 @@ CxESPHeapTracker g_Heap(51000); // init as early as possible...
 CxESPStackTracker g_Stack;
 
 uint8_t CxESPConsole::__nUsers = 0;
+std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
 
 CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 
