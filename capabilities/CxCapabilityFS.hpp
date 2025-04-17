@@ -878,7 +878,7 @@ private:
          
          if (processCommands) {
             _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
-            __console.processCmd(command.c_str());
+            __console.processCmd(*__console.getStream(), command.c_str());
          }
       }
       

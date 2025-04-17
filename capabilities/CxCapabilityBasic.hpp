@@ -154,15 +154,31 @@ public:
       } else if (cmd == "cls") {
          __console.cls();
       } else if (cmd == "prompt") {
+         // prompt [-CL] [<prompt string>]
+         
+         bool bClient = false;
          if (TKTOCHAR(tkArgs, 1)) {
             String strPrompt;
+            String strOpt = TKTOCHAR(tkArgs, 1);
+            uint8_t i = 1; // index for the prompt string
+
+            if (strOpt == "-CL") {
+               i++;
+               bClient = true;
+            }
+            
             strPrompt.reserve(30);
             strPrompt = FMT_PROMPT_START;
-            strPrompt += TKTOCHAR(tkArgs, 1);
+            strPrompt += TKTOCHAR(tkArgs, i);
             strPrompt += FMT_PROMPT_END;
-            __console.setPrompt(strPrompt.c_str());
+            
+            if (bClient) {
+               __console.setPromptClient(strPrompt.c_str());
+            } else {
+               __console.setPrompt(strPrompt.c_str());
+            }
          }
-         __console.prompt();
+         __console.prompt(bClient);
       } else if (cmd == "wlcm") {
          __console.wlcm();
       } else if (cmd == "info") {

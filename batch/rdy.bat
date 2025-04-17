@@ -24,4 +24,4 @@ rm .safemode  # system start was successful, no safemode needed at next boot
 #
 cl:
 log info "Client is ready!"
-prompt "$USER@$HOSTNAME:/> "
+prompt -CL "$USER@$HOSTNAME:/> "

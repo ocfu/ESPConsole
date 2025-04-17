@@ -163,6 +163,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
          
    String _strHostName; // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
    String _strPrompt; // Prompt string
+   String _strPromptClient; // Prompt string for WiFiClient
    
    const char* _szUserName = "";
    const char* _szAppName = "";
@@ -335,16 +336,38 @@ public:
       delete[] _aszCmdHistory;
    }
       
-   virtual void prompt() {
+   bool processCmd(const char* cmd, bool bQuiet = false);
+   
+   bool processCmd(Stream& stream, const char* cmd, bool bQuiet = false) {
+      Stream* pStream = __ioStream;
+      __ioStream = &stream;
+      bool ret = processCmd(cmd, bQuiet);
+      __ioStream = pStream;
+      return ret;
+   }
+
+   void prompt(bool bClient = false) {
       print(ESC_CLEAR_LINE);
-      if (_strPrompt.length() == 0) {
+      String strPrompt = _strPrompt;
+
+      if (isWiFiClient() || bClient) {
+         strPrompt = _strPromptClient;
+      }
+
+      if (strPrompt.length() == 0) {
          printf(FMT_PROMPT_DEFAULT);
       } else {
-         printf(_strPrompt.c_str());
+         printf(strPrompt.c_str());
       }
    }
    
-   void setPrompt(const char* set) { _strPrompt = set;}
+   void setPrompt(const char* set) {
+      _strPrompt = set;
+   }
+   
+   void setPromptClient(const char* set) {
+      _strPromptClient = set;
+   }
 
    bool isWiFiClient() {return __bIsWiFiClient;}
 
@@ -674,19 +697,20 @@ public:
    void setAPMode(bool set) {_bAPMode = set;}
 #endif
    
-   bool processCmd(const char* cmd, bool bQuiet = false);
-   bool processCmd(Stream& stream, const char* cmd, bool bQuiet = false) {
-      // redirect stream to client
-      Stream* pStream = __ioStream;
-      __ioStream = &stream;
-      
-      bool bResult = processCmd(cmd, bQuiet);
-      
-      __ioStream = pStream;
-      
-      return bResult;
-   }
-   
+   //bool processCmd(const char* cmd, bool bQuiet = false);
+//   bool processCmd(Stream& stream, const char* cmd, bool bQuiet = false) {
+//      // redirect stream to client
+//      Stream* pStream = __ioStream;
+//      __ioStream = &stream;
+//      
+//      bool bResult = CxESPConsole::processCmd(cmd, bQuiet);
+//      
+//      __ioStream = pStream;
+//      
+//      return bResult;
+//   }
+   //bool processCmd(const char* cmd, bool bQuiet = false);
+
    
 #ifndef ESP_CONSOLE_NOWIFI
    void begin(WiFiServer& server) {
