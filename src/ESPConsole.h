@@ -54,6 +54,8 @@
 #define _VERSION_ID _VERSION "(" BUILD_ID ")"
 #elif defined (_VERSION)
 #define _VERSION_ID _VERSION
+#else
+#define _VERION_ID "-"
 #endif
 // for the identification of the binary (e.g. for archiving purposes)
 #if defined (_NAME) && defined (_VERSION)
@@ -62,10 +64,13 @@ const char* g_szId      PROGMEM = "$$id:" _NAME ":" _VERSION;
 #if defined (ESPCONSOLE_VERSION)
 const char* g_szIdmyESP PROGMEM = "$$idm:myESP:" ESPCONSOLE_VERSION;
 #endif
+#ifndef _NAME
+#define _NAME App
+#endif
 #pragma GCC pop_options
 
 
-void initESPConsole(const char* app, const char* ver) {
+void initESPConsole(const char* app = _NAME, const char* ver = _VERSION_ID) {
    g_Stack.begin();
    
 #ifdef ARDUINO
