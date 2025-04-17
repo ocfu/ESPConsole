@@ -40,7 +40,6 @@ echo "usage: set <env> <server>"
 echo "known env variables:\n ntp <server>\n tz <timezone>"
 echo "example: set ntp pool.ntp.org"
 echo "example: set tz CET-1CEST,M3.5.0,M10.5.0/3"
-echo "show eeprom content."
 
 eeprom:
 echo "usage: eeprom [<start address>] [<length>]"
