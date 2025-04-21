@@ -12,6 +12,7 @@
 #include <limits.h>
 
 // escape sequences
+#define ESC_CODE           "\033"
 
 // text colors
 #define ESC_TEXT_BLACK      "\033[30m"

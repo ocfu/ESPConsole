@@ -165,6 +165,8 @@ class CxCapabilityExt : public CxCapability {
    /// timer for updating stack info and sensor data
    CxTimer10s _timerUpdate;
    
+   bool _bWifiConnected = false;
+   
 public:
    /// Default constructor and default capabilities methods
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
@@ -192,20 +194,8 @@ public:
       __bLocked = false;
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
-      
-      if (!isConnected()) {
-         println();
-         startWiFi();
-      }
-
-      /// led status indication
-      Led1.off();
-      if (isConnected()) {
-         Led1.flashOk();
-      } else {
-         Led1.blinkError();
-      }
-      
+    
+     
       /// setup OTA service
       _CONSOLE_INFO(F("start OTA service"));
       char szOtaPassword[25];
@@ -958,7 +948,17 @@ public:
 #ifndef ESP_CONSOLE_NOWIFI
    bool isConnected() {
 #ifdef ARDUINO
-      return (WiFi.status() == WL_CONNECTED);
+      bool bConnected = (WiFi.status() == WL_CONNECTED);
+      
+      if (_bWifiConnected != bConnected) {
+         _bWifiConnected = bConnected;
+         if (bConnected) {
+            __console.executeBatch("init", "wifi-online");
+         } else {
+            __console.executeBatch("init", "wifi-offline");
+         }
+      }
+      return bConnected;
 #else
       return false;
 #endif
@@ -989,6 +989,7 @@ public:
    }
 
    void startWiFi(const char* ssid = nullptr, const char* pw = nullptr) {
+      bool bUp = false;
       
 #ifndef ESP_CONSOLE_NOWIFI
       _stopAP();
@@ -997,70 +998,83 @@ public:
          stopWiFi();
       }
       
-      //
-      // Set the ssid, password and hostname from the console settings or from the arguments.
-      // If set by the arguments, it will replace settings stored in the eprom.
-      //
-      // All can be set in the console with the commands
-      //   wifi ssid <ssid>
-      //   wifi password <password>
-      //   wifi hostname <hostname>
-      // These settings will be stored in the EEPROM.
-      //
-      
-      char szSSID[20];
-      char szPassword[25];
-      char szHostname[80];
-      
-      if (ssid) ::writeSSID(ssid);
-      ::readSSID(szSSID, sizeof(szSSID));
-            
-      if (pw) ::writePassword(pw);
-      ::readPassword(szPassword, sizeof(szPassword));
-      
-      ::readHostName(szHostname, sizeof(szHostname));
-      
+      if (!bUp) {
+         //
+         // Set the ssid, password and hostname from the console settings or from the arguments.
+         // If set by the arguments, it will replace settings stored in the eprom.
+         //
+         // All can be set in the console with the commands
+         //   wifi ssid <ssid>
+         //   wifi password <password>
+         //   wifi hostname <hostname>
+         // These settings will be stored in the EEPROM.
+         //
+         
+         static char szSSID[20];
+         static char szPassword[25];
+         static char szHostname[80];
+         
+         if (ssid) ::writeSSID(ssid);
+         ::readSSID(szSSID, sizeof(szSSID));
+         
+         if (pw) ::writePassword(pw);
+         ::readPassword(szPassword, sizeof(szPassword));
+         
+         ::readHostName(szHostname, sizeof(szHostname));
+         
 #ifdef ARDUINO
-      WiFi.persistent(false); // Disable persistent WiFi settings, preventing flash wear and keep control of saved settings
-      WiFi.mode(WIFI_STA);
-      WiFi.begin(szSSID, szPassword);
-      WiFi.setAutoReconnect(true);
-      WiFi.hostname(szHostname);
-      
-      printf(F(ESC_ATTR_BOLD "WiFi: connecting to %s" ESC_ATTR_RESET), szSSID);
-      print(F(ESC_ATTR_BLINK "..." ESC_ATTR_RESET));
-      
-      Led1.blinkConnect();
-      
-      // try to connect to the network for max. 10 seconds
-      CxTimer10s timerTO; // set timeout
-      
-      while (WiFi.status() != WL_CONNECTED && !timerTO.isDue()) {
-         Led1.action();
-         delay(1);
-      }
-      
-      print(ESC_CLEAR_LINE "\r");
-      printf(F(ESC_ATTR_BOLD "WiFi: connecting to %s..." ESC_ATTR_RESET), szSSID);
-      
-      Led1.off();
-      
-      if (WiFi.status() != WL_CONNECTED) {
-         println(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "not connected!" ESC_ATTR_RESET));
-         __console.error("WiFi not connected.");
-         Led1.blinkError();
-      } else {
-         println(F(ESC_TEXT_BRIGHT_GREEN "connected!" ESC_ATTR_RESET));
-         _CONSOLE_INFO("WiFi connected.");
-         Led1.flashOk();
+         WiFi.persistent(false); // Disable persistent WiFi settings, preventing flash wear and keep control of saved settings
+         WiFi.mode(WIFI_STA);
+         WiFi.begin(szSSID, szPassword);
+         WiFi.setAutoReconnect(true);
+         WiFi.hostname(szHostname);
+         
+         printf(F(ESC_ATTR_BOLD "WiFi: connecting to %s" ESC_ATTR_RESET), szSSID);
+         print(F(ESC_ATTR_BLINK "..." ESC_ATTR_RESET));
+         
+         Led1.blinkConnect();
+         
+         // try to connect to the network for max. 10 seconds
+         CxTimer10s timerTO; // set timeout
+         
+         while (WiFi.status() != WL_CONNECTED && !timerTO.isDue()) {
+            Led1.action();
+            delay(1);
+         }
+         
+         // stop blinking "..." and let the message on the screen
+         print(ESC_CLEAR_LINE "\r");
+         printf(F(ESC_ATTR_BOLD "WiFi: connecting to %s..." ESC_ATTR_RESET), szSSID);
+         
+         Led1.off();
+         
+         if (WiFi.status() != WL_CONNECTED) {
+            println(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "not connected!" ESC_ATTR_RESET));
+            __console.error("WiFi not connected.");
+            Led1.blinkError();
+         } else {
+            println(F(ESC_TEXT_BRIGHT_GREEN "connected!" ESC_ATTR_RESET));
+            _CONSOLE_INFO("WiFi connected.");
+            Led1.flashOk();
+            if (WiFi.getHostname() != szHostname) {
 #ifdef ESP32
-         __console.setHostName(WiFi.getHostname().c_str());
+               __console.setHostName(WiFi.getHostname().c_str());
 #else
-         __console.setHostName(WiFi.hostname().c_str());
+               __console.setHostName(WiFi.hostname().c_str());
 #endif
+            }
+            
+            bUp = true;
+         }
+         
+#endif /* Arduino */
+         
       }
       
-#endif /* Arduino */
+      if (bUp) {
+         __console.executeBatch("init", "wifi-up");
+         isConnected();
+      }
    }
    
    void stopWiFi() {
@@ -1072,6 +1086,8 @@ public:
       WiFi.mode(WIFI_OFF);
       WiFi.forceSleepBegin();
 #endif
+      isConnected();
+      __console.executeBatch("init", "wifi-down");
    }
    
 private:

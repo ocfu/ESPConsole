@@ -48,7 +48,8 @@ class CxESPConsoleMaster;
 
 extern CxESPConsoleMaster& ESPConsole;
 
-extern std::map<String, String> _mapVariables; // Map to store environment variables
+extern std::map<String, String> _mapSetVariables; // Map to store static variables added by the command set
+extern std::map<String, String> _mapTempVariables; // Map to store temporary variables
 
 
 
@@ -81,8 +82,8 @@ protected:
    virtual void __error(const char* sz) {if(_funcError) _funcError(sz); else if (!__bIsWiFiClient) println(sz);}
 
 public:
-   explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream) {}
-   CxESPConsoleBase() : __ioStream(nullptr) {}
+   explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream), __bIsSafeMode(false), __bIsWiFiClient(false) {}
+   CxESPConsoleBase() : __ioStream(nullptr), __bIsSafeMode(false), __bIsWiFiClient(false) {}
    
    virtual ~CxESPConsoleBase() {}
 
@@ -141,8 +142,6 @@ public:
       }
    }
    void man(const char* sz) {if (_funcMan) _funcMan(sz);}
-   bool isSafeMode() {return __bIsSafeMode;}
-   void setSafeMode(bool b) {__bIsSafeMode = b;}
    
    void setFuncDebug(std::function<void(const char*)> f) {_funcDebug = f;}
    void clearFuncDebug() {_funcDebug = nullptr;}
@@ -323,6 +322,19 @@ public:
       for (int i = 0; i < _nCmdHistorySize; ++i) {
          _aszCmdHistory[i] = new char[_nMAXLENGTH]();
       }
+      
+      char buf[80];
+      ::readHostName(buf, sizeof(buf));
+      
+      if (!buf[0]) {
+         // set default hostname
+         String strHostname;
+         strHostname.reserve(15);
+         strHostname = "esp" + String(::getChipId(), 16);
+         setHostName(strHostname.c_str());
+      } else {
+         setHostName(buf);
+      }
    }
    
    // virtual destructor as the object might be created by a inherited class
@@ -338,6 +350,17 @@ public:
       }
       delete[] _aszCmdHistory;
    }
+   
+   bool isSafeMode() {return __bIsSafeMode;}
+   void setSafeMode(bool b) {
+      if (b) {
+         addVariable("SAFEMODE", "1");
+      } else {
+         removeVariable("SAFEMODE");
+      }
+      __bIsSafeMode = b;
+   }
+
       
    bool processCmd(const char* cmd, bool bQuiet = false);
    
@@ -371,6 +394,9 @@ public:
    void setPromptClient(const char* set) {
       _strPromptClient = set;
    }
+   
+   const char* getPrompt() { return _strPrompt.c_str();}
+   const char* getPromptClient() { return _strPromptClient.c_str();}
 
    bool isWiFiClient() {return __bIsWiFiClient;}
 
@@ -481,33 +507,33 @@ public:
    }
    
    void addVariable(const char* szName, const char* szValue) {
-      _mapVariables[szName] = szValue;
+      _mapSetVariables[szName] = szValue;
    }
    
    const char* getVariable(const char* szName) {
-      auto it = _mapVariables.find(szName);
-      if (it != _mapVariables.end()) {
+      auto it = _mapSetVariables.find(szName);
+      if (it != _mapSetVariables.end()) {
          return it->second.c_str();
       }
       return nullptr;
    }
    
    void removeVariable(const char* szName) {
-      _mapVariables.erase(szName);
+      _mapSetVariables.erase(szName);
    }
    
    void printVariables(Stream& stream) {
       CxTablePrinter table(stream);
       table.printHeader({"Name", "Value"}, {10, 40});
       
-      for (const auto& entry : _mapVariables) {
+      for (const auto& entry : _mapSetVariables) {
          table.printRow({entry.first.c_str(), entry.second.c_str()});
       }
       
    }
    
    std::map<String, String>& getVariables() {
-      return _mapVariables;
+      return _mapSetVariables;
    }
 
 };

@@ -167,9 +167,14 @@ public:
                bClient = true;
             }
             
-            strPrompt.reserve(30);
+            strPrompt.reserve(50);
             strPrompt = FMT_PROMPT_START;
             strPrompt += TKTOCHAR(tkArgs, i);
+            
+            // Perform esc code substitution
+            strPrompt.replace("\\033", ESC_CODE);
+            strPrompt.replace("\\0x1b", ESC_CODE);
+            strPrompt.replace("\\0x1B", ESC_CODE);
             strPrompt += FMT_PROMPT_END;
             
             if (bClient) {
@@ -208,8 +213,14 @@ public:
          printHeap();
          println();
       } else if (cmd == "stack" ) {
-         printStack();
-         println();
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
+         if (strSubCmd == "on") {
+            g_Stack.enableDebugPrint(true);
+         } else if (strSubCmd == "off") {
+            g_Stack.enableDebugPrint(false);
+         } else {
+            g_Stack.print(getIoStream());
+         }
       } else if (cmd == "hostname") {
 #ifndef ESP_CONSOLE_NOWIFI
          printHostName();
@@ -291,21 +302,39 @@ public:
                break;
          }
       } else if (cmd == "echo") {
-         String strValue = TKTOCHAR(tkArgs, 1);
+         String strValue;
          
-         // Perform variable substitution in the value
-         for (const auto& var : __console.getVariables()) {
-            strValue.replace("$" + var.first, var.second);
-         }
+         int i = 1;
+         while (i < 7) { //tkArgs can max. hold 8 tokens, the first token in the command
+            strValue = TKTOCHAR(tkArgs, i);
+            
+            // Perform variable substitution in the value
+            for (const auto& var : __console.getVariables()) {
+               strValue.replace("$" + var.first, var.second);
+            }
+            
+            // Stop if argument is empty
+            if (strValue.length() == 0) {
+               break;
+            }
 
-         println(strValue.c_str());
+            // Perform esc code substitution
+            strValue.replace("\\033", ESC_CODE);
+            strValue.replace("\\0x1b", ESC_CODE);
+            strValue.replace("\\0x1B", ESC_CODE);
+            print(strValue.c_str());
+            
+            i++;
+         }
+         println();
       } else if (cmd == "@echo") {
          if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
             //__console.setEchoOn();
          } else if (strncmp(TKTOCHAR(tkArgs, 1), "on", 2) == 0) {
             //__console.setEchoOff();
          }
-      } else {
+      }
+      else {
          return false;
       }
       g_Stack.update();
@@ -375,7 +404,7 @@ public:
       print(F(ESC_ATTR_BOLD "  Hostname: " ESC_ATTR_RESET));printHostName();printf(F(ESC_ATTR_BOLD " IP: " ESC_ATTR_RESET));printIp();printf(F(ESC_ATTR_BOLD " SSID: " ESC_ATTR_RESET));printSSID();println();
       print(F(ESC_ATTR_BOLD "    Uptime: " ESC_ATTR_RESET));__console.printUpTimeISO(getIoStream());printf(F(" - %d user(s)"), __console.users());    printf(F(ESC_ATTR_BOLD " Last Restart: " ESC_ATTR_RESET));__console.printStartTime(getIoStream());println();
       printHeap();println();
-      print(F("    "));printStack();println();
+      print(F("    "));g_Stack.print(getIoStream());
    }
    
    void printHeap() {
@@ -386,13 +415,6 @@ public:
       print(F(ESC_ATTR_BOLD " Fragm.: " ESC_ATTR_RESET));printHeapFragmentation();print(F(" % (peak: ")); printHeapFragmentationPeak();print(F(("%)")));
    }
    
-   void printStack() {
-      print(F(ESC_ATTR_BOLD " Stack: " ESC_ATTR_RESET));printStackSize();print(F(" bytes"));
-      print(F(ESC_ATTR_BOLD " Room: " ESC_ATTR_RESET));printStackHeapDistance();print(F(" bytes"));
-      print(F(ESC_ATTR_BOLD " High: " ESC_ATTR_RESET));printStackHigh();print(F(" bytes"));
-      print(F(ESC_ATTR_BOLD " Low: " ESC_ATTR_RESET));printStackLow();print(F(" bytes"));
-   }
-
    void printHeapAvailable(bool fmt = false) {
       if (g_Heap.available() < 10000) print(F(ESC_TEXT_BRIGHT_YELLOW));
       if (g_Heap.available() < 3000) print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
@@ -445,41 +467,6 @@ public:
          printf(F("%7lu"), g_Heap.peak());
       } else {
          printf(F("%lu"), g_Heap.peak());
-      }
-   }
-   
-   void printStackHigh(bool fmt = false) {
-      if (g_Stack.getHigh() > 1000) print(F(ESC_TEXT_BRIGHT_YELLOW));
-      if (g_Stack.getHigh() > 2000) print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
-      if (fmt) {
-         printf(F("%7lu"), g_Stack.getHigh());
-      } else {
-         printf(F("%lu"), g_Stack.getHigh());
-      }
-      print(F(ESC_ATTR_RESET));
-   }
-   
-   void printStackSize(bool fmt = false) {
-      if (fmt) {
-         printf(F("%7lu"), g_Stack.getSize());
-      } else {
-         printf(F("%lu"), g_Stack.getSize());
-      }
-   }
-   
-   void printStackHeapDistance(bool fmt = false) {
-      if (fmt) {
-         printf(F("%7lu"), g_Stack.getHeapDistance());
-      } else {
-         printf(F("%lu"), g_Stack.getHeapDistance());
-      }
-   }
-   
-   void printStackLow(bool fmt = false) {
-      if (fmt) {
-         printf(F("%7lu"), g_Stack.getLow());
-      } else {
-         printf(F("%lu"), g_Stack.getLow());
       }
    }
 

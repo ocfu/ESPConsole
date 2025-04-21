@@ -60,11 +60,6 @@ public:
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
-      if (__console.isSafeMode()) {
-         __console.error(F("Safe mode active!"));
-         return;
-      }
-            
       __console.executeBatch("init", getName());
 
       
@@ -132,9 +127,6 @@ public:
          } else if (strSubCmd == "server") {
             __mqttManager.setServer(TKTOCHAR(tkArgs, 2));
             __mqttManager.setPort(TKTOINT(tkArgs, 3, 8880));
-            _bMqttServerOnline = __console.isHostAvailable(__mqttManager.getServer(), __mqttManager.getPort());
-            if (!_bMqttServerOnline) println(F("server not available!"));
-            startMqtt();
          } else if (strSubCmd == "qos") {
             __mqttManager.setQoS(TKTOINT(tkArgs, 2, 0));
          } else if (strSubCmd == "root") {

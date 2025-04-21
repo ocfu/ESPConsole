@@ -14,7 +14,8 @@ CxESPStackTracker g_Stack;
 
 uint8_t CxESPConsole::__nUsers = 0;
 std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
-std::map<String, String> _mapVariables; // Map to store environment variables
+std::map<String, String> _mapSetVariables; // Map to store environment variables
+std::map<String, String> _mapTempVariables; // Map to store environment variables
 
 
 CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
@@ -31,6 +32,8 @@ bool CxESPConsole::processCmd(const char* cmd, bool bQuiet) {
    char* tokenStart = cmdCopy;
    bool overallResult = false;
    bool inQuotes = false;
+   
+   g_Stack.DEBUGPrint(*__ioStream, "in prcmd 1");
    
    for (char* p = cmdCopy; *p; ++p) {
       if (*p == '"') {
@@ -68,6 +71,8 @@ bool CxESPConsole::processCmd(const char* cmd, bool bQuiet) {
       }
    }
    
+   g_Stack.DEBUGPrint(*__ioStream, "in prcmd 2");
+
    // Process the last token (if any)
    if (*tokenStart) {
       char* token = tokenStart;
@@ -94,6 +99,9 @@ bool CxESPConsole::processCmd(const char* cmd, bool bQuiet) {
       }
    }
    
+   g_Stack.DEBUGPrint(*__ioStream, "in prcmd 3");
+
+   
    free(cmdCopy); // Free the duplicated string
    return overallResult;
 }
@@ -103,20 +111,16 @@ void CxESPConsoleMaster::begin() {
    
    ::readSettings(_settings);
 
-#ifdef ARDUINO
-#ifndef ESP_CONSOLE_NOWIFI
-   if (_pWiFiServer) {
-#ifdef ESP32
-      setHostName(WiFi.getHostname().c_str());
-#else
-      setHostName(WiFi.hostname().c_str());
-#endif
-#endif
-   }
    // silence the log messages on the console by default
    __nUsrLogLevel = 0;
-#endif
    CxESPConsole::begin();
+
+   if (isSafeMode()) {
+      executeBatch("rdy", "sm");
+   } else {
+      executeBatch("init", "final");
+      executeBatch("rdy", "ma");
+   }
 }
 
 void CxESPConsole::begin() {
@@ -129,7 +133,6 @@ void CxESPConsole::begin() {
    }
    __nUsers++;
    setConsoleName(""); // shall be set by the last derived class
-   executeBatch("rdy", "ma");
 }
 
 void CxESPConsole::wlcm() {
@@ -151,7 +154,11 @@ void CxESPConsoleClient::begin() {
    con.setUsrLogLevel(LOGLEVEL_OFF);
    info(F("==== CLIENT ===="));
    CxESPConsole::begin();
-   con.executeBatch(*__ioStream, "rdy", "cl");
+   if (con.isSafeMode()) {
+      con.executeBatch(*__ioStream, "rdy", "sm-cl");
+   } else {
+      con.executeBatch(*__ioStream, "rdy", "cl");
+   }
 };
 
 
@@ -291,6 +298,7 @@ void CxESPConsoleMaster::loop() {
             __espConsoleWiFiClient = _createClientInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
             if (__espConsoleWiFiClient) {
                __espConsoleWiFiClient->setHostName(getHostName());
+               __espConsoleWiFiClient->setPromptClient(getPromptClient());
                __espConsoleWiFiClient->begin();
             } else {
                error(F("*** error: _createInstance() for new wifi client failed!"));

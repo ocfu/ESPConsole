@@ -120,11 +120,6 @@ public:
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
-      if (__console.isSafeMode()) {
-         __console.error(F("Safe mode active!"));
-         return;
-      }
-     
       __console.executeBatch("init", getName());
 
    }

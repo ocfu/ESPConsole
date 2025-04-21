@@ -17,7 +17,49 @@ class CxESPStackTracker {
    
    size_t _nHigh = 0;
    
+   bool _bDebugPrint = false;
+   uint8_t _nDebugPrintCnt = 0;
+   
 public:
+   
+   void enableDebugPrint(bool set) {_bDebugPrint = set; _nDebugPrintCnt = 1;}
+   
+   void DEBUGPrint(Stream &stream, const char* label = "") {
+#ifdef DEBUG_BUILD
+      if (!_bDebugPrint) return;
+      stream.printf("=== %s %03d ", label, _nDebugPrintCnt++);
+      stream.print(F("STACK: "));
+      stream.print(getSize());
+      stream.print(F(" LWM: "));
+      if (getLow() < 500) stream.print(F(ESC_TEXT_BRIGHT_YELLOW));
+      if (getLow() < 150) stream.print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
+      stream.print(getLow());
+      stream.print(ESC_ATTR_RESET);
+      stream.print(F(" MAX: "));
+      if (getHigh() > 1500) stream.print(F(ESC_TEXT_BRIGHT_YELLOW));
+      if (getHigh() > 2500) stream.print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
+      stream.println(getHigh());
+      stream.print(ESC_ATTR_RESET);
+#endif
+   }
+   
+   void print(Stream &stream) {
+      stream.print(F(ESC_ATTR_BOLD " Stack: " ESC_ATTR_RESET));stream.print(getSize());stream.print(F(" bytes"));
+      stream.print(F(ESC_ATTR_BOLD " Room: " ESC_ATTR_RESET));stream.print(getHeapDistance());stream.print(F(" bytes"));
+      stream.print(F(ESC_ATTR_BOLD " High: " ESC_ATTR_RESET));
+      if (getHigh() > 1500) stream.print(F(ESC_TEXT_BRIGHT_YELLOW));
+      if (getHigh() > 2500) stream.print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
+      stream.print(getHigh());
+      stream.print(ESC_ATTR_RESET);
+      stream.print(F(" bytes"));
+      stream.print(F(ESC_ATTR_BOLD " Low: " ESC_ATTR_RESET));
+      if (getLow() < 500) stream.print(F(ESC_TEXT_BRIGHT_YELLOW));
+      if (getLow() < 150) stream.print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
+      stream.print(getLow());
+      stream.print(ESC_ATTR_RESET);
+      stream.print(F(" bytes"));
+      stream.println();
+   }
    
    void begin() {
       char stack;

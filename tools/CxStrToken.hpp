@@ -14,7 +14,7 @@
 #include <cstdint>
 #include <cstring>
 
-#define MAX_TOKENS 64
+#define MAX_TOKENS 8
 
 #define TKTOCHAR(t,x)    ((t)[(x)].as<const char*>())
 #define TKTOINT(t,x,y)   ((t)[(x)].as<int32_t>((y)))

@@ -50,6 +50,9 @@ class CxCapabilityFS : public CxCapability {
    String _strLogServer = "";
    uint32_t _nLogPort = 0;
    bool _bLogServerAvailable = false;
+   bool _bLogEnabled = false;
+   
+   bool _bBreakBatch = false;
    
    CxTimer60s _timer60sLogServer;
 
@@ -88,8 +91,10 @@ public:
 
       // load specific environments for this class
       mount();
-      
+      ls(true, true);
+
       if (fileExists(".safemode")) {
+         __console.warn(F("Start in SAFEMODE"));
          __console.setSafeMode(true);
       }
 
@@ -166,8 +171,6 @@ public:
           if (strSubCmd == "server") {
              _strLogServer = TKTOCHAR(tkArgs, 2);
              _nLogPort = TKTOINT(tkArgs, 3, 1880);
-             _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
-             if (!_bLogServerAvailable) println(F("server not available!"));
           } else if (strSubCmd == "level") {
              __console.setLogLevel(TKTOINT(tkArgs, 2, __console.getLogLevel()));
           } else if (strSubCmd == "error") {
@@ -180,7 +183,14 @@ public:
              __console.debug(TKTOCHAR(tkArgs, 2));
           } else if (strSubCmd == "debug_ext") {
              __console.debug_ext(TKTOINT(tkArgs, 2, 0), TKTOCHAR(tkArgs, 3));
+          } else if (strSubCmd == "on") {
+             enableLog(true);
+             _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
+             if (!_bLogServerAvailable) println(F("server not available!"));
+          } else if (strSubCmd == "off") {
+             enableLog(false);
           } else {
+             printf(F(ESC_ATTR_BOLD "Log enabled:     " ESC_ATTR_RESET "%d\n"), isLogEnabled());
              printf(F(ESC_ATTR_BOLD "Log level:       " ESC_ATTR_RESET "%d"), __console.getLogLevel());printf(F(ESC_ATTR_BOLD " Usr: " ESC_ATTR_RESET "%d\n"), __console.getUsrLogLevel());
              printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __console.getDebugFlag());
              printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
@@ -194,7 +204,19 @@ public:
           } else {
              println(F("usage: exec <batchfile>"));
           }
-       } else if (cmd == "man") {
+       } else if (cmd == "break" ) {
+          String strCond = TKTOCHAR(tkArgs, 1);
+          uint8_t nValue = TKTOINT(tkArgs, 2, 0);
+          
+          if (strCond == "on" && nValue) {
+             _bBreakBatch = true;
+          } else if (strCond.length() == 0) {
+             _bBreakBatch = true;
+          } else {
+             _bBreakBatch = false;
+          }
+       }
+       else if (cmd == "man") {
           man(TKTOCHAR(tkArgs, 1));
        }
        else {
@@ -203,6 +225,9 @@ public:
       g_Stack.update();
       return true;
    }
+   
+   void enableLog(bool set) { _bLogEnabled = set;}
+   bool isLogEnabled() {return _bLogEnabled;}
 
    bool hasFS() {
       bool bResult = false;
@@ -692,7 +717,7 @@ private:
    };
 
    void _print2logServer(const char* sz) {
-      if (!_strLogServer.length() || _nLogPort < 1) return;
+      if (!isLogEnabled() || !_strLogServer.length() || _nLogPort < 1) return;
       
       bool bAvailable = _bLogServerAvailable;
       
@@ -769,7 +794,16 @@ private:
    }
    
    void executeBatch(const char* path, const char* label) {
-      String strBatchFile;
+      
+      g_Stack.DEBUGPrint(getIoStream(), label);
+      
+      static String strBatchFile;
+      std::map<String, String> mapTempVariables;
+
+
+      mapTempVariables.clear();
+
+      strBatchFile = "";
       
       strBatchFile.reserve((uint32_t)strlen(path) + 5); // +4 for ".bat" and +1 for null terminator
       strBatchFile = path;
@@ -803,80 +837,116 @@ private:
          return;
       }
       
-      char buffer[128];
       bool processCommands = true; // Start processing commands immediately
+      _bBreakBatch = false;
       
-      while (file.available()) {
-         size_t len = file.readBytesUntil('\n', buffer, sizeof(buffer) - 1);
-         buffer[len] = '\0'; // Null-terminate the string
-         trim(buffer); // Remove any leading/trailing whitespace
-         
-         if (strlen(buffer) == 0 || buffer[0] == '#') {
-            // Ignore empty lines and comments
-            continue;
-         }
-         
-         // Remove inline comments starting with #
-         char* commentStart = strchr(buffer, '#');
-         if (commentStart) {
-            *commentStart = '\0'; // Truncate the line at the # character
-            trim(buffer); // Remove any trailing whitespace after truncation
-         }
-         
-         if (strlen(buffer) == 0) {
-            // If the line becomes empty after removing the comment, skip it
-            continue;
-         }
-         
-         
-         // Check if the line is a variable definition
-         char* equalsSign = strchr(buffer, '=');
-         if (equalsSign) {
-            // Ensure the equal sign is in the first word
-            String varName = String(buffer).substring(0, equalsSign - buffer);
-            varName.trim();
+      char* buffer = new char[128];
+      
 
-            // Ensure the equal sign is part of the first word (no spaces in the variable name), otherwise treat it as a command
-            if (!varName.isEmpty() && varName.indexOf(' ') == -1) {
-               String varValue = String(buffer).substring(equalsSign - buffer + 1);
-               varValue.trim();
-               
-               // Perform variable substitution in the value
-               for (const auto& var : __console.getVariables()) {
-                  varValue.replace("$" + var.first, var.second);
-               }
+      if (buffer) {
+         
+         g_Stack.DEBUGPrint(getIoStream(), "buffer");
 
-               __console.addVariable(varName.c_str(), varValue.c_str()); // Store the variable
+         while (file.available()) {
+            size_t len = file.readBytesUntil('\n', buffer, 128 - 1);
+            buffer[len] = '\0'; // Null-terminate the string
+            trim(buffer); // Remove any leading/trailing whitespace
+            
+            if (strlen(buffer) == 0 || buffer[0] == '#') {
+               // Ignore empty lines and comments
                continue;
             }
-         }
+            
+            // Remove inline comments starting with #
+            char* commentStart = strchr(buffer, '#');
+            if (commentStart) {
+               *commentStart = '\0'; // Truncate the line at the # character
+               trim(buffer); // Remove any trailing whitespace after truncation
+            }
+            
+            if (strlen(buffer) == 0) {
+               // If the line becomes empty after removing the comment, skip it
+               continue;
+            }
+            
+            
+            // Check if the line is a variable definition
+            char* equalsSign = strchr(buffer, '=');
+            if (equalsSign) {
+               static String varName;
+               static String varValue;
+               
+               // Ensure the equal sign is in the first word
+               varName = String(buffer).substring(0, equalsSign - buffer);
+               varName.trim();
+               
+               // Ensure the equal sign is part of the first word (no spaces in the variable name), otherwise treat it as a command
+               if (!varName.isEmpty() && varName.indexOf(' ') == -1) {
+                  varValue = String(buffer).substring(equalsSign - buffer + 1);
+                  varValue.trim();
+                  
+                  // Replace variables in the command
+                  for (const auto& var : __console.getVariables()) {
+                     varValue.replace("$" + var.first, var.second);
+                  }
+
+                  // Perform variable substitution in the value
+                  for (const auto& var : mapTempVariables) {
+                     varValue.replace("$" + var.first, var.second);
+                  }
+                  
+                  mapTempVariables[varName] = varValue; // Store the variable
+                  continue;
+               }
+            }
+            
+            g_Stack.DEBUGPrint(getIoStream(), "Variables");
+
+            // Handle variables in the batch file
+            static String command;
+            uint32_t extra_size = 50; // FIXME: max. length of a variable length (to be determined actually)
+            
+            command.reserve(strlen(buffer) + extra_size); // Reserve enough space for the command and potential longer label
+            command = buffer;
+            
+            // Replace variables in the command
+            for (const auto& var : __console.getVariables()) {
+               command.replace("$" + var.first, var.second);
+            }
+            
+            // Replace variables in temporary buffer in the command
+            for (const auto& var : mapTempVariables) {
+               command.replace("$" + var.first, var.second);
+            }
+
+            if (command.endsWith(":")) {
+               // Check for labels
+               processCommands = (command == String(label) + ":");
+               continue;
+            }
+            
+            if (processCommands) {
+               _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
+               
+               g_Stack.DEBUGPrint(getIoStream(), "processCmd");
+
+               __console.processCmd(*__console.getStream(), command.c_str());
+               
+               if (_bBreakBatch) break;
+            }
+         } // while (file.available())
          
-         // Handle variables in the batch file
-         String command;
-         uint32_t extra_size = 50; // FIXME: max. length of a variable length (to be determined actually)
+         _bBreakBatch = false; // limits the break for the current batch, not for the upper one in nested calls
          
-         command.reserve(strlen(buffer) + extra_size); // Reserve enough space for the command and potential longer label
-         command = buffer;
-         
-         // Replace variables in the command
-         for (const auto& var : __console.getVariables()) {
-            command.replace("$" + var.first, var.second);
-         }
-         
-         if (command.endsWith(":")) {
-            // Check for labels
-            processCommands = (command == String(label) + ":");
-            continue;
-         }
-         
-         if (processCommands) {
-            _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
-            __console.processCmd(*__console.getStream(), command.c_str());
-         }
+         delete[] buffer;
       }
       
+
       file.close();
 #endif
+      mapTempVariables.clear();
+      
+      g_Stack.DEBUGPrint(getIoStream(), "end");
    }
    
    void man(const char* szCap) {

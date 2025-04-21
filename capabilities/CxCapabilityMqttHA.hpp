@@ -129,11 +129,6 @@ public:
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
-      if (__console.isSafeMode()) {
-         __console.error(F("Safe mode active!"));
-         return;
-      }
-
       
       // increase the PubSubClient buffer size as for HA the payload could be pretty long, especially for discovery topics.
       __mqttManager.setBufferSize(1024);
