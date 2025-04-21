@@ -179,3 +179,13 @@ echo "  init"
 echo "  repeat <n>"
 echo
 
+#
+# timer
+#
+timer:
+echo "timer commands:"
+echo "  add <id> <period> <mode> <cmd>  | max. 8 timers, max. 7 days, units: s, m, h, d, default is ms"
+echo "  del <id>"
+echo "  list"
+echo
+

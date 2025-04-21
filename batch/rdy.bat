@@ -39,12 +39,11 @@ sm:
 log warn "ESP in safemode"
 exec $userscript sm
 prompt "$ESC_BOLD$USER@serial-$ESC_BRED$ESC_BLINKSAFEMODE$ESC_RESET:/> "
-led blink 1024
+timer add 100 2000 1 "led flash 100 100 2"
 
 sm-cl:
 wifi connect
 log warn "ESP in safemode"
 prompt -CL "$ESC_BOLD$USER@$HOSTNAME-$ESC_BRED$ESC_BLINKSAFEMODE$ESC_RESET:/> "
-led blink 1024
 
 

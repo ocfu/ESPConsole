@@ -114,7 +114,7 @@ public:
          if (_timerOff.getPeriod() > 0) {
             _CONSOLE_INFO(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
             __console.processCmd("led blink");
-            _timerOff.start([this](){
+            _timerOff.start([this](const char*) {
                _CONSOLE_INFO(F("RLY: Relay on GPIO%02d off-timer ends"));
                off();
             }, true); // stop after due

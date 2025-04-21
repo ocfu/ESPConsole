@@ -68,7 +68,7 @@ public:
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo", "wlcm", "prompt", "loopdelay" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo", "wlcm", "prompt", "loopdelay", "timer" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -332,6 +332,52 @@ public:
             //__console.setEchoOn();
          } else if (strncmp(TKTOCHAR(tkArgs, 1), "on", 2) == 0) {
             //__console.setEchoOff();
+         }
+      } else if (cmd == "timer") {
+         // timer <add|del> <id> <ms> <mode> <cmd>
+         // mode: 0: once, 1: repeat
+         // cmd: command to execute
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
+         
+         if (strSubCmd == "add") {
+            // add a timer
+            if (tkArgs.count() > 5) {
+               uint8_t nId = TKTOINT(tkArgs, 2, INVALID_UINT8);
+               uint32_t nPeriod = __console.convertToMilliseconds(TKTOCHAR(tkArgs, 3));
+               if (nPeriod > 100 && nPeriod <= 7*24*3600*1000) {
+                  uint8_t nMode = TKTOINT(tkArgs, 4, 0);
+                  
+                  CxTimer* pTimer = new CxTimer();
+                  
+                  if (pTimer) {
+                     pTimer->setId(nId);
+                     if (__console.addTimer(pTimer)) {
+                        __console.info(F("add timer %d, period %d ms, mode %d, cmd %s"), pTimer->getId(), nPeriod, nMode, TKTOCHAR(tkArgs, 5));
+                        pTimer->setCmd(TKTOCHAR(tkArgs, 5));
+                        pTimer->start(nPeriod, [this, pTimer](const char* szCmd) {
+                           __console.processCmd(szCmd);
+                           // if the timer is set to once, remove it
+                           if (pTimer->getMode() == 0) {
+                              __console.info(F("timer %d expired, removing"), pTimer->getId());
+                              __console.delTimer(pTimer->getId());
+                           }
+                        }, (nMode == 0));
+                     } else {
+                        __console.error(F("could not add timer %d! (existing or too many timers)"), nId);
+                        delete pTimer;
+                     }
+                  }
+               } else {
+                  __console.printf("invalid timer period %d ms, min. 100 ms, max 7 days", nPeriod);
+               }
+            }
+         } else if (strSubCmd == "del") {
+            __console.delTimer(TKTOINT(tkArgs, 2, INVALID_UINT8));
+         } else if (strSubCmd == "list") {
+            // list all timers
+            __console.printTimers(getIoStream());
+         } else {
+            __console.man(cmd.c_str());
          }
       }
       else {

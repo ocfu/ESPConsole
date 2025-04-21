@@ -244,6 +244,7 @@ void CxESPConsoleMaster::loop() {
    __sysCPU.stopMeasure();
    startMeasure();
    CxESPConsole::loop();
+   loopTimers();
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI
