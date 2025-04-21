@@ -17,6 +17,10 @@
 
 #include <time.h>                    // for time() ctime()
 #include <sys/time.h>                // struct timeval
+#include "CxTimer.hpp"
+#include "CxTablePrinter.hpp"
+#include <vector>
+
 
 /// Credits:
 /// https://werner.rothschopf.net/microcontroller/202103_arduino_esp32_ntp_en.htm
@@ -31,9 +35,105 @@
  */
 class CxESPTime {
    char _buf[20];
-public:
-   CxESPTime() : _strNtpServer("pool.ntp.org"), _strTz("GMT0") {__initTime();};
    
+   static constexpr uint32_t _nTimerMax = 8;
+   
+   std::vector<CxTimer*> _timers;
+   
+public:
+   CxESPTime() : _strNtpServer(F("pool.ntp.org")), _strTz(F("GMT0")) {__initTime();};
+   
+   bool addTimer(CxTimer* pTimer) {
+      if (pTimer && _timers.size() < _nTimerMax) {
+         // Check if the timer ID already exists
+         for (const auto& timer : _timers) {
+            if (timer && timer->getId() == pTimer->getId()) {
+               return false; // Timer ID already exists
+            }
+         }
+         _timers.push_back(pTimer);
+         return true;
+      }
+      return false;
+   }
+ 
+   bool delTimer(uint8_t nId) {
+      for (auto it = _timers.begin(); it != _timers.end(); ++it) {
+         if ((*it)->getId() == nId) {
+            delete *it;
+            _timers.erase(it);
+            return true;
+         }
+      }
+      return false;
+   }
+    
+   void delAllTimers() {
+      _timers.clear();
+   }
+   
+   void loopTimers() {
+      for (auto& timer : _timers) {
+         if (timer != nullptr) {
+            timer->loop();
+         }
+      }
+   }
+   
+   CxTimer* getTimer(uint8_t nId) {
+      for (auto& timer : _timers) {
+         if (timer != nullptr && timer->getId() == nId) {
+            return timer;
+         }
+      }
+      return nullptr;
+   }
+      
+   uint32_t convertToMilliseconds(const char* szPeriod) {
+      if (szPeriod == nullptr || szPeriod[0] == '\0') return 0; // Handle null or empty input
+      size_t len = strlen(szPeriod);
+      char unit = szPeriod[len - 1];
+      uint32_t value = atoi(szPeriod);
+      if (unit == 'd') return value * 86400000; // Add support for days
+      if (unit == 'h') return value * 3600000;
+      if (unit == 'm') return value * 60000;
+      if (unit == 's') return value * 1000;
+      return value; // Default to milliseconds
+   }
+   
+   void convertToHumanReadableTime(uint32_t value, char* buf, size_t bufSize) {
+      if (!buf || bufSize == 0) return; // Handle invalid buffer
+      if (value >= 86400000) { // Days
+         snprintf(buf, bufSize, "%.1fd", value / 86400000.0);
+      } else if (value >= 3600000) { // Hours
+         snprintf(buf, bufSize, "%.1fh", value / 3600000.0);
+      } else if (value >= 60000) { // Minutes
+         snprintf(buf, bufSize, "%.1fm", value / 60000.0);
+      } else if (value >= 1000) { // Seconds
+         snprintf(buf, bufSize, "%.1fs", value / 1000.0);
+      } else { // Milliseconds
+         snprintf(buf, bufSize, "%ums", value);
+      }
+   }
+   
+   void printTimers(Stream& stream) {
+      CxTablePrinter table(stream);
+      table.printHeader({F("Id"), F("Period"), F("Mode"), F("Remain"), F("Cmd")}, {4, 6, 6, 6, 30});
+      char* szPeriod = new char[15];
+      char* szRemain = new char[15];
+      char* szId = new char[4];
+      for (uint8_t i = 0; i < _timers.size(); i++) {
+         if (_timers[i] != nullptr) {
+            convertToHumanReadableTime(_timers[i]->getPeriod(), szPeriod, 15);
+            convertToHumanReadableTime(_timers[i]->getRemain(), szRemain, 15);
+            snprintf(szId, 4, "%d", _timers[i]->getId());
+            table.printRow({szId, szPeriod, _timers[i]->getModeSz(), szRemain, _timers[i]->getCmd()});
+         }
+      }
+      delete[] szPeriod;
+      delete[] szRemain;
+   }
+      
    void printTime(Stream& stream, bool withTZ = true) {
       __updateTime();
       
