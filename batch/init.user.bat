@@ -88,10 +88,18 @@ rc:
 #rc on
 
 #
-# Final init.
+# Final init. Will not be called in safemode
 #
 final:
 wifi connect
+timer add 200 1m 1 "wifi check -q"
+
+#
+# Safemode
+#
+sm:
+wifi connect
+timer add 200 1m 1 "wifi check -q"
 
 #
 # Wifi is up and connected
@@ -100,15 +108,15 @@ wifi-up:
 log on
 log info "wifi up"
 set NTP fritz.box
-#mqtt connect
-#ha enable 1
+mqtt connect
+ha enable 1
 
 #
 # wifi is shut down
 #
 wifi-down:
 echo "wifi down"
-#mqtt stop
+mqtt stop
 
 #
 # wifi is online
@@ -122,3 +130,15 @@ log info "wifi online"
 wifi-offline:
 echo "wifi offline"
 log off
+timer del 201
+timer add 201 15s 0 "wifi connect;prompt"
+
+#
+# Access Point is up
+#
+ap-up:
+timer stop 200
+timer del 201
+
+ap-down:
+timer start 200
