@@ -373,7 +373,12 @@ public:
             }
          } else if (strSubCmd == "del") {
             __console.delTimer(TKTOINT(tkArgs, 2, INVALID_UINT8));
-         } else if (strSubCmd == "list") {
+         } else if (strSubCmd == "stop") {
+            __console.stopTimer(TKTOINT(tkArgs, 2, INVALID_UINT8));
+         } else if (strSubCmd == "start") {
+            __console.startTimer(TKTOINT(tkArgs, 2, INVALID_UINT8));
+         }
+         else if (strSubCmd == "list") {
             // list all timers
             __console.printTimers(getIoStream());
          } else {

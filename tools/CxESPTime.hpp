@@ -67,6 +67,22 @@ public:
       }
       return false;
    }
+   
+   void startTimer(uint8_t nId) {
+      for (auto& timer : _timers) {
+         if (timer != nullptr && timer->getId() == nId) {
+            timer->start();
+         }
+      }
+   }
+   
+   void stopTimer(uint8_t nId) {
+      for (auto& timer : _timers) {
+         if (timer != nullptr && timer->getId() == nId) {
+            timer->stop();
+         }
+      }
+   }
     
    void delAllTimers() {
       _timers.clear();
