@@ -143,6 +143,8 @@ public:
        } else if (cmd == "ls") {
           String strOpt = TKTOCHAR(tkArgs, 1);
           ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la");
+       } else if (cmd == "la") {
+          ls (true, true);
        } else if (cmd == "cat") {cat(a);
        } else if (cmd == "cp") {cp(a, b);
        } else if (cmd == "rm") {rm(a);
