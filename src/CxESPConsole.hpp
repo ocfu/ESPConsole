@@ -333,7 +333,9 @@ public:
          strHostname = "esp" + String(::getChipId(), 16);
          setHostName(strHostname.c_str());
       } else {
+#ifdef ARDUINO
          setHostName(buf);
+#endif
       }
    }
    
