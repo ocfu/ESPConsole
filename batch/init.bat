@@ -8,6 +8,8 @@ fs:
 touch .safemode   # system will boot into safe mode if this file exists on next boot
 loopdelay 1       # sets the delay at the end of each loop in usec
 set userscript init.$HOSTNAME.bat
+test ! -f $userscript "cp $userscript.bak $userscript"  #first fall back backup file
+test ! -f $userscript "cp init.user.bat $userscript"    #second fall back default init file
 
 # I2C capability
 i2c:
@@ -33,10 +35,6 @@ break on $SAFEMODE
 final:
 break on $SAFEMODE
 
-# copy default init
-cp:
-cp init.user.bat $userscript
-
 # wifi is up and connected
 wifi-up:
 break on $SAFEMODE
@@ -61,6 +59,6 @@ break on $SAFEMODE
 ap-down:
 break on $SAFEMODE
 
-# final calls for all labels
+# more commands for all labels
 all:
 exec $userscript $LABEL
