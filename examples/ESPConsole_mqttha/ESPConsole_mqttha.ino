@@ -53,7 +53,7 @@ WiFiServer server(8266);
 const char* ssid = STASSID;
 const char* password = STAPSK;
 
-CXCAPABILITY(CxMyCapability, "app", "test");
+CXCAPABILITY(CxMyCapability, "app", "abc");
 
 void CxMyCapability::setup(){
    println(F("app cap setup called"));
@@ -73,7 +73,7 @@ void CxMyCapability::loop(){
 bool CxMyCapability::execute(const char *cmd) {
    if (*cmd == '\?') {
       printCommands();
-   } else if (strncmp(cmd, "test", 4) == 0) {
+   } else if (strncmp(cmd, "abc", 4) == 0) {
       print(F("T="));print(g_Temperature.getFloatValue());println(g_Temperature.getUnit());
    } else {
       return false;
