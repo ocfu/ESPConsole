@@ -134,14 +134,18 @@ public:
    
    void printTimers(Stream& stream) {
       CxTablePrinter table(stream);
-      table.printHeader({F("Id"), F("Period"), F("Mode"), F("Remain"), F("Cmd")}, {4, 6, 6, 6, 30});
+      table.printHeader({F("Id"), F("Period"), F("Mode"), F("Remain"), F("Cmd")}, {4, 6, 6, 7, 30});
       char* szPeriod = new char[15];
       char* szRemain = new char[15];
       char* szId = new char[4];
       for (uint8_t i = 0; i < _timers.size(); i++) {
          if (_timers[i] != nullptr) {
             convertToHumanReadableTime(_timers[i]->getPeriod(), szPeriod, 15);
-            convertToHumanReadableTime(_timers[i]->getRemain(), szRemain, 15);
+            if (!_timers[i]->isRunning()) {
+               snprintf(szRemain, 15, "Stopped");
+            } else {
+               convertToHumanReadableTime(_timers[i]->getRemain(), szRemain, 15);
+            }
             snprintf(szId, 4, "%d", _timers[i]->getId());
             table.printRow({szId, szPeriod, _timers[i]->getModeSz(), szRemain, _timers[i]->getCmd()});
          }
