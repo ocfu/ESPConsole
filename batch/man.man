@@ -51,11 +51,10 @@ echo "  password [<password>]"
 echo "  hostname [<hostname>]"
 echo "  connect [<ssid> <password>]"
 echo "  disconnect"
-echo "  status"
+echo "  check"
 echo "  scan"
 echo "  otapw [<password>]"
 echo "  ap"
-echo "  sensor"
 
 led:
 echo "led commands:"

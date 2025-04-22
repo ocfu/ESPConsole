@@ -368,8 +368,6 @@ public:
             startWiFi(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3));
          } else if (strCmd == "disconnect") {
             stopWiFi();
-         } else if (strCmd == "status") {
-            __console.processCmd("net");
          } else if (strCmd == "scan") {
             ::scanWiFi(getIoStream());
          } else if (strCmd == "otapw") {
@@ -384,7 +382,18 @@ public:
             if (__console.isWiFiClient()) println(F("switching to AP mode. Note: this disconnects this console!"));
             delay(500);
             _beginAP();
-         } else {
+         } else if (strCmd == "check") {
+            bool bStatus = checkWifi();
+            if (!b) {
+               print(F("WiFi is "));
+               if (bStatus) {
+                  println(F("connected"));
+               } else {
+                  println(F("not connected"));
+               }
+            }               
+         }
+         else {
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
             } else {
@@ -400,6 +409,7 @@ public:
                println(F("  otapw [<password>]"));
                println(F("  ap"));
                println(F("  sensor"));
+               println(F("  check [-q]"));
 #endif
             }
          }
@@ -946,7 +956,7 @@ public:
    }
    
 #ifndef ESP_CONSOLE_NOWIFI
-   bool isConnected() {
+   bool checkWifi() {
 #ifdef ARDUINO
       bool bConnected = (WiFi.status() == WL_CONNECTED);
       
@@ -966,7 +976,7 @@ public:
 
    bool isHostAvailble(const char* host, uint32_t port) {
 #ifdef ARDUINO
-      if (isConnected() && port && host) { //Check WiFi connection status
+      if (WiFi.status() == WL_CONNECTED && port && host) { //Check WiFi connection status
          WiFiClient client;
          if (client.connect(host, port)) {
             client.stop();
@@ -994,7 +1004,7 @@ public:
 #ifndef ESP_CONSOLE_NOWIFI
       _stopAP();
       
-      if (isConnected()) {
+      if (checkWifi()) {
          stopWiFi();
       }
       
@@ -1073,7 +1083,7 @@ public:
       
       if (bUp) {
          __console.executeBatch("init", "wifi-up");
-         isConnected();
+         checkWifi();
       }
    }
    
@@ -1086,7 +1096,7 @@ public:
       WiFi.mode(WIFI_OFF);
       WiFi.forceSleepBegin();
 #endif
-      isConnected();
+      checkWifi();
       __console.executeBatch("init", "wifi-down");
    }
    
