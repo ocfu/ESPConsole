@@ -1207,6 +1207,8 @@ private:
          printf(F("ESP started in AP mode. SSID: %s, PW: %s, IP: %s\n"), __console.getHostName(), "12345678", WiFi.softAPIP().toString().c_str());
          
          __console.setAPMode(true);
+         __console.executeBatch("init", "ap-up");
+
       } else {
          __console.error(F("Failed to start Access Point, going back to STA mode"));
          startWiFi();
@@ -1225,6 +1227,7 @@ private:
       dnsServer.stop();
 #endif
       __console.setAPMode(false);
+      __console.executeBatch("init", "ap-down");
    }
 
 

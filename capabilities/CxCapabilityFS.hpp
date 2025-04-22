@@ -802,6 +802,8 @@ private:
 
 
       mapTempVariables.clear();
+      
+      mapTempVariables[F("LABEL")] = label;
 
       strBatchFile = "";
       
@@ -921,7 +923,7 @@ private:
 
             if (command.endsWith(":")) {
                // Check for labels
-               processCommands = (command == String(label) + ":");
+               processCommands = ((command == String(label) + ":") || command == "all:");
                continue;
             }
             
