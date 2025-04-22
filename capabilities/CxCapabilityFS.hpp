@@ -64,7 +64,7 @@ public:
    explicit CxCapabilityFS() : CxCapability("fs", getCmds()) {}
    static constexpr const char* getName() { return "fs"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "log", "exec", "mv", "man" };
+      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "log", "exec", "mv", "man", "test" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -217,9 +217,20 @@ public:
           } else {
              _bBreakBatch = false;
           }
-       }
-       else if (cmd == "man") {
+       } else if (cmd == "man") {
           man(TKTOCHAR(tkArgs, 1));
+       } else if (cmd == "test") {
+          std::vector<const char*> vExpr;
+          
+          // loop through tkArgs count - 1 and fill the vector
+          for (uint8_t i = 1; i < tkArgs.count() - 1; i++) {
+             vExpr.push_back(TKTOCHAR(tkArgs, i));
+          }
+          
+          if (test(vExpr)) {
+             // the command is the last item
+             __console.processCmd(TKTOCHAR(tkArgs, tkArgs.count()-1));
+          }
        }
        else {
           return false;
@@ -972,6 +983,72 @@ private:
       
       // Write new null terminator
       *(end + 1) = 0;
+   }
+   
+   bool test(std::vector<const char*>& vExpression) {
+      // implement condition evaluation utility
+      // test <expression> <cmd>
+      // expressions:
+      // -e <file>     True if file exists
+      // -z <string>   True if the length of string is zero
+      // -n <string>   True if the length of string is nonzero
+      // s1 = s2       True if s1 == s2
+      // s1 != s2      True if s1 != s2
+      // n1 -eq n2     True if n1 == n2
+      // n1 -ne n2     True if n1 != n2
+      // n1 -lt n2     True if n1 < n2
+      // n1 -le n2     True if n1 <= n2
+      // n1 -gt n2     True if n1 > n2
+      // n1 -ge n2     True if n1 >= n2
+      // ! <expression> True if expression is false
+
+      if (vExpression.empty()) return false;
+      
+      if (strcmp(vExpression[0], "!") == 0 && vExpression.size() > 1) {
+         std::vector<const char*> subExpression(vExpression.begin() + 1, vExpression.end());
+         return !test(subExpression);
+      } else if ((strcmp(vExpression[0], "-e") == 0 || strcmp(vExpression[0], "-f") == 0) && vExpression.size() == 2) {
+         // check if file exists
+         return fileExists(vExpression[1]);
+      } else if (strcmp(vExpression[0], "-z") == 0 && vExpression.size() == 2) {
+         // check if string is empty
+         return strlen(vExpression[1]) == 0;
+      } else if (strcmp(vExpression[0], "-n") == 0 && vExpression.size() == 2) {
+         // check if string is not empty
+         return strlen(vExpression[1]) > 0;
+      } else if (vExpression.size() == 3) {
+         char* end1;
+         char* end2;
+         int32_t n1 = (int32_t)std::strtol(vExpression[0], &end1, 0); // return as int32_t with auto base
+         while (isspace(*end1)) end1++;
+         int32_t n2 = (int32_t)std::strtol(vExpression[2], &end2, 0);
+         while (isspace(*end2)) end2++;
+         if (vExpression[0]!=end1 && *end1 == '\0' && vExpression[2]!=end2 && *end2 == '\0') {
+            // check numeric comparison
+            if (strcmp(vExpression[1], "-eq") == 0) {
+               return n1 == n2;
+            } else if (strcmp(vExpression[1], "-ne") == 0) {
+               return n1 != n2;
+            } else if (strcmp(vExpression[1], "-lt") == 0) {
+               return n1 < n2;
+            } else if (strcmp(vExpression[1], "-le") == 0) {
+               return n1 <= n2;
+            } else if (strcmp(vExpression[1], "-gt") == 0) {
+               return n1 > n2;
+            } else if (strcmp(vExpression[1], "-ge") == 0) {
+               return n1 >= n2;
+            }
+         } else {
+            // check string comparison
+            if (strcmp(vExpression[1], "=") == 0) {
+               return strcmp(vExpression[0], vExpression[2]) == 0;
+            } else if (strcmp(vExpression[1], "!=") == 0) {
+               return strcmp(vExpression[0], vExpression[2]) != 0;
+            }
+         }
+      }
+      
+      return false;
    }
 
 public:

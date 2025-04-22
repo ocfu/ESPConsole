@@ -188,3 +188,22 @@ echo "  del <id>"
 echo "  list"
 echo
 
+#
+# test
+# condition evaluation utility
+#
+test:
+echo "test <expression> <cmd>"
+echo "expressions:"
+echo "-f <file>     True if file exists"
+echo "-z <string>   True if the length of string is zero"
+echo "-n <string>   True if the length of string is nonzero"
+echo "s1 = s2       True if s1 == s2"
+echo "s1 != s2      True if s1 != s2"
+echo "n1 -eq n2     True if n1 == n2"
+echo "n1 -ne n2     True if n1 != n2"
+echo "n1 -lt n2     True if n1 < n2"
+echo "n1 -le n2     True if n1 <= n2"
+echo "n1 -gt n2     True if n1 > n2"
+echo "n1 -ge n2     True if n1 >= n2"
+echo "! <expression> True if expression is false"
