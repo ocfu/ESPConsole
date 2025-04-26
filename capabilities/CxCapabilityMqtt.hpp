@@ -96,7 +96,6 @@ public:
    }
    
    bool execute(const char *szCmd) override {
-      bool bQuiet = false;
       
       // validate the call
       if (!szCmd) return false;
@@ -111,7 +110,6 @@ public:
       cmd.trim();
       
       // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkArgs, 1);
       const char* b = TKTOCHAR(tkArgs, 2);
       
       if (cmd == "?") {
@@ -152,12 +150,15 @@ public:
          else {
             printf(F(ESC_ATTR_BOLD " Server:       " ESC_ATTR_RESET "%s (%s)\n"), __mqttManager.getServer(), _bMqttServerOnline? ESC_TEXT_GREEN "online" ESC_ATTR_RESET: ESC_TEXT_BRIGHT_RED "offline" ESC_ATTR_RESET);
             printf(F(ESC_ATTR_BOLD " Port:         " ESC_ATTR_RESET "%d\n"), __mqttManager.getPort());
+#ifndef MINIMAL_COMMAND_SET
+
             printf(F(ESC_ATTR_BOLD " QoS:          " ESC_ATTR_RESET "%d\n"), __mqttManager.getQoS());
             printf(F(ESC_ATTR_BOLD " Root path:    " ESC_ATTR_RESET "%s\n"), __mqttManager.getRootPath());
             printf(F(ESC_ATTR_BOLD " Name:         " ESC_ATTR_RESET "%s\n"), __mqttManager.getName());
             printf(F(ESC_ATTR_BOLD " Will:         " ESC_ATTR_RESET "%s\n"), __mqttManager.isWill() ? "true" : "false");
             printf(F(ESC_ATTR_BOLD " Will topic:   " ESC_ATTR_RESET "%s\n"), __mqttManager.getWillTopic());
             printf(F(ESC_ATTR_BOLD " Heartb. per.: " ESC_ATTR_RESET "%d"), _timerHeartbeat.getPeriod()); println(F(" ms"));
+#endif
             println();
             __console.man(getName());
          }

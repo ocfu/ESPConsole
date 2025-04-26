@@ -22,15 +22,6 @@ public:
    // Constructor accepting a Stream reference
    CxTablePrinter(Stream& stream) : output(stream) {}
    
-   void printHeader(const char* title, uint8_t width) {
-      columnWidths.push_back(width);
-      if (currentColumn > 0) {
-         output.print(" | ");
-      }
-      output.printf("%-*s", width, title);
-      currentColumn++;
-   }
-   
    void printHeader(const std::vector<String>& titles, const std::vector<uint8_t>& widths) {
       columnWidths = widths; // Store the widths
       for (size_t i = 0; i < titles.size(); i++) {
@@ -54,17 +45,6 @@ public:
          }
       }
       output.println();
-   }
-   
-   void printRow(const char* value) {
-      if (currentColumn >= columnWidths.size()) {
-         currentColumn = 0; // Reset to the first column
-      }
-      if (currentColumn > 0) {
-         output.print(" | ");
-      }
-      output.printf("%-*s", columnWidths[currentColumn], value);
-      currentColumn++;
    }
    
    void printRow(const std::vector<String>& values) {

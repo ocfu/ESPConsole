@@ -354,17 +354,6 @@ public:
    
    /**
     * @brief Remove a sensor from the manager.
-    * @param nId The unique ID of the sensor to remove.
-    */
-   void removeSensor(uint8_t nId) {
-      auto it = _mapSensors.find(nId);
-      if (it != _mapSensors.end()) {
-         _mapSensors.erase(it);
-      }
-   }
-
-   /**
-    * @brief Remove a sensor from the manager.
     * @param pSensor A pointer to the sensor to remove.
     */
    void removeSensor(CxSensor* pSensor) {

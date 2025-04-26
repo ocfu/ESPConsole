@@ -257,6 +257,8 @@ const char* getChipType() {
 
 // Common ESP8266 and ESP32 stuff here /////////////////////////////////////////////////
 
+#ifndef MINIMAL_COMMAND_SET
+
 uint64_t speed_check(uint32_t start, uint32_t end) {
    
    //not working yet
@@ -282,6 +284,9 @@ uint64_t speed_check(uint32_t start, uint32_t end) {
    }
    return (millis() - now);
 }
+
+#endif /* MINIMAL_COMMAND_SET*/
+
 
 uint32_t getFreeOTA() {
 #ifdef ARDUINO
@@ -323,6 +328,8 @@ char* remove8BitChars(const char *mess) {
    return __buffer;
 }
 
+#ifndef MINIMAL_COMMAND_SET
+
 void replaceInvalidChars(char* sz, uint32_t lenmax) {
    while (*sz != '\0' && lenmax-- > 0) {
       // Prüfen, ob das Zeichen ein Buchstabe, eine Zahl oder ein Leerzeichen ist
@@ -357,6 +364,7 @@ bool utf8_check_is_valid(const char* sz)
    }
    return true;
 }
+#endif /* MINIMAL_COMMAND_SET*/
 
 const char* getChipInfo() {
 #ifdef ARDUINO
@@ -410,6 +418,7 @@ const char* getResetInfo() {
    return __nst_buffer;
 }
 
+#ifndef MINIMAL_COMMAND_SET
 bool isExceptionRestart() {
 #ifdef ARDUINO
 #ifdef ESP32
@@ -424,6 +433,7 @@ bool isExceptionRestart() {
 #endif
    return false;
 }
+#endif /* MINIMAL_COMMAND_SET*/
 
 const char* getCoreVersion() {
 #ifdef ARDUINO

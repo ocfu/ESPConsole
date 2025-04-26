@@ -161,15 +161,6 @@ public:
    /// Get the number of registered devices
    uint8_t getDeviceCount() {return _mapDevices.size();}
    
-   /// unique id
-   uint8_t createId() {
-      uint8_t id = 0;
-      while (_mapDevices.find(id) != _mapDevices.end()) {
-         id++;
-      }
-      return id;
-   }
-   
    /// add Device
    void addDevice(CxDevice* pDevice) {
       if (pDevice) {
@@ -179,13 +170,7 @@ public:
          }
       }
    }
-   
-   void removeDevice(uint8_t id) {
-      if (_mapDevices.find(id) != _mapDevices.end()) {
-         _mapDevices.erase(id);
-      }
-   }
-   
+
    void removeDevice(const char* name) {
       for (auto& it : _mapDevices) {
          if (strcmp(it.second->getName(), name) == 0) {
@@ -194,15 +179,7 @@ public:
          }
       }
    }
-   
-   /// Get a Device by its unique ID
-   CxDevice* getDevice(uint8_t id) {
-      if (_mapDevices.find(id) != _mapDevices.end()) {
-         return _mapDevices[id];
-      }
-      return nullptr;
-   }
-   
+
    /// Get a Device by its name
    CxDevice* getDevice(const char* name) {
       for (auto& it : _mapDevices) {
@@ -239,23 +216,6 @@ public:
       }
       return nullptr;
    };
-      
-   
-   /// pin in use?
-   bool isPinInUse(uint8_t pin) {
-      for (auto& it : _mapDevices) {
-         if (it.second->getId() == pin) {
-            return true;
-         }
-      }
-      
-      // double check with gpio tracker
-      if (_gpioTracker.hasPin(pin)) {
-         return true;
-      }
-      
-      return false;
-   }
    
    /// Loop through all Devices and update their state
    void loop(bool bDegraded = false) {
@@ -295,7 +255,7 @@ void CxDevice::registerDevice() {
 }
 
 void CxDevice::unregisterDevice() {
-   CxGPIODeviceManagerManager::getInstance().removeDevice(getId());
+   CxGPIODeviceManagerManager::getInstance().removeDevice(getName());
 }
 
 #endif /* CxGPIODeviceManager_hpp */

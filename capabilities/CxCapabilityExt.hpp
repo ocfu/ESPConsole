@@ -12,7 +12,6 @@
  * - CxGpioTracker.hpp: GPIO tracker class
  * - CxLed.hpp: LED control class
  * - CxSensorManager.hpp: Sensor manager class
- * - CxConfigParser.hpp: Configuration parser class
  * - CxOta.hpp: OTA update class
  * - WebServer.h: Web server library for ESP32
  * - ESP8266WebServer.h: Web server library for ESP8266
@@ -451,13 +450,19 @@ public:
                      printf(F("invalid pin mode!"));
                   }
                } else if (nValue < 1024) {
+#ifndef MINIMAL_COMMAND_SET
                   if (nValue > HIGH && gpio.isAnalog()) {
                      println("write analog");
                      gpio.writeAnalog(nValue);
-                  } else {
+                  }
+                  else {
                      println("write digital");
                      gpio.writePin(nValue);
                   }
+#else
+                  println("write digital");
+                  gpio.writePin(nValue);
+#endif
                } else {
                   printf(F("invalid value!"));
                }
@@ -820,6 +825,7 @@ public:
    }
    
    void printESP() {
+#ifndef MINIMAL_COMMAND_SET
 #ifdef ARDUINO
 #ifdef ESP32
       //TODO: get real flash size for esp32
@@ -906,9 +912,15 @@ public:
       printf(F("free heap:    %5d Bytes\n"), ESP.getFreeHeap());
       printf(F("\n"));
 #endif
+#else
+      println(F("red. cmd set"));
+#endif /* MINIMAL_COMMAND_SET*/
+
    }
 
    void printFlashMap() {
+#ifndef MINIMAL_COMMAND_SET
+
 #ifdef ARDUINO
       printf(F("-FLASHMAP---------------\n"));
 #ifdef ESP32
@@ -953,6 +965,11 @@ public:
       printf(F("\n"));
       printf(F("------------------------\n"));
 #endif
+#else
+      println(F("red. cmd set"));
+
+#endif /*MINIMAL_COMMAND_SET*/
+
    }
    
 #ifndef ESP_CONSOLE_NOWIFI

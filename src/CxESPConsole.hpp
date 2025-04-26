@@ -690,27 +690,10 @@ public:
    
    // Print all registered constructors
    void listCap() {
-      println(F("Available Capabilities: "));
+      CxTablePrinter table(*__ioStream);
+      table.printHeader({F("Cap"), F("Loaded"), F("Locked"), F("Memory"), F("Commands")}, {6, 6, 6, 6, 3});
       for (const auto& entry : _mapCapRegistry) {
-         print("- "); print(entry.first.c_str());
-         if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
-            print(F(" (loaded"));
-            if (_mapCapInstances[entry.first].get()->isLocked()) {
-               print(F(" and locked"));
-            }
-            print(F(", "));
-            if (_mapCapInstances[entry.first].get()->getMemAllocation() != INVALID_INT32) {
-               print(_mapCapInstances[entry.first].get()->getMemAllocation());
-               print(F(" bytes allocated, "));
-            } else {
-               print(F("memory allocation undefined, "));
-            }
-            print(_mapCapInstances[entry.first].get()->getCommandsCount());
-            print(F(" commands)"));
-            println();
-         } else {
-            println();
-         }
+         table.printRow({entry.first.c_str(), _mapCapInstances.find(entry.first) != _mapCapInstances.end() ? "yes" : "no", _mapCapInstances[entry.first].get()->isLocked() ? "yes" : "no", _mapCapInstances[entry.first].get()->getMemAllocation() != INVALID_INT32 ? String(_mapCapInstances[entry.first].get()->getMemAllocation()).c_str() : "", String(_mapCapInstances[entry.first].get()->getCommandsCount()).c_str()});
       }
    }
    

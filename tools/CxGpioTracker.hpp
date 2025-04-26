@@ -132,7 +132,9 @@ public:
             return "UNKNOWN";
       }
    }
-   
+
+#ifndef MINIMAL_COMMAND_SET
+
    ///
    /// Check if the pin supports analog functionality.
    /// @param pin The pin number.
@@ -151,7 +153,8 @@ public:
       return false; // Unknown MCU
 #endif
    }
-   
+#endif /*MINIMAL_COMMAND_SET*/
+
    ///
    /// Check if the pin is in OUTPUT mode.
    /// @param pin The pin number.
@@ -209,6 +212,8 @@ public:
       return (hasPin(pin) && _pinData[pin].state);
    }
    
+#ifndef MINIMAL_COMMAND_SET
+
    // Set PWM state (enabled/disabled)
    void setPWM(uint8_t pin, bool enabled) {
       setDefaultValues(pin);
@@ -219,7 +224,7 @@ public:
    bool isPWM(uint8_t pin) {
       return (hasPin(pin) && _pinData[pin].pwmEnabled);
    }
-   
+
    // Set analog state (enabled/disabled)
    void setAnalog(uint8_t pin, bool enabled) {
       setDefaultValues(pin);
@@ -237,6 +242,12 @@ public:
       setAnalog(pin, true);
    }
    
+   // Get analog value
+   uint16_t getAnalogValue(uint8_t pin) {
+      return hasPin(pin) ? _pinData[pin].analogValue : 0;
+   }
+#endif /*MINIMAL_COMMAND_SET*/
+
    const char* getName(uint8_t pin) {
       return hasPin(pin) ? _pinData[pin].szName : "";
    }
@@ -245,12 +256,7 @@ public:
       setDefaultValues(pin);
       snprintf(_pinData[pin].szName, sizeof(_pinData[pin].szName), "%s", name);
    }
-   
-   // Get analog value
-   uint16_t getAnalogValue(uint8_t pin) {
-      return hasPin(pin) ? _pinData[pin].analogValue : 0;
-   }
-   
+
    // Check if a pin is being tracked
    bool hasPin(uint8_t pin) const {
       return _pinData.find(pin) != _pinData.end();
@@ -284,15 +290,29 @@ public:
       }
       stream.printf("%s", getDigitalState(pin) ? "HIGH" : "LOW");
       stream.print(", " ESC_ATTR_BOLD "PWM: " ESC_ATTR_RESET);
+#ifndef MINIMAL_COMMAND_SET
       stream.print(isPWM(pin) ? "Enabled" : "Disabled");
       stream.print(", " ESC_ATTR_BOLD "Analog Value: " ESC_ATTR_RESET);
       stream.printf("%d\n", getAnalogValue(pin));
+#else
+      stream.println();
+#endif
    }
    
    // Print the state of all tracked pins
    void printAllStates(Stream& stream) {
+      CxTablePrinter table(stream);
+#ifndef MINIMAL_COMMAND_SET
+      table.printHeader({F("Pin"), F("Mode"), F("inv"), F("State"), F("PWM"), F("Analog")}, {3, 10, 3, 5, 8, 4});
+ #else
+      table.printHeader({F("Pin"), F("Mode"), F("inv"), F("State")}, {3, 10, 3, 5});
+#endif
       for (const auto& entry : _pinData) {
-         printState(stream, entry.first);
+#ifndef MINIMAL_COMMAND_SET
+         table.printRow({String(entry.first).c_str(), getPinModeSz(entry.first), isInverted(entry.first) ? "yes" : "no", getDigitalState(entry.first) ? "HIGH" : "LOW", isPWM(entry.first) ? "Endabled" : "Disabled", String(getAnalogValue(entry.first))});
+#else
+         table.printRow({String(entry.first).c_str(), getPinModeSz(entry.first), isInverted(entry.first) ? "yes" : "no", getDigitalState(entry.first) ? "HIGH" : "LOW"});
+#endif
       }
    }
 
@@ -494,10 +514,11 @@ public:
       bool state = _gpioTracker.getDigitalState(_nPin);
       return isInverted() ? !state : state;
    }
-   
+#ifndef MINIMAL_COMMAND_SET
    uint16_t getAnalogValue() {
       return _gpioTracker.getAnalogValue(_nPin);
    }
+#endif
    
    // Write a value to the pin and sets the mode implicitly
    void writePin(uint8_t value) {
@@ -513,7 +534,9 @@ public:
          std::cout << (isInverted() ? !value : value) << std::endl;
 #endif
          _gpioTracker.setDigitalState(_nPin, (value == HIGH) != isInverted());
+#ifndef MINIMAL_COMMAND_SET
          _gpioTracker.setAnalog(_nPin, false);
+#endif
       }
    }
    
@@ -532,6 +555,7 @@ public:
       }
    }
    
+#ifndef MINIMAL_COMMAND_SET
    // Enable PWM with inverted logic consideration
    void enablePWM(uint32_t frequency, uint8_t dutyCycle) {
       if (isValid()) {
@@ -559,7 +583,7 @@ public:
          _gpioTracker.setPWM(_nPin, false);
       }
    }
-   
+
    // Read an analog value
    int16_t readAnalog() {
       if (isValid()) {
@@ -587,6 +611,7 @@ public:
          _gpioTracker.setAnalogValue(_nPin, value);
       }
    }
+#endif
    
    // Check if the pin is logically HIGH (considers inverted state)
    bool isHigh() {
@@ -631,7 +656,8 @@ public:
          writePin(!currentState);
       }
    }
-   
+#ifndef MINIMAL_COMMAND_SET
+
    // Check if PWM is enabled
    bool isPWM() {
       return _gpioTracker.isPWM(_nPin);
@@ -640,7 +666,7 @@ public:
    bool isAnalog() {
       return _gpioTracker.isAnalogPin(_nPin);
    }
-   
+#endif
    bool isInput() {
       return _gpioTracker.isInput(_nPin);
    }

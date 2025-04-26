@@ -112,6 +112,7 @@ public:
       Serial.println(getHigh());
    }
    
+#ifdef DEBUG_BUILD
 #pragma GCC push_options
 #pragma GCC optimize ("O0")
    
@@ -122,6 +123,7 @@ public:
    }
    
 #pragma GCC pop_options  // Restore optimizations
+#endif
 };
 
 

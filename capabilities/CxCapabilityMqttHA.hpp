@@ -198,9 +198,7 @@ public:
    }
    
    bool execute(const char *szCmd) override {
-      
-      bool bQuiet = false;
-      
+            
       // validate the call
       if (!szCmd) return false;
       
@@ -212,11 +210,7 @@ public:
       
       // removes heading and trailing white spaces
       cmd.trim();
-      
-      // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkArgs, 1);
-      const char* b = TKTOCHAR(tkArgs, 2);
-      
+            
       if (cmd == "?") {
          printCommands();
       }    if (cmd == "ha") {

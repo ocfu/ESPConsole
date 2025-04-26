@@ -508,7 +508,8 @@ public:
       _CONSOLE_DEBUG(F("unsubscribe topic %s"), strTopic.c_str());
       return _mqttClient.unsubscribe(strTopic.c_str());
    }
-   
+
+#ifdef MINIMAL_COMMAND_SET
    /**
     * @brief Finds the callback function for a topic.
     * @param topic The topic to search for.
@@ -537,7 +538,7 @@ public:
       }
       return false;
    }
-   
+
    /**
     * @brief Removes a topic and its callback function.
     * @param topic The topic to remove.
@@ -545,9 +546,15 @@ public:
    void removeTopic(const char* topic) {
       unsubscribe(topic);
    }
+#endif
    
    void printSubscribtion(Stream& stream) {
+      CxTablePrinter table(stream);
+      
+      table.printHeader({F("#"), F("Path")}, {2, 30});
+      
       for (const auto& pair : _mapTopicCallbacks) {
+         uint8_t i = 1;
          if (pair.first) {
             String strTopic;
             if (_mapIsRelative[pair.first]) {
@@ -555,11 +562,11 @@ public:
             } else {
                strTopic = pair.first+1; // without heading '/'
             }
-            stream.println(strTopic.c_str());
+            table.printRow({String(i++).c_str(), strTopic.c_str()});
          }
       }
    }
-   
+
 };
 
 

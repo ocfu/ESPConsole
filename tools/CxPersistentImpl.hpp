@@ -79,23 +79,11 @@ public:
       impl.setLoadIntFunc([this](const char* szName, int32_t nDefaultValue, const char* szGroup) {
          return this->loadSettingInt(szName, nDefaultValue, szGroup);
       });
-      impl.setLoadFloatFunc([this](const char* szName, float fDefaultValue, const char* szGroup) {
-         return this->loadSettingFloat(szName, fDefaultValue, szGroup);
-      });
-      impl.setLoadBoolFunc([this](const char* szName, bool bDefaultValue, const char* szGroup) {
-         return this->loadSettingBool(szName, bDefaultValue, szGroup);
-      });
       impl.setSaveStrFunc([this](const char* szName, const char* szValue, const char* szComment, const char* szGroup) {
          return this->saveSettingStr(szName, szValue, szComment, szGroup);
       });
       impl.setSaveIntFunc([this](const char* szName, int32_t nValue, const char* szComment, const char* szGroup) {
          return this->saveSettingInt(szName, nValue, szComment, szGroup);
-      });
-      impl.setSaveFloatFunc([this](const char* szName, float fValue, const char* szComment, const char* szGroup) {
-         return this->saveSettingFloat(szName, fValue, szComment, szGroup);
-      });
-      impl.setSaveBoolFunc([this](const char* szName, bool bValue, const char* szComment, const char* szGroup) {
-         return this->saveSettingBool(szName, bValue, szComment, szGroup);
       });
    }
    

@@ -296,10 +296,6 @@ public:
       // removes heading and trailing white spaces
       strCmd.trim();
       
-      // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkCmd, 1);
-      const char* b = TKTOCHAR(tkCmd, 2);
-      
       if ((strCmd == "?")) {
          printCommands();
       } else if (strCmd == "i2c") {
@@ -380,15 +376,12 @@ public:
     * @brief Lists all devices in the map.
     */
    void printDevices() {
-      if (_mapDevices.empty()) {
-         println(F("No devices found in the map."));
-         return;
-      }
+      CxTablePrinter table(getIoStream());
       
-      println(F(ESC_ATTR_BOLD "I2C Devices: " ESC_ATTR_RESET));
+      table.printHeader({F("Addr"), F("Type"), F("Category")}, {4, 10, 20});
+      
       for (const auto& [address, device] : _mapDevices) {
-         printf(ESC_TEXT_WHITE " 0x%02x " ESC_ATTR_RESET, address);
-         printf("%s (%s)\n", device->getTypeSz(), device->getCatSz());
+         table.printRow({String(address, 16).c_str(), device->getTypeSz(), device->getCatSz()});
       }
    }
    

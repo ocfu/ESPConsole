@@ -135,8 +135,8 @@ public:
     */
    void loop() override {
       if (_bEnabled) {
-         unsigned long now = millis();
 #ifdef ARDUINO
+         unsigned long now = millis();
          if ((m_pRCSwitch != NULL) && m_pRCSwitch->available()) {
             
             unsigned long nValue = m_pRCSwitch->getReceivedValue();
@@ -206,10 +206,6 @@ public:
       // removes heading and trailing white spaces
       strCmd.trim();
       
-      // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkCmd, 1);
-      const char* b = TKTOCHAR(tkCmd, 2);
-      
       if ((strCmd == "?")) {
          printCommands();
       } else if (strCmd == "rc") {
@@ -218,8 +214,7 @@ public:
             _bEnabled = (bool)TKTOINT(tkCmd, 2, 0);
             if (_bEnabled) init();
          } else if (strSubCmd == "list") {
-         } else if (strSubCmd == "test") {
-            test();
+            listStates();
          } else if (strSubCmd == "on") {
             on(TKTOINT(tkCmd, 2, 0));
          } else if (strSubCmd == "off") {
@@ -255,7 +250,6 @@ public:
          }
          else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
-            listStates();
             __console.man(getName());
          }
       } else {
@@ -446,32 +440,14 @@ public:
       // list states
       CxTablePrinter table(*__console.getStream());
       
-      table.printHeader("Ch", 3); //, "On", "Toggle", "OnCode", "OffCode");
-      table.printHeader("On", 5);
-      table.printHeader("Toggle", 7);
-      table.printHeader("OnCode", 10);
-      table.printHeader("OffCode", 10);
-      table.printHeaderEnd();
+      table.printHeader({F("Ch"), F("On"), F("Toggle"), F("OnCode"), F("OffCode")},{3, 5, 7, 10, 10});
       
       for (int i = 0; i < RCCHANNELS; i++) {
-         table.printRow(String(i).c_str());
-         table.printRow(isOn(i) ? "on" : "off");
-         table.printRow(isToggle(i) ? "on" : "off");
-         table.printRow(String(getOnCode(i)).c_str());
-         table.printRow(String(getOffCode(i)).c_str());
-         table.printRowEnd();
+         table.printRow({String(i).c_str(), isOn(i) ? "on" : "off", isToggle(i) ? "on" : "off", String(getOnCode(i)).c_str(), String(getOffCode(i)).c_str()});
       }
    }
 
-   /**
-    * @brief Tests the segment display capability.
-    * @details Tests the segment display capability by displaying various numbers, messages, and symbols on the segment display.
-    * The method displays numbers from -110 to 100, the time, the save message, the error message, the on message, and the off message.
-    */
-   void test() {
-   }
-    
-    
+     
    static void loadCap() {
       CAPREG(CxCapabilityRC);
       CAPLOAD(CxCapabilityRC);

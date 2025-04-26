@@ -430,11 +430,7 @@ public:
       
       // removes heading and trailing white spaces
       strCmd.trim();
-      
-      // expect sz parameter, invalid is nullptr
-      const char* a = TKTOCHAR(tkCmd, 1);
-      const char* b = TKTOCHAR(tkCmd, 2);
-      
+            
       if ((strCmd == "?")) {
          printCommands();
       } else if (strCmd == "seg") {

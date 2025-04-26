@@ -103,10 +103,12 @@ public:
       HAswitch,      ///< Switch entity
       HAbinary,      ///< Binary sensor entity
       HAnumber,      ///< Number input entity
+#ifdef MINIMAL_COMMAND_SET
       HAsiren,       ///< Siren entity
       HAalarmpanel,  ///< Alarm panel entity
       HAnotify,      ///< Notification entity
       HAevent,       ///< Event entity
+#endif
       HAselect       ///< Select entity
    };
    
@@ -146,10 +148,12 @@ public:
          case e_type::HAswitch: return "switch";
          case e_type::HAbinary: return "binary_sensor";
          case e_type::HAnumber: return "number";
+#ifdef MINIMAL_COMMAND_SET
          case e_type::HAsiren: return "siren";
          case e_type::HAalarmpanel: return "alarm_control_panel";
          case e_type::HAnotify: return "notify";
          case e_type::HAevent: return "event";
+#endif
          case e_type::HAselect: return "select";
          default: return "";
       }
@@ -277,6 +281,7 @@ public:
     */
    e_cat getCat() const {return __eCat;}
 
+#ifdef MINIMAL_COMMAND_SET
    /**
     * @brief Mark entity as configuration category
     * @details Sets entity category to config and enables command retention
@@ -295,7 +300,7 @@ public:
     * @brief Reset entity to default category (none)
     */
    void asDefault() { setCat(e_cat::none); }
-   
+#endif
 
    /// From CxMqttHABase derived classes need to register to CxMqttHADevice, which is also a derived class from CxMqttHABase and not known here, so we are using the template "trick" to solve this and to avoid the need of a cpp file.
    /**
@@ -908,14 +913,7 @@ public:
       
       while(it != _vecItems.end())
       {
-         table.printRow(String(n).c_str());
-         table.printRow((*it)->getName());
-         table.printRow((*it)->getFriendlyName());
-         table.printRow((*it)->getTypeSz());
-         table.printRow((*it)->isAvailable()?"yes":"no");
-         table.printRow((*it)->isRetainedCmd()?"yes":"no");
-         table.printRow((*it)->getTopicBase());
-         table.printRowEnd();
+         table.printRow({String(n).c_str(), (*it)->getName(), (*it)->getFriendlyName(), (*it)->getTypeSz(), (*it)->isAvailable()?"yes":"no", (*it)->isRetainedCmd()?"yes":"no", (*it)->getTopicBase()});
          it++;
          n++;
       }
@@ -1163,6 +1161,8 @@ public:
    
 };
 
+#ifdef MINIMAL_COMMAND_SET
+
 class CxMqttHASiren : public CxMqttHABase {
    // https://www.home-assistant.io/integrations/siren.mqtt/
 private:
@@ -1253,6 +1253,7 @@ public:
    void addJsonAction(JsonDocument& doc) const {}
    
 };
+#endif
 
 class CxMqttHASelect : public CxMqttHABase {
    //https://www.home-assistant.io/integrations/select.mqtt/

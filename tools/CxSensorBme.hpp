@@ -103,12 +103,12 @@ public:
    /// Begin sensor initialization
    bool begin() {
       if ((_pI2CDev == nullptr) || (!_pI2CDev->isEnabled())) {
-         __console.warn(F("SENS: BME device is not enabled in configuration!"));
+         _CONSOLE_INFO(F("SENS: BME device is not enabled in configuration!"));
          return false;
       }
       
       if (!isEnabled()) {
-         __console.warn(F("SENS: BME sensor is not enabled in configuration!"));
+         _CONSOLE_INFO(F("SENS: BME sensor is not enabled in configuration!"));
          return false;
       }
       
