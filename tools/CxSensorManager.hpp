@@ -488,12 +488,13 @@ public:
     * @brief Print a list of all sensors to the console.
     */
    void printList() {
-      /// print table header (ID, name, type, value, unit)
-      __console.printf(F(ESC_ATTR_BOLD "ID | Name        | Type            | Model    | Value   | Unit\n" ESC_ATTR_RESET));
+      CxTablePrinter table(*__console.getStream());
       
+      table.printHeader({F("Id"), F("Name"), F("Type"), F("Model"), F("Value"), F("Unit")}, {2,11,15,8,8,8});
+
       /// iterate over all sensors and print formated sensor information
       for (const auto& [nId, pSensor] : _mapSensors) {
-         __console.printf(F(ESC_ATTR_BOLD "%02d" ESC_ATTR_RESET " | %-11s | %-15s | %-8s | %7.1f | %s\n"), nId, pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() ,pSensor->getFloatValue(), pSensor->getUnit());
+         table.printRow({String(nId).c_str(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() , String(pSensor->getFloatValue()).c_str(), pSensor->getUnit()});
       }
    }
    
