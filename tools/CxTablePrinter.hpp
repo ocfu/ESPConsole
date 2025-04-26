@@ -24,6 +24,7 @@ public:
    
    void printHeader(const std::vector<String>& titles, const std::vector<uint8_t>& widths) {
       columnWidths = widths; // Store the widths
+      output.print(ESC_ATTR_BOLD);
       for (size_t i = 0; i < titles.size(); i++) {
          if (i > 0) {
             output.print(" | ");
@@ -31,11 +32,13 @@ public:
          String truncated = truncateString(titles[i], widths[i]);
          output.printf("%-*s", widths[i], truncated.c_str());
       }
-      printHeaderEnd();
+      output.print(ESC_ATTR_RESET);
+      output.println();
+      printLine();
    }
 
-   void printHeaderEnd() {
-      output.println();
+   void printLine() {
+      output.print(ESC_ATTR_BOLD);
       for (size_t i = 0; i < columnWidths.size(); i++) {
          if (i > 0) {
             output.print("-+-");
@@ -45,20 +48,17 @@ public:
          }
       }
       output.println();
+      output.print(ESC_ATTR_RESET);
    }
    
    void printRow(const std::vector<String>& values) {
       for (size_t i = 0; i < values.size(); i++) {
          if (i > 0) {
-            output.print(" | ");
+            output.print(ESC_ATTR_BOLD " | " ESC_ATTR_RESET);
          }
          String truncated = truncateString(values[i], columnWidths[i]);
          output.printf("%-*s", columnWidths[i], truncated.c_str());
       }
-      printRowEnd();
-   }
-
-   void printRowEnd() {
       output.println();
       currentColumn = 0; // Reset for the next row
    }
