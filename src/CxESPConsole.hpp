@@ -409,6 +409,9 @@ public:
    }
 
    void prompt(bool bClient = false) {
+      if (!bClient && !isPromptEnabled()) return;
+      if (bClient && !isClientPromptEnabled()) return;
+      
       print(ESC_CLEAR_LINE);
       String strPrompt = _strPrompt;
 
@@ -425,11 +428,19 @@ public:
    
    void setPrompt(const char* set) {
       _strPrompt = set;
+      _bPromptEnabled = true;
    }
    
    void setPromptClient(const char* set) {
       _strPromptClient = set;
+      _bClientPromptEnabled = true;
    }
+   
+   void enablePrompt(bool set) { _bPromptEnabled = set;}
+   bool isPromptEnabled() {return _bPromptEnabled;}
+   
+   void enableClientPrompt(bool set) { _bClientPromptEnabled = set;}
+   bool isClientPromptEnabled() { return _bClientPromptEnabled;}
    
    const char* getPrompt() { return _strPrompt.c_str();}
    const char* getPromptClient() { return _strPromptClient.c_str();}
