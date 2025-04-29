@@ -192,7 +192,7 @@ public:
          
          /// update sensor data
          for (auto& pHASensor : _vHASensor) {
-            pHASensor->publishState(pHASensor->getSensor()->getFloatValue(), 0);
+            pHASensor->publishState(pHASensor->getSensor()->getFloatValue(), 2);
          }
       }
    }

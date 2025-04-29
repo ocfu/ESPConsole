@@ -71,6 +71,7 @@
 #include "../tools/CxButton.hpp"
 #include "../tools/CxRelay.hpp"
 #include "../tools/CxContact.hpp"
+#include "../tools/CxAnalog.hpp"
 #include "esphw.h"
 #include "../tools/CxSensorManager.hpp"
 
@@ -488,7 +489,30 @@ public:
          String strEnv = ".gpio";
          
          if (strSubCmd == "state") {
-            _gpioTracker.printAllStates(getIoStream());
+            CxTablePrinter table(getIoStream());
+#ifndef MINIMAL_COMMAND_SET
+            table.printHeader({F("Pin"), F("Mode"), F("inv"), F("State"), F("PWM"), F("Value")}, {3, 10, 3, 5, 8, 6});
+#else
+            table.printHeader({F("Pin"), F("Mode"), F("inv"), F("State")}, {3, 10, 3, 5});
+#endif
+            
+            for (const auto& pin : _gpioTracker.getPins()) {
+               CxGPIO gpio(pin);
+               gpio.get();
+               if (gpio.isAnalog()) {
+#ifndef MINIMAL_COMMAND_SET
+                  table.printRow({String(pin).c_str(), gpio.getPinModeSz(), gpio.isInverted() ? "yes" : "no", "n/a", "n/a", gpio.isAnalog() ? String(gpio.getAnalogValue()):""});
+#else
+                  table.printRow({String(pin).c_str(), gpio.getPinModeSz(), gpio.isInverted() ? "yes" : "no", "n/a"});
+#endif
+               } else {
+#ifndef MINIMAL_COMMAND_SET
+                  table.printRow({String(pin).c_str(), gpio.getPinModeSz(), gpio.isInverted() ? "yes" : "no", gpio.getDigitalState() ? "HIGH" : "LOW", gpio.isPWM() ? "Endabled" : "Disabled", gpio.isAnalog() ? String(gpio.getAnalogValue()):""});
+#else
+                  table.printRow({String(pin).c_str(), gpio.getPinModeSz(), gpio.isInverted() ? "yes" : "no", gpio.getDigitalState() ? "HIGH" : "LOW"});
+#endif
+               }
+            }
          } else if (strSubCmd == "set") {
             if (CxGPIO::isValidPin(nPin)) {
                CxGPIO gpio(nPin);
@@ -504,6 +528,8 @@ public:
                      gpio.setInverted(true);
                   } else if (strValue == "non-inverted") {
                      gpio.setInverted(false);
+                  } else if (strValue == "analog") {
+                     
                   } else {
                      printf(F("invalid pin mode!"));
                   }
@@ -531,9 +557,7 @@ public:
          } else if (strSubCmd == "get") {
             if (CxGPIO::isValidPin(nPin)) {
                CxGPIO gpio(nPin);
-               if (gpio.isSet()) {
-                  gpio.printState(getIoStream());
-               }
+               gpio.printState(getIoStream());
             } else {
                CxGPIO::printInvalidReason(getIoStream(), nPin);
             }
@@ -631,6 +655,19 @@ public:
                         p->begin();
                      }
                   }
+               } else if (strType == "analog") {
+                  CxAnalog* pAnalog = static_cast<CxAnalog*>(_gpioDeviceManager.getDeviceByPin(nPin));
+                  if (pAnalog) {
+                     pAnalog->setName(strName.c_str());
+                     pAnalog->setInverted(bInverted);
+                     pAnalog->setCmd(strGpioCmd.c_str());
+                     pAnalog->begin();
+                  } else {
+                     CxAnalog* p = new CxAnalog(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                     if (p) {
+                        p->begin();
+                     }
+                  }
                }
                else {
                   println(F("invalid device type!"));
@@ -719,7 +756,6 @@ public:
             }
          }
          else {
-            _gpioTracker.printAllStates(getIoStream());
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
             } else {
@@ -806,7 +842,6 @@ public:
          }
       } else if (cmd == "sensor") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
-         String strEnv = ".sensors";
          if (strSubCmd == "list") {
             _sensorManager.printList();
          } else if (strSubCmd == "name") {
@@ -823,7 +858,47 @@ public:
             } else {
                println(F("invalid sensor id!"));
             }
-         } else {
+         } else if (strSubCmd == "add" && tkArgs.count() > 5) {
+            // sensor add <name> <type> <unit> <variable>
+            String strVar = TKTOCHAR(tkArgs, 5);
+            CxSensor* pSensor = _sensorManager.getSensor(TKTOCHAR(tkArgs, 2));
+            
+            if (pSensor) {
+               
+            } else {
+               ECSensorType eType;
+               String strType =TKTOCHAR(tkArgs, 3);
+               if (strType.startsWith("temp")) {
+                  eType = ECSensorType::temperature;
+               } else if (strType.startsWith("hum")) {
+                  eType = ECSensorType::humidity;
+               } else if (strType.startsWith("press")) {
+                  eType = ECSensorType::pressure;
+               } else if (strType.startsWith("flow")) {
+                  eType = ECSensorType::flow;
+               } else {
+                  eType = ECSensorType::none;
+               }
+               pSensor = new CxSensorGeneric(TKTOCHAR(tkArgs, 2), eType, TKTOCHAR(tkArgs, 4), [this, strVar]()->float {
+                  if (strVar.length() > 0) {
+                     float fValue = 0.0F;
+                     char* end = nullptr;
+                     const char* szValue = __console.getVariable(strVar.c_str());
+                     if (szValue) {
+                        fValue = std::strtod(szValue, &end); // return as uint32_t with auto base
+                     }
+                     
+                     // Check if the conversion failed (no characters processed or out of range), then concat two strings
+                     if (end && end != szValue && *end == '\0') {
+                        return fValue;
+                     }
+                  }
+                  return INVALID_FLOAT;
+               });
+            }
+            
+         }
+         else {
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
             } else {
@@ -832,6 +907,7 @@ public:
                println(F("  list"));
                println(F("  name <id> <name>"));
                println(F("  get <id>"));
+               println(F("  add <name> <variable>"));
 #endif
             }
          }

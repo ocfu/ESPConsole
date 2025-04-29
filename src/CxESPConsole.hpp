@@ -553,6 +553,12 @@ public:
       printf(F(" %d user, load: %.2f average: %.2f, loop time: %d"), users(), load(), avgload(), avglooptime());
    }
    
+   void addVariable(const char* szName, int32_t nValue) {
+      char szValue[10];
+      snprintf(szValue, sizeof(szValue), "%d", nValue);
+      addVariable(szName, szValue);
+   }
+   
    void addVariable(const char* szName, const char* szValue) {
       _mapSetVariables[szName] = szValue;
    }

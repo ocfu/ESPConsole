@@ -15,7 +15,7 @@
 #ifdef ESP32
 #define GPIO_MAX_PIN_NUMBER 39 // Maximum GPIO pin number for ESP32
 #else
-#define GPIO_MAX_PIN_NUMBER 16 // Maximum GPIO pin number for other platforms
+#define GPIO_MAX_PIN_NUMBER 17 // Maximum GPIO pin number for other platforms
 #endif
 
 #define INVALID_MODE 255 // Represents an invalid pin mode
@@ -112,24 +112,28 @@ public:
    }
    
    const char* getPinModeSz(uint8_t pin) {
-      uint8_t mode = getMode(pin);
-      switch (mode) {
-         case INPUT:
-            return "INPUT";
-         case OUTPUT:
-            return "OUTPUT";
-         case INPUT_PULLUP:
-            return "INPUT_PULLUP";
+      if (isAnalog(pin)) {
+         return "ANALOG";
+      } else {
+         uint8_t mode = getMode(pin);
+         switch (mode) {
+            case INPUT:
+               return "INPUT";
+            case OUTPUT:
+               return "OUTPUT";
+            case INPUT_PULLUP:
+               return "INPUT_PULLUP";
 #ifdef INPUT_PULLDOWN
-         case INPUT_PULLDOWN:
-            return "INPUT_PULLDOWN";
+            case INPUT_PULLDOWN:
+               return "INPUT_PULLDOWN";
 #endif
-         case OUTPUT_OPEN_DRAIN:
-            return "OUTPUT_OPEN_DRAIN";
-         case INVALID_MODE:
-            return "UNSET";
-         default:
-            return "UNKNOWN";
+            case OUTPUT_OPEN_DRAIN:
+               return "OUTPUT_OPEN_DRAIN";
+            case INVALID_MODE:
+               return "UNSET";
+            default:
+               return "UNKNOWN";
+         }
       }
    }
 
@@ -281,6 +285,7 @@ public:
    
    // Print the current state of a pin
    void printState(Stream& stream, uint8_t pin) {
+      // TODO: make it json format
       stream.printf((ESC_ATTR_BOLD  "Pin %02d" ESC_ATTR_RESET), pin);
       stream.print(" - " ESC_ATTR_BOLD "Mode: " ESC_ATTR_RESET);
       stream.print(getPinModeString(pin).c_str());
@@ -299,23 +304,13 @@ public:
 #endif
    }
    
-   // Print the state of all tracked pins
-   void printAllStates(Stream& stream) {
-      CxTablePrinter table(stream);
-#ifndef MINIMAL_COMMAND_SET
-      table.printHeader({F("Pin"), F("Mode"), F("inv"), F("State"), F("PWM"), F("Analog")}, {3, 10, 3, 5, 8, 4});
- #else
-      table.printHeader({F("Pin"), F("Mode"), F("inv"), F("State")}, {3, 10, 3, 5});
-#endif
+   std::vector<uint8_t> getPins() {
+      std::vector<uint8_t> pins;
       for (const auto& entry : _pinData) {
-#ifndef MINIMAL_COMMAND_SET
-         table.printRow({String(entry.first).c_str(), getPinModeSz(entry.first), isInverted(entry.first) ? "yes" : "no", getDigitalState(entry.first) ? "HIGH" : "LOW", isPWM(entry.first) ? "Endabled" : "Disabled", String(getAnalogValue(entry.first))});
-#else
-         table.printRow({String(entry.first).c_str(), getPinModeSz(entry.first), isInverted(entry.first) ? "yes" : "no", getDigitalState(entry.first) ? "HIGH" : "LOW"});
-#endif
+         pins.push_back(entry.first);
       }
+      return pins;
    }
-
 };
 
 
@@ -356,7 +351,9 @@ public:
     * @param inverted  Whether the pin logic is inverted. Defalut is false.
     */
    CxGPIO(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false) : _nPin(pin), _nPwmChannel(0) {
-      if (isValidPin(pin) && isValidMode(mode)) {
+      if (_gpioTracker.isAnalogPin(pin)) {
+         _gpioTracker.setAnalog(pin, true);
+      } else if (isValidPin(pin) && isValidMode(mode)) {
          setPin(pin);
          setPinMode(mode);
          setInverted(inverted);
@@ -639,15 +636,25 @@ public:
       }
    }
    
-   void set(bool state) {
-      if (state) {
-         setHigh();
+   void set(int16_t state) {
+      if (isAnalog()) {
+         writeAnalog(state);
       } else {
-         setLow();
+         if (state) {
+            setHigh();
+         } else {
+            setLow();
+         }
       }
    }
    
-   bool get() { return isHigh(); }
+   int16_t get() {
+      if (isAnalog()) {
+         return readAnalog();
+      } else {
+         return isHigh();
+      }
+   }
       
    // Toggle the pin state
    void toggle() {
@@ -677,7 +684,10 @@ public:
    
    // Print the state of the GPIO pin
    void printState(Stream& stream) {
-      _gpioTracker.printState(stream, _nPin);
+      if (isSet()) {
+         get();
+         _gpioTracker.printState(stream, _nPin);
+      }
    }
 };
    

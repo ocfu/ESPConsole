@@ -124,12 +124,10 @@ protected:
    
 public:
    CxSensor() {}
-   CxSensor(ECSensorType eType, uint8_t res = 12) {begin(eType, res);}
    virtual ~CxSensor() {end();}
    
    /// Pure virtual method to initialize the sensor
    virtual bool begin() = 0;
-   bool begin(ECSensorType eType, uint8_t res = 12) {setType(eType); setResolution(res); return begin();}
    void end() {
       __bValid = false;
       __bValidValue = false;
@@ -244,13 +242,12 @@ public:
  * It uses a callback function to read sensor values.
  */
 class CxSensorGeneric : public CxSensor {
-   typedef float (*cb_sensor_t)();
-   cb_sensor_t _cb;
+   std::function<float()> _cb;
    
 public:
-   CxSensorGeneric(const char* szName, ECSensorType eType, uint8_t res = 12, const char* unit = "", cb_sensor_t cb = nullptr) : _cb(cb) {
+      CxSensorGeneric(const char* szName, ECSensorType eType, const char* unit = "", std::function<float()> cb = nullptr) : _cb(cb) {
       setType(eType);
-      setResolution(res);
+      setResolution(12);
       __strUnit = unit; //"\x09\x43"  for °C;
       __bValid = true;
       __fMaxValue = 9999.999;

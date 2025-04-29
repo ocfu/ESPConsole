@@ -34,6 +34,7 @@ private:
       if (!_szStrCopy || !_szDelimiters) {
          return;
       }
+      // TODO: allow escape from quotes with \"
       
       char* current = _szStrCopy;
       _nCount = 0;

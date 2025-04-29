@@ -35,6 +35,8 @@ bool CxESPConsole::processCmd(const char* cmd, bool bQuiet) {
          processData(strCmd.c_str());
       } else {
          substitueVariables(strCmd);
+         strCmd.replace("§", "$"); // § used in quotes for variables.
+         
          for (auto& entry : _mapCapInstances) {
             bool bResult = false;
             

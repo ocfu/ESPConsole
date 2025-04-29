@@ -93,8 +93,8 @@ public:
    virtual const std::vector<uint8_t> getWidths(bool bDefault = true) = 0;
    virtual const std::vector<String> getData(bool bDefault = true) = 0;
    
-   virtual void set(bool set) = 0;
-   virtual bool get() = 0;
+   virtual void set(int16_t set) = 0;
+   virtual int16_t get() = 0;
 
 };
 
@@ -111,8 +111,8 @@ public:
       end();
    }
 
-   virtual void set(bool set) override {CxGPIO::set(set);}
-   virtual bool get() override {return CxGPIO::get();}
+   virtual void set(int16_t set) override {CxGPIO::set(set);}
+   virtual int16_t get() override {return CxGPIO::get();}
    
    virtual void begin() override {}
    virtual void loop(bool bDegraded = false) override {}
