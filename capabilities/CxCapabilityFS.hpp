@@ -924,10 +924,6 @@ private:
             command.reserve(strlen(buffer) + extra_size); // Reserve enough space for the command and potential longer label
             command = buffer;
             
-            // Replace variables in the command
-            for (const auto& var : __console.getVariables()) {
-               command.replace("$" + var.first, var.second);
-            }
             
             // Replace variables in temporary buffer in the command
             for (const auto& var : mapTempVariables) {

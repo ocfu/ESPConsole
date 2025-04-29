@@ -537,6 +537,13 @@ public:
    std::map<String, String>& getVariables() {
       return _mapSetVariables;
    }
+   
+   void substitueVariables(String& str) {
+      // Perform variable substitution in the value
+      for (const auto& var : _mapSetVariables) {
+         str.replace("$" + var.first, var.second);
+      }
+   }
 
 };
 
