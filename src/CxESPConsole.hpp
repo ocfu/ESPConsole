@@ -68,6 +68,7 @@ class CxESPConsoleBase : public Print, public CxPersistentBase {
    std::function<void(const char*)> _funcError;
    std::function<void(const char*, const char*)> _funcExecuteBatch;
    std::function<void(const char*)> _funcMan;
+   std::function<bool(const char*)> _funcProcessData;
 
 protected:
    bool __bIsWiFiClient = false;
@@ -142,6 +143,7 @@ public:
       }
    }
    void man(const char* sz) {if (_funcMan) _funcMan(sz);}
+   bool processData(const char* data) {if (_funcProcessData) return _funcProcessData(data); else return false;}
    
    void setFuncDebug(std::function<void(const char*)> f) {_funcDebug = f;}
    void clearFuncDebug() {_funcDebug = nullptr;}
@@ -158,6 +160,8 @@ public:
    void clearFuncExecuteBatch() {_funcExecuteBatch = nullptr;}
    void setFuncMan(std::function<void(const char*)> f) {_funcMan = f;}
    void clearFuncMan() {_funcMan = nullptr;}
+   void setFuncProcessData(std::function<bool(const char*)> f) {_funcProcessData = f;}
+   void clearFuncProcessData() {_funcProcessData = nullptr;}
 
 };
 
@@ -166,6 +170,8 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    String _strHostName; // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
    String _strPrompt; // Prompt string
    String _strPromptClient; // Prompt string for WiFiClient
+   bool _bPromptEnabled = true;
+   bool _bClientPromptEnabled = true;
    
    const char* _szUserName = "";
    const char* _szAppName = "";
@@ -173,8 +179,8 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    const char* _szModel = "";
    
    
-   static const int _nMAXLENGTH = 64;   // Max. command line length
-   char _szCmdBuffer[_nMAXLENGTH];      // Command line buffer
+   uint32_t _nCmdBufferLen = 64;
+   char* _pszCmdBuffer;                 // Command line buffer
    int _iCmdBufferIndex = 0;            // Actual cursor position in command line (always at the last char of input, cur left/right not supported)
    
    char** _aszCmdHistory;               // Command line history buffer
@@ -187,7 +193,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    void (*_cbUsrResponse)(bool) = nullptr; // Callback for the response answer
     
    void _clearCmdBuffer() {
-      memset(_szCmdBuffer, 0, _nMAXLENGTH);
+      *_pszCmdBuffer = '\0';
       _iCmdBufferIndex = 0;
    }
    
@@ -203,7 +209,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
       }
       
       // Store the new command in command history buffer
-      strncpy(_aszCmdHistory[_nCmdHistoryCount % _nCmdHistorySize], command, _nMAXLENGTH);
+      strncpy(_aszCmdHistory[_nCmdHistoryCount % _nCmdHistorySize], command, _nCmdBufferLen);
       _nCmdHistoryCount++;
    }
    
@@ -226,15 +232,15 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
          prompt();
       } else {
          // restore command from command history buffer
-         strncpy(_szCmdBuffer, _aszCmdHistory[(_nCmdHistoryCount - 1 - _iCmdHistoryIndex) % _nCmdHistorySize], _nMAXLENGTH);
-         _iCmdBufferIndex = (int)strlen(_szCmdBuffer);
+         strncpy(_pszCmdBuffer, _aszCmdHistory[(_nCmdHistoryCount - 1 - _iCmdHistoryIndex) % _nCmdHistorySize], _nCmdBufferLen);
+         _iCmdBufferIndex = (int)strlen(_pszCmdBuffer);
          _redrawCmd();
       }
    }
    
    void _redrawCmd() {
       prompt();
-      print(_szCmdBuffer); // output the command from the buffer
+      print(_pszCmdBuffer); // output the command from the buffer
       print(" \b");        // position the cursor behind the command
    }
    
@@ -314,14 +320,8 @@ public:
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
    : CxESPConsoleBase(stream), CxESPTime(), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver), _strPrompt("") {
 
-      ///
-      /// allocate space for the command history buffer with a history up to <size>
-      /// the max. length of each command line is determined by _nMAXLENGTH
-      ///
-      _aszCmdHistory = new char*[_nCmdHistorySize];
-      for (int i = 0; i < _nCmdHistorySize; ++i) {
-         _aszCmdHistory[i] = new char[_nMAXLENGTH]();
-      }
+
+      setCmdBufferLen(64);
       
       char buf[80];
       ::readHostName(buf, sizeof(buf));
@@ -331,7 +331,9 @@ public:
          String strHostname;
          strHostname.reserve(15);
          strHostname = "esp" + String(::getChipId(), 16);
+#ifdef ARDUINO
          setHostName(strHostname.c_str());
+#endif
       } else {
 #ifdef ARDUINO
          setHostName(buf);
@@ -352,6 +354,38 @@ public:
       }
       delete[] _aszCmdHistory;
    }
+   
+   void setCmdBufferLen(uint32_t len) {
+      _nCmdBufferLen = len;
+      
+      if (_pszCmdBuffer) {
+         delete _pszCmdBuffer;
+      }
+      
+      _pszCmdBuffer = new char[len];
+      
+      if (_aszCmdHistory) {
+         ///
+         /// release the allocated space for the command history buffer
+         ///
+         for (int i = 0; i < _nCmdHistorySize; ++i) {
+            delete[] _aszCmdHistory[i];
+         }
+         delete[] _aszCmdHistory;
+         _aszCmdHistory = nullptr;
+      }
+      
+      ///
+      /// allocate space for the command history buffer with a history up to <size>
+      /// the max. length of each command line is determined by _nMAXLENGTH
+      ///
+      _aszCmdHistory = new char*[_nCmdHistorySize];
+      for (int i = 0; i < _nCmdHistorySize; ++i) {
+         _aszCmdHistory[i] = new char[_nCmdBufferLen]();
+      }
+   }
+   
+   uint32_t getCmdBufferLen() { return _nCmdBufferLen;}
    
    bool isSafeMode() {return __bIsSafeMode;}
    void setSafeMode(bool b) {

@@ -123,7 +123,7 @@ void CxESPConsole::__handleConsoleInputs() {
       }
       
       if (c == '\n') { // Kommando abgeschlossen
-         _szCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
+         _pszCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
          println();
 /*
          print("heap: ");
@@ -132,15 +132,15 @@ void CxESPConsole::__handleConsoleInputs() {
 #endif
          println();
  */
-         CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _szCmdBuffer);
-         _storeCmd(_szCmdBuffer);
+         CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _pszCmdBuffer);
+         _storeCmd(_pszCmdBuffer);
          _clearCmdBuffer();
          prompt();
          _iCmdHistoryIndex = -1; // Reset der Historiennavigation
       } else if (c == '\b' || c == 127) { // Backspace or del
          if (_iCmdBufferIndex > 0) {
             _iCmdBufferIndex--;
-            _szCmdBuffer[_iCmdBufferIndex] = '\0';
+            _pszCmdBuffer[_iCmdBufferIndex] = '\0';
             _redrawCmd();
          }
       } else if (c == 27) { // Escape-Sequenz erkannt
@@ -159,9 +159,9 @@ void CxESPConsole::__handleConsoleInputs() {
          _nStateEscSequence = 0;
       }  else if (_nStateEscSequence == 2) { // Cursor down
          _nStateEscSequence = 0;
-      } else if (_iCmdBufferIndex < _nMAXLENGTH - 1) { // Zeichen hinzufügen
-         _szCmdBuffer[_iCmdBufferIndex++] = c;
-         _szCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
+      } else if (_iCmdBufferIndex < _nCmdBufferLen - 1) { // Zeichen hinzufügen
+         _pszCmdBuffer[_iCmdBufferIndex++] = c;
+         _pszCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
          print(c); // Zeichen anzeigen
       }
    }
