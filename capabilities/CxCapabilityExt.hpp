@@ -493,7 +493,6 @@ public:
                   /// TODO: consider dyanmic cast to ensure correct type
                   CxButton* pButton = static_cast<CxButton*>(_gpioDeviceManager.getDeviceByPin(nPin));
                   if (pButton) {
-                     //pButton->setFriendlyName();
                      pButton->setName(strName.c_str());
                      pButton->setInverted(bInverted);
                      pButton->setCmd(strGpioCmd.c_str());
@@ -502,13 +501,11 @@ public:
                      if (strGpioCmd == "reset") {
                         CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);
                         if (p) {
-                           //p->setFriendlyName();
                            p->begin();
                         }
                      } else {
                         CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
                         if (p) {
-                           //p->setFriendlyName();
                            p->begin();
                         }
                      }
@@ -518,14 +515,12 @@ public:
                      Led1.setPin(nPin);
                      Led1.setPinMode(OUTPUT);
                      Led1.setName(strName.c_str());
-                     //Led1.setFriendlyName();
                      Led1.setInverted(bInverted);
                      Led1.setCmd(strGpioCmd.c_str());
                      Led1.off();
                   } else {
                      CxLed* p = static_cast<CxLed*>(_gpioDeviceManager.getDeviceByPin(nPin));
                      if (p) {
-                        //p->setFriendlyName();
                         p->setName(strName.c_str());
                         p->setInverted(bInverted);
                         p->setCmd(strGpioCmd.c_str());
@@ -543,7 +538,6 @@ public:
                   /// TODO: consider dyanmic cast to ensure correct type
                   CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDeviceByPin(nPin));
                   if (pRelay) {
-                     //pRelay->setFriendlyName();
                      pRelay->setName(strName.c_str());
                      pRelay->setInverted(bInverted);
                      pRelay->setCmd(strGpioCmd.c_str());

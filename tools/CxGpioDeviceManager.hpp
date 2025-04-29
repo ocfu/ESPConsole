@@ -74,7 +74,7 @@ public:
    void setCmd(String strCmd) {_strCmd = strCmd;}
    const char* getCmd() {return _strCmd.c_str();}
    
-   void setFriendlyName(const char* name) {_strFriendlyName = name;}
+   void setFriendlyName(const char* name) {if (name) _strFriendlyName = name;}
    const char* getFriendlyName() {
       if (_strFriendlyName.length()) {
          return _strFriendlyName.c_str();
@@ -83,7 +83,9 @@ public:
       }
    }
    void setName(const char* name) {
-      _strName = __console.makeFriendlyNameStr(name);
+      if (name) {
+         _strName = __console.makeFriendlyNameStr(name);
+      }
    }
    const char* getName() {return _strName.c_str();}
    
