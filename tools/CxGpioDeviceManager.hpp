@@ -19,6 +19,8 @@ class CxDevice {
    
    uint8_t _id = INVALID_UINT8;
    
+   uint32_t _nDebounce = 100;
+   
 
 public:
    typedef std::function<void(CxDevice* dev, uint8_t id, const char* cmd)> cbFunc;
@@ -59,6 +61,9 @@ public:
    
    uint8_t getId() {return _id;}
    void setId(uint8_t id) {_id = id;}
+   
+   void setDebounce(uint32_t set) {_nDebounce = set;}
+   uint32_t getDebounce() {return _nDebounce;}
    
    virtual void begin() {}
    virtual void loop(bool bDegraded = false) {}

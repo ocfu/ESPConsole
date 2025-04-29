@@ -596,7 +596,15 @@ public:
             } else {
                println(F("device not found!"));
             }
-
+            
+         } else if (strSubCmd == "deb") {
+            CxDevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+            
+            if (p) {
+               p->setDebounce(TKTOINT(tkArgs, 3, p->getDebounce()));
+            } else {
+               println(F("device not found!"));
+            }
          }
          else if (strSubCmd == "let") {
             String strOpertor = TKTOCHAR(tkArgs, 3);
