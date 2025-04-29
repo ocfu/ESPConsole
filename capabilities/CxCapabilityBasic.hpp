@@ -155,6 +155,7 @@ public:
          __console.cls();
       } else if (cmd == "prompt") {
          // prompt [-CL] [<prompt string>]
+         // prompt [-OFF/ON]
          
          bool bClient = false;
          if (TKTOCHAR(tkArgs, 1)) {
@@ -165,22 +166,41 @@ public:
             if (strOpt == "-CL") {
                i++;
                bClient = true;
+               strOpt = TKTOCHAR(tkArgs, i);
             }
             
-            strPrompt.reserve(50);
-            strPrompt = FMT_PROMPT_START;
-            strPrompt += TKTOCHAR(tkArgs, i);
+            if (strOpt == "-OFF") {
+               i++;
+               if (bClient) {
+                  __console.enableClientPrompt(false);
+               } else {
+                  __console.enablePrompt(false);
+               }
+            } else if (strOpt == "-ON") {
+               i++;
+               if (bClient) {
+                  __console.enableClientPrompt(true);
+               } else {
+                  __console.enablePrompt(true);
+               }
+            }
             
-            // Perform esc code substitution
-            strPrompt.replace("\\033", ESC_CODE);
-            strPrompt.replace("\\0x1b", ESC_CODE);
-            strPrompt.replace("\\0x1B", ESC_CODE);
-            strPrompt += FMT_PROMPT_END;
-            
-            if (bClient) {
-               __console.setPromptClient(strPrompt.c_str());
-            } else {
-               __console.setPrompt(strPrompt.c_str());
+            if (TKTOCHAR(tkArgs, i)) {
+               strPrompt.reserve(50);
+               strPrompt = FMT_PROMPT_START;
+               strPrompt += TKTOCHAR(tkArgs, i);
+               
+               // Perform esc code substitution
+               strPrompt.replace("\\033", ESC_CODE);
+               strPrompt.replace("\\0x1b", ESC_CODE);
+               strPrompt.replace("\\0x1B", ESC_CODE);
+               strPrompt += FMT_PROMPT_END;
+               
+               if (bClient) {
+                  __console.setPromptClient(strPrompt.c_str());
+               } else {
+                  __console.setPrompt(strPrompt.c_str());
+               }
             }
          }
          __console.prompt(bClient);
@@ -323,6 +343,7 @@ public:
             strValue.replace("\\0x1b", ESC_CODE);
             strValue.replace("\\0x1B", ESC_CODE);
             print(strValue.c_str());
+            if (i < (tkArgs.count()-1)) print (" ");
             
             i++;
          }
