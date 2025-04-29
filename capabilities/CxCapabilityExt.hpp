@@ -301,19 +301,76 @@ public:
       } else if (cmd == "set") {
          ///
          /// fix env variables:
-         /// - NTP <server>
-         /// - TZ <timezone>
+         /// - NTP = <server>
+         /// - TZ  = <timezone>
          ///
-         
          String strVar = TKTOCHAR(tkArgs, 1);
-         if (strVar == "NTP") {
-            __console.setNtpServer(TKTOCHAR(tkArgs, 2));
-            __console.addVariable(strVar.c_str(), TKTOCHAR(tkArgs, 2));
+         uint8_t prec = 0;
+         String strOp1 = TKTOCHAR(tkArgs, 2);
+         String strOp2;
+         String strValue2;
+         
+         String strValue;
+         strValue.reserve(128);  // 128 is an estimate. The worst case is a concat of two strings, while both could be a variable with a max lenght of ?
+
+         if (strOp1 != "=") {
+            strValue = strOp1;            
+         } else {
+            strValue = TKTOCHAR(tkArgs, 3);
+            strOp2 = TKTOCHAR(tkArgs, 4);
+            strValue2 = TKTOCHAR(tkArgs, 5);
+         }
+         int32_t nPrecIndex = strVar.indexOf("/");
+         if ( nPrecIndex > 0) {
+            prec = strVar.substring(nPrecIndex+1).toInt();
+            strVar = strVar.substring(0, nPrecIndex);
+         }
+         
+         if (strVar == "NTP" && strValue.length()) {
+            __console.setNtpServer(strValue.c_str());
+            __console.addVariable(strVar.c_str(), strValue.c_str());
          } else if (strVar == "TZ") {
-            __console.setTimeZone(TKTOCHAR(tkArgs, 2));
-            __console.addVariable(strVar.c_str(), TKTOCHAR(tkArgs, 2));
+            __console.setTimeZone(strValue.c_str());
+            __console.addVariable(strVar.c_str(), strValue.c_str());
+         } else if (strVar == "buf") {
+            uint32_t nBufLen = TKTOINT(tkArgs, 3, __console.getCmdBufferLen());
+            if (nBufLen >= 64) {
+               __console.setCmdBufferLen(nBufLen);
+               __console.addVariable(strVar.c_str(), String(__console.getCmdBufferLen()).c_str());
+            }
          } else if (strVar.length() > 0) {
-            String strValue = TKTOCHAR(tkArgs, 2);
+            float fValue = 0.0F;
+            char* end = nullptr;
+            if (strValue.startsWith("$")) {
+               const char* szVariable = __console.getVariable(strValue.substring(1).c_str());
+               if (szVariable) {
+                  fValue = std::strtod(szVariable, &end); // return as uint32_t with auto base
+               }
+            } else {
+               fValue = std::strtod(strValue.c_str(), &end); // return as uint32_t with auto base
+            }
+            
+            // Check if the conversion failed (no characters processed or out of range), then concat two strings
+            if (!end || end == strValue.c_str() || *end != '\0') {
+               // MARK: not sure, if we really need to concatenate strings...
+               //if (strValue.length() < 100 && strOp2 == "+") strValue.concat(strValue2);
+            } else {
+               if (strOp2 == "+") {
+                  fValue += strValue2.toFloat();
+               } else if (strOp2 == "-") {
+                  fValue -= strValue2.toFloat();
+               } else if (strOp2 == "*") {
+                  fValue *= strValue2.toFloat();
+               } else if (strOp2 == "/") {
+                  float f = strValue2.toFloat();
+                  if (f != 0.0) {
+                     fValue /= f;
+                  }
+               }
+               strValue = String(fValue, prec);
+            }
+            
+            strValue.trim();
             
             if (strValue.length() > 0) {
                __console.addVariable(strVar.c_str(), strValue.c_str());
