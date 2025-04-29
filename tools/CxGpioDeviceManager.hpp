@@ -177,19 +177,23 @@ public:
    }
 
    void removeDevice(const char* name) {
-      for (auto& it : _mapDevices) {
-         if (strcmp(it.second->getName(), name) == 0) {
-            _mapDevices.erase(it.first);
-            break;
+      if (name) {
+         for (auto& it : _mapDevices) {
+            if (strcmp(it.second->getName(), name) == 0) {
+               _mapDevices.erase(it.first);
+               break;
+            }
          }
       }
    }
 
    /// Get a Device by its name
    CxDevice* getDevice(const char* name) {
-      for (auto& it : _mapDevices) {
-         if (strcmp(it.second->getName(), name) == 0) {
-            return it.second;
+      if (name) {
+         for (auto& it : _mapDevices) {
+            if (strcmp(it.second->getName(), name) == 0) {
+               return it.second;
+            }
          }
       }
       return nullptr;
@@ -214,9 +218,11 @@ public:
    /// get a device by its type.
    /// The first device found will be returned.
    CxDevice* getDeviceByType(const char* type) {
-      for (auto& it : _mapDevices) {
-         if (strcmp(it.second->getTypeSz(), type) == 0) {
-            return it.second;
+      if (type) {
+         for (auto& it : _mapDevices) {
+            if (strcmp(it.second->getTypeSz(), type) == 0) {
+               return it.second;
+            }
          }
       }
       return nullptr;

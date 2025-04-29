@@ -70,6 +70,7 @@
 #include "../tools/CxLed.hpp"
 #include "../tools/CxButton.hpp"
 #include "../tools/CxRelay.hpp"
+#include "../tools/CxContact.hpp"
 #include "esphw.h"
 #include "../tools/CxSensorManager.hpp"
 
@@ -550,7 +551,32 @@ public:
                   }  else {
                      CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
                      if (p) {
-                        //p->setFriendlyName();
+                        p->begin();
+                     }
+                  }
+               } else if (strType == "contact") {
+                  CxContact* pContact = static_cast<CxContact*>(_gpioDeviceManager.getDeviceByPin(nPin));
+                  if (pContact) {
+                     pContact->setName(strName.c_str());
+                     pContact->setInverted(bInverted);
+                     pContact->setCmd(strGpioCmd.c_str());
+                     pContact->begin();
+                  } else {
+                     CxContact* p = new CxContact(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                     if (p) {
+                        p->begin();
+                     }
+                  }
+               } else if (strType == "counter") {
+                  CxCounter* pCoutner = static_cast<CxCounter*>(_gpioDeviceManager.getDeviceByPin(nPin));
+                  if (pCoutner) {
+                     pCoutner->setName(strName.c_str());
+                     pCoutner->setInverted(bInverted);
+                     pCoutner->setCmd(strGpioCmd.c_str());
+                     pCoutner->begin();
+                  } else {
+                     CxCounter* p = new CxCounter(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                     if (p) {
                         p->begin();
                      }
                   }
