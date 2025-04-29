@@ -683,17 +683,39 @@ public:
                println(F("device not found!"));
             }
          }
-         else if (strSubCmd == "let") {
-            String strOpertor = TKTOCHAR(tkArgs, 3);
+         else if (strSubCmd == "let" && tkArgs.count() > 4) {
+            String strOperator = TKTOCHAR(tkArgs, 3);
             CxDevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
             CxDevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
             
-            if (dev1 && dev2) {
-               if (strOpertor == "=") {
+            if (strOperator == "=") {
+               if (dev1 && dev2) {
                   dev1->set(dev2->get());
+               } else if (dev1) {
+                  String strValue = TKTOCHAR(tkArgs, 4);
+                  uint32_t nValue = INVALID_UINT32;
+                  char* end = nullptr;
+
+                  if (strValue.startsWith("$")) {
+                     const char* szVariable = __console.getVariable(strValue.substring(1).c_str());
+                     if (szVariable) {
+                        nValue = (uint32_t)std::strtol(szVariable, &end, 0); // return as uint32_t with auto base
+                     } else {
+                        _CONSOLE_DEBUG(F("variable not found!"));
+                     }
+                  } else {
+                     nValue = (uint32_t)std::strtol(strValue.c_str(), &end, 0); // return as uint32_t with auto base
+                  }
+                  
+                  // Check if the conversion failed (no characters processed or out of range)
+                  if (!end || end == strValue.c_str() || *end != '\0') {
+                     __console.error(F("cannot assign the value %s to %s (not a number)"), strValue.c_str(), dev1->getName());
+                  } else {
+                     dev1->set((bool)nValue); // MARK: currently only bool is supported
+                  }
+               } else {
+                  println(F("device not found!"));
                }
-            } else {
-               println(F("device not found!"));
             }
          }
          else {
