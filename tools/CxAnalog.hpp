@@ -35,10 +35,10 @@ private:
       strCmd = cmd;
       
       if (id == CxAnalog::EAnalogEvent::raiseabove) {
-         strCmd += " #aboveth";
+         strCmd += " #above";
          ESPConsole.processCmd(strCmd.c_str());
       } else if (id == CxAnalog::EAnalogEvent::raisebelow) {
-         strCmd += " #belowth";
+         strCmd += " #below";
          ESPConsole.processCmd(strCmd.c_str());
       } else if (id == CxAnalog::EAnalogEvent::value) {
          strCmd.replace(F("$VALUE"), String(dev->get()));
@@ -47,7 +47,7 @@ private:
    };
    
 public:
-   CxAnalog(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) { addCallback(fp ? fp : _Action);setName(name);_timer.start(100, false);}
+   CxAnalog(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) { addCallback(fp); addCallback(_Action);setName(name);_timer.start(100, false);}
    
    virtual ~CxAnalog() {end();}
    
@@ -76,6 +76,7 @@ public:
       if (_timer.isDue()) {
          _nValue = get();
          ESPConsole.addVariable(getName(), _nValue);
+         callCb(CxAnalog::EAnalogEvent::value);
       }
       
    }
