@@ -354,12 +354,18 @@ public:
     * @param pSensor A pointer to the sensor to remove.
     */
    void removeSensor(CxSensor* pSensor) {
-      for (auto it = _mapSensors.begin(); it != _mapSensors.end(); ++it) {
-         if (it->second == pSensor) {
-            _mapSensors.erase(it);
-            break;
+      if (pSensor) {
+         for (auto it = _mapSensors.begin(); it != _mapSensors.end(); ++it) {
+            if (it->second == pSensor) {
+               _mapSensors.erase(it);
+               break;
+            }
          }
       }
+   }
+   
+   void removeSensor(const char* szName) {
+      removeSensor(getSensor(szName));
    }
    
    /**

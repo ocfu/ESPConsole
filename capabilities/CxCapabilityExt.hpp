@@ -899,6 +899,8 @@ public:
                });
             }
             
+         } else if (strSubCmd == "del") {
+            _sensorManager.removeSensor(TKTOCHAR(tkArgs, 2));
          }
          else {
             if (__console.hasFS()) {

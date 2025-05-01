@@ -70,6 +70,8 @@ echo "sensor commands:"
 echo "  list"
 echo "  name <id> <name>"
 echo "  get <id>"
+echo "  add <name> <type> <unit> <variable>"
+echo "  del <name>"
 
 relay:
 echo "relay commands:"
