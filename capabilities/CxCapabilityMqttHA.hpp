@@ -190,8 +190,10 @@ public:
          if (_mapHADiag[DIAG_STACK]) _mapHADiag[DIAG_STACK]->publishState(g_Stack.getSize(), 0);
          if (_mapHADiag[DIAG_STACK_LOW]) _mapHADiag[DIAG_STACK_LOW]->publishState(g_Stack.getLow(), 0);
          
-         /// update sensor data
-         for (auto& pHASensor : _vHASensor) {
+      }
+      /// update sensor data
+      for (auto& pHASensor : _vHASensor) {
+         if (pHASensor->isDue()) {
             pHASensor->publishState(pHASensor->getSensor()->getFloatValue(), 2);
          }
       }
@@ -224,7 +226,7 @@ public:
             _mqttHAdev.printList(getIoStream());
          } else if (strSubCmd == "sensor") {
             if (strSub2Cmd == "add") {
-               addSensor(TKTOCHAR(tkArgs, 3));
+               addSensor(TKTOCHAR(tkArgs, 3), TKTOINT(tkArgs, 4, 60000));
             } else if (strSub2Cmd == "del") {
                deleteSensor(TKTOCHAR(tkArgs, 3));
             }
@@ -292,10 +294,10 @@ public:
    
    /// Adds a sensor to the MQTT Home Assistant device.
    /// _vHASensor is a vector of unique pointers to CxMqttHASensor objects
-   void addSensor(const char* szName) {
+   void addSensor(const char* szName, uint32_t nPeriod = 60000) {
       CxSensor* pSensor = _sensorManager.getSensor(szName);
       if (pSensor) {
-         if (!_mqttHAdev.findItem(szName)) _vHASensor.push_back(std::make_unique<CxMqttHASensor>(pSensor)); /// implicitly registers the new item in the device.
+         if (!_mqttHAdev.findItem(szName)) _vHASensor.push_back(std::make_unique<CxMqttHASensor>(pSensor, nPeriod)); /// implicitly registers the new item in the device.
       } else {
          __console.printf(F("Sensor '%s' not found."), szName);
       }

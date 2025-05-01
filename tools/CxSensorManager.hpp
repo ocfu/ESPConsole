@@ -94,6 +94,8 @@ class CxSensor {
    bool _bEnabled = true;  /// Indicates if the sensor is enabled
    
    ECSensorType _eType = ECSensorType::none;  /// Type of the sensor
+   
+   CxTimer _timer;
 
 protected:
    CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
@@ -123,7 +125,7 @@ protected:
    void unregisterSensors();
    
 public:
-   CxSensor() {}
+   CxSensor() {startTimer(1000);}  // set default timer rate 1s. 
    virtual ~CxSensor() {end();}
    
    /// Pure virtual method to initialize the sensor
@@ -132,6 +134,9 @@ public:
       __bValid = false;
       __bValidValue = false;
    }
+   
+   void startTimer(uint32_t period) {_timer.start(period);}
+   bool isDue() {return _timer.isDue();}
    
    /// Set the enabled state of the sensor
    void setEnabled(bool set = true) {_bEnabled = set;}
@@ -201,28 +206,23 @@ public:
    /// Update the sensor value
    bool update(){
       
-      unsigned long now = millis();
-      
-      if ((now - __nLastUpdate) < __nTimeToConvert) {
-         return false;  /// Update cycle was too quick
-      }
-      
-      __fValue = INVALID_FLOAT;
-      
-      __nLastUpdate = now;
-      
-      if (isValid()) {
-         __bValidValue = read();
-         if (!__bValidValue) {
-            _CONSOLE_DEBUG_EXT(DEBUG_FLAG_SENSOR, F("SENS: %s (%d) value is not ok"), getName(), getId());
+      if (_timer.isDue()) {
+         __fValue = INVALID_FLOAT;
+         
+         if (isValid()) {
+            __bValidValue = read();
+            if (!__bValidValue) {
+               _CONSOLE_DEBUG_EXT(DEBUG_FLAG_SENSOR, F("SENS: %s (%d) value is not ok"), getName(), getId());
+            }
+         } else {
+            return false;
          }
-      } else {
-         return false;
+         
+         __nValue = static_cast<uint32_t>(round(__fValue));
+         
+         return true;
       }
-      
-      __nValue = static_cast<uint32_t>(round(__fValue));
-      
-      return true;
+      return false;
    }
    /// Update the sensor value with a given value
    bool update(float value) {

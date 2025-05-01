@@ -929,9 +929,11 @@ private:
    const char* _szUnit;
    CxSensor* _pSensor;
    
+   CxTimer _timer;
+   
 public:
    
-   CxMqttHASensor(CxSensor* pSensor) : CxMqttHASensor(pSensor->getName(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getUnit()) {_pSensor = pSensor;}
+   CxMqttHASensor(CxSensor* pSensor, uint32_t nPeriod) : CxMqttHASensor(pSensor->getName(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getUnit()) {_pSensor = pSensor; _timer.start(nPeriod);}
       
    CxMqttHASensor(const char* fn, const char* name, const char* dclass = nullptr, const char* unit = nullptr, bool available = false, bool retain = false) : CxMqttHABase(fn, name, nullptr, nullptr, nullptr, retain), _szDeviceClass(dclass), _szUnit(unit), _pSensor(nullptr) {
       
@@ -942,6 +944,8 @@ public:
    }
    
    CxSensor* getSensor() const {return _pSensor;}
+   
+   bool isDue() {return _timer.isDue();}
    
    void addJsonConfig(JsonDocument &doc) const {
       if (_szDeviceClass) {

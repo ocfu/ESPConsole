@@ -258,6 +258,8 @@ public:
 
       /// update led indications, if any
       ledAction();
+      
+      _sensorManager.update();
 
       /// check gpio events
       gpioAction();
@@ -265,7 +267,6 @@ public:
       /// update sensor data and stack info
       if (_timerUpdate.isDue()) {
          g_Heap.update();
-         _sensorManager.update();
       }
       
    }
@@ -661,6 +662,7 @@ public:
                      pAnalog->setName(strName.c_str());
                      pAnalog->setInverted(bInverted);
                      pAnalog->setCmd(strGpioCmd.c_str());
+                     pAnalog->setTimer(TKTOINT(tkArgs, 7, 1000)); // default update rate 1s
                      pAnalog->begin();
                   } else {
                      CxAnalog* p = new CxAnalog(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
