@@ -78,7 +78,7 @@ enum class ECSensorType {
    temperature,
    humidity,
    pressure,
-   flow
+   other
 };
 
 /**
@@ -94,6 +94,7 @@ class CxSensor {
    bool _bEnabled = true;  /// Indicates if the sensor is enabled
    
    ECSensorType _eType = ECSensorType::none;  /// Type of the sensor
+   String _strType;
    
    CxTimer _timer;
 
@@ -105,6 +106,7 @@ protected:
    unsigned long __nTimeToConvert = 100;  /// Time required for the sensor to convert/read the measurement
    
    String __strName;  /// Name of the sensor
+   String __strFriendlyName;
    String __strUnit;  /// Unit of the sensor measurement
    String __strModel;  /// Model of the sensor
    uint64_t __nId = 0;  /// Unique ID of the sensor
@@ -151,18 +153,22 @@ public:
    /// Get the type of the sensor
    ECSensorType getType() {return _eType;}
    /// Set the type of the sensor
-   void setType(ECSensorType eType) {_eType = eType;}
+   void setType(ECSensorType eType) {
+      _eType = eType;
+      switch (_eType) {
+         case ECSensorType::temperature: _strType = "temperature"; break;
+         case ECSensorType::humidity: _strType =  "humidity"; break;
+         case ECSensorType::pressure: _strType = "pressure"; break;
+         default: _strType = "other";
+      }
+   }
    
    /// Get the type of the sensor as a string
    const char* getTypeSz() {
-      switch (_eType) {
-         case ECSensorType::temperature: return "temperature";
-         case ECSensorType::humidity: return "humidity";
-         case ECSensorType::pressure: return "pressure";
-         case ECSensorType::flow: return "flow";
-         default: return "unknown";
-      }
+      return _strType.c_str();
    }
+   
+   void setTypeSz(const char* set) {_strType = set;}
    
    /// set the model of the sensor
    void setModel(const char* model) {__strModel = model;}
@@ -197,10 +203,23 @@ public:
    /// Get the unit of the sensor measurement
    const char* getUnit() {return __strUnit.c_str();}
    /// Get the name of the sensor
-   const char* getName() {return __strName.c_str();}
-   void setName(const char* name) {__strName = name;}
 
+   void setFriendlyName(const char* name) {if (name) __strFriendlyName = name;}
+   const char* getFriendlyName() {
+      if (__strFriendlyName.length()) {
+         return __strFriendlyName.c_str();
+      } else {
+         return getName();
+      }
+   }
    
+   void setName(const char* name) {
+      if (name) {
+         __strName = __console.makeNameIdStr(name);
+      }
+   }
+   const char* getName() {return __strName.c_str();}
+
    /// Pure virtual method to read sensor values
    virtual bool read() = 0;
    /// Update the sensor value

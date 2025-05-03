@@ -887,20 +887,8 @@ public:
             if (pSensor) {
                
             } else {
-               ECSensorType eType;
                String strType =TKTOCHAR(tkArgs, 3);
-               if (strType.startsWith("temp")) {
-                  eType = ECSensorType::temperature;
-               } else if (strType.startsWith("hum")) {
-                  eType = ECSensorType::humidity;
-               } else if (strType.startsWith("press")) {
-                  eType = ECSensorType::pressure;
-               } else if (strType.startsWith("flow")) {
-                  eType = ECSensorType::flow;
-               } else {
-                  eType = ECSensorType::none;
-               }
-               pSensor = new CxSensorGeneric(TKTOCHAR(tkArgs, 2), eType, TKTOCHAR(tkArgs, 4), [this, strVar]()->float {
+               pSensor = new CxSensorGeneric(TKTOCHAR(tkArgs, 2), ECSensorType::other, TKTOCHAR(tkArgs, 4), [this, strVar]()->float {
                   if (strVar.length() > 0) {
                      float fValue = 0.0F;
                      char* end = nullptr;
@@ -916,6 +904,10 @@ public:
                   }
                   return INVALID_FLOAT;
                });
+               if (pSensor) {
+                  pSensor->setTypeSz(strType.c_str());
+                  pSensor->setFriendlyName(TKTOCHAR(tkArgs, 6));
+               }
             }
             
          } else if (strSubCmd == "del") {
@@ -930,7 +922,7 @@ public:
                println(F("  list"));
                println(F("  name <id> <name>"));
                println(F("  get <id>"));
-               println(F("  add <name> <variable>"));
+               println(F("  add <name> <unit> <variable> [<friendly name>]"));
 #endif
             }
          }

@@ -933,7 +933,7 @@ private:
    
 public:
    
-   CxMqttHASensor(CxSensor* pSensor, uint32_t nPeriod) : CxMqttHASensor(pSensor->getName(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getUnit()) {_pSensor = pSensor; _timer.start(nPeriod);}
+   CxMqttHASensor(CxSensor* pSensor, uint32_t nPeriod) : CxMqttHASensor(pSensor->getFriendlyName(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getUnit()) {_pSensor = pSensor; _timer.start(nPeriod);}
       
    CxMqttHASensor(const char* fn, const char* name, const char* dclass = nullptr, const char* unit = nullptr, bool available = false, bool retain = false) : CxMqttHABase(fn, name, nullptr, nullptr, nullptr, retain), _szDeviceClass(dclass), _szUnit(unit), _pSensor(nullptr) {
       
