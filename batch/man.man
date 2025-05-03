@@ -106,6 +106,7 @@ echo "  stop"
 echo "  heartbeat <period in ms> (0, 1000...n)"
 echo "  list"
 echo "  publish <topic> <message> [<0|1> (retain)]"
+echo "  subscribe <topic> <variable> [<command>]"
 
 #
 # ha
@@ -118,7 +119,7 @@ echo "  sensor add <name> [<period>]"
 echo "  sensor del <name>"
 echo "  button add <name>"
 echo "  button del <name>"
-echo "  switch add <name>"
+echo "  switch add <name> [<variable> [<command>]]"
 echo "  switch del <name>"
 
 #
