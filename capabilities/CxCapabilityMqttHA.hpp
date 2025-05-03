@@ -238,7 +238,7 @@ public:
             }
          } else if (strSubCmd == "switch") {
             if (strSub2Cmd == "add") {
-               addSwitch(TKTOCHAR(tkArgs, 3));
+               addSwitch(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOCHAR(tkArgs, 5));
             } else if (strSub2Cmd == "del") {
                deleteSwitch(TKTOCHAR(tkArgs, 23));
             }
