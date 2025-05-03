@@ -260,7 +260,7 @@ public:
     * @param sz Raw name input
     */
    void setName(const char* sz) {
-      _strName = __console.makeFriendlyNameStr(sz);
+      _strName = __console.makeNameIdStr(sz);
    }
    
    /**

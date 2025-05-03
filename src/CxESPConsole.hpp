@@ -853,7 +853,7 @@ public:
       }
    }
    
-   static String makeFriendlyNameStr(const char* sz) {
+   static String makeNameIdStr(const char* sz) {
       String id;
       id.reserve((uint32_t)(strlen(sz) + 1));
       while (sz && *sz) {
