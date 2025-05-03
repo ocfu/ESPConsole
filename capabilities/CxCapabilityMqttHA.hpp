@@ -266,16 +266,16 @@ public:
       } else {
          _mqttHAdev.setFriendlyName(__console.getAppName());
       }
-      _mqttHAdev.setName(__console.getAppName());
+      _mqttHAdev.setName(_mqttHAdev.getFriendlyName());
+      _mqttHAdev.setModel(__console.getAppName());
       
       // the device defines the topic base by dedault
       // Note: all topics are relative to the root topiec defined in mqtt
       _mqttHAdev.setTopicBase("ha");
       _mqttHAdev.setManufacturer("ocfu");
-      _mqttHAdev.setModel(__console.getModel());
       _mqttHAdev.setSwVersion(__console.getAppVer());
       _mqttHAdev.setHwVersion(::getChipType());
-      _mqttHAdev.setUrl("");
+      _mqttHAdev.setUrl(__console.getVariable("url"));
       _mqttHAdev.setStrId();
    
       _mqttHAdev.regItems(enabled);

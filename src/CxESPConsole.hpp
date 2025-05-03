@@ -463,9 +463,6 @@ public:
    const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
    const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
    
-   void setModel(const char* sz) {_szModel = sz;}
-   const char* getModel() {return _szModel[0] ? _szModel : "-";}
-
    uint8_t users() {return __nUsers;}
 
    
