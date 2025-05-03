@@ -98,18 +98,25 @@
 class CxMqttManager {
 public:
    using tCallback = std::function<void(const char*, uint8_t*, unsigned int)>;
+   
+   struct MqttParam {
+      bool bRelative;
+      String strVariable;
+      String strCmd;
+      MqttParam() : bRelative(false) {};
+   };
 
 private:
    CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
-
+   
    bool         _bIsInitialized; ///< the mqtt manager is ready to use
    WiFiClient   _wifiClient;    ///< WiFi client for underlying network communication.
    PubSubClient _mqttClient;    ///< MQTT client using the WiFi client.
    String       _strClientId;   ///< Client ID for the MQTT connection
    
    std::map<const char*, std::pair<int, tCallback>, std::less<>> _mapTopicCallbacks; ///< Map of topics and their respective callback functions.
-   std::map<const char*, bool> _mapIsRelative;
-   
+   std::map<const char*, MqttParam> _mapParam;
+
    String   _strServer;                  ///< MQTT server address.
    uint16_t _nPort;                      ///< MQTT server port.
    uint8_t  _nQoS;                       ///< Quality of Service level.
@@ -138,16 +145,16 @@ private:
     */
    void _resubscribeTopics() {
       _CONSOLE_DEBUG(F("re-subscribe all topics"));
-
+      
       for (const auto& pair : _mapTopicCallbacks) {
          String strTopic;
-         if (_mapIsRelative[pair.first]) {
+         if (_mapParam[pair.first].bRelative) {
             strTopic = _strRootPath + '/' + pair.first;
          } else {
             strTopic = pair.first+1;
          }
          _CONSOLE_DEBUG(F("re-subscribe topic %s"), strTopic.c_str());
-
+         
          _mqttClient.subscribe(strTopic.c_str(), _nQoS);
       }
    }
@@ -236,13 +243,13 @@ public:
    void setRootPath(const char* path) {
       
       // FIXME: SOS stack problems !?
-
+      
       if (_strRootPath != path) {
          //_CONSOLE_DEBUG(F("set new root path to %s"), path);
-
+         
          // root path has changed, re-subscribe all subscribtions with a relative path
          for (const auto& pair : _mapTopicCallbacks) {
-            if (_mapIsRelative[pair.first]) {
+            if (_mapParam[pair.first].bRelative) {
                String strTopic = _strRootPath + '/' + pair.first;
                //_CONSOLE_DEBUG("unsubscribe topic %s", strTopic.c_str());
                _mqttClient.unsubscribe(strTopic.c_str());
@@ -341,17 +348,17 @@ public:
             if (topic && payload) {
                // take a copy of the topic here. it might become invalid after the call of the callback function, e.g. if a call back function publish something.
                const char* topicCpy = strdup(topic);
-
+               
                // MARK: do we need to copy the payload as well? use case: one topic was subsribed more than one time.
                payload[length] = '\0';
                _CONSOLE_DEBUG(F("received from topic %s: '%s'"), topicCpy, (char*)payload);
-
+               
                for (const auto& pair : _mapTopicCallbacks) {
                   if (!pair.second.second) continue; // has no callback
-                  if (_mapIsRelative[pair.first]) {
+                  if (_mapParam[pair.first].bRelative) {
                      String strTopic = _strRootPath + '/' + pair.first;
                      _CONSOLE_DEBUG(F("compare topics '%s' with '%s'"), strTopic.c_str(), topicCpy);
-
+                     
                      if (strTopic == topicCpy) pair.second.second(topicCpy, payload, length);
                   } else {
                      _CONSOLE_DEBUG(F("compare topics '%s' with '%s'"), pair.first+1, topicCpy);
@@ -452,11 +459,11 @@ public:
    bool publish(const char* topic, const char* value, bool retain = false) {
       // is topic given as an absolute path (indicated with a starting '/'), than ignore the root path.
       
-//      if (topic) {
-//         __console.print("publish to topic: "); __console.println(topic);
-//         __console.println(value);
-//      }
-//      
+      //      if (topic) {
+      //         __console.print("publish to topic: "); __console.println(topic);
+      //         __console.println(value);
+      //      }
+      //
       if (topic && topic[0] == '/' && topic[1]) {
          return _mqttClient.publish(topic+1, value, retain);
       } else if (topic && topic[0]){
@@ -472,13 +479,15 @@ public:
     * @param callback The callback function to handle messages.
     * @return True if the subscription is successful, otherwise false.
     */
-   bool subscribe(const char* topic, tCallback callback) {
+   bool subscribe(const char* topic, tCallback callback, const char* variable = nullptr, const char* cmd = nullptr) {
       if (!topic || strlen(topic) < 1) return false;
       static int callbackId = 0; // Incremental unique ID to identify the callback later
       bool bIsRelative = (topic[0] != '/');
       if (bIsRelative && strlen(topic) < 2) return false;
       _mapTopicCallbacks[topic] = {++callbackId, callback};
-      _mapIsRelative[topic] = bIsRelative;
+      _mapParam[topic].bRelative = bIsRelative;
+      if (variable) _mapParam[topic].strVariable = variable;
+      if (cmd) _mapParam[topic].strCmd = cmd;
       String strTopic;
       if (bIsRelative) {
          strTopic = _strRootPath + '/' + topic;
@@ -501,15 +510,15 @@ public:
       String strTopic;
       if (bIsRelative) {
          strTopic = _strRootPath + '/' + topic;
-         _mapIsRelative.erase(topic);
+         _mapParam.erase(topic);
       } else {
          strTopic = ++topic; // without heading '/'
       }
       _CONSOLE_DEBUG(F("unsubscribe topic %s"), strTopic.c_str());
       return _mqttClient.unsubscribe(strTopic.c_str());
    }
-
-#ifdef MINIMAL_COMMAND_SET
+   
+#ifndef MINIMAL_COMMAND_SET
    /**
     * @brief Finds the callback function for a topic.
     * @param topic The topic to search for.
@@ -538,7 +547,7 @@ public:
       }
       return false;
    }
-
+   
    /**
     * @brief Removes a topic and its callback function.
     * @param topic The topic to remove.
@@ -549,24 +558,44 @@ public:
 #endif
    
    void printSubscribtion(Stream& stream) {
-      CxTablePrinter table(stream);
+      CxTablePrinter table(stream, "Subscribtions");
       
-      table.printHeader({F("#"), F("Path")}, {2, 30});
+      table.printHeader({F("Variable"), F("Topic"), F("Relative"), F("Command")}, {10, 30, 8, 30});
       
       for (const auto& pair : _mapTopicCallbacks) {
-         uint8_t i = 1;
          if (pair.first) {
             String strTopic;
-            if (_mapIsRelative[pair.first]) {
+            auto& param = _mapParam[pair.first];
+            
+            if (param.bRelative) {
                strTopic = _strRootPath + '/' + pair.first;
             } else {
                strTopic = pair.first+1; // without heading '/'
             }
-            table.printRow({String(i++).c_str(), strTopic.c_str()});
+            table.printRow({param.strVariable.c_str(), strTopic.c_str(), param.bRelative ? "yes" : "no", param.strCmd.c_str()});
          }
       }
+      table.printFooter();
    }
-
+   
+   const char* getCmd(const char* topic) {
+      for (const auto& pair : _mapParam) {
+         if (strcmp(pair.first+(pair.second.bRelative?0:1), topic) == 0) {
+            return (pair.second.strCmd.length()) ? pair.second.strCmd.c_str() : nullptr;
+         }
+      }
+      return nullptr;
+   }
+   
+   const char* getVariable(const char* topic) {
+      for (const auto& pair : _mapParam) {
+         if (strcmp(pair.first+(pair.second.bRelative?0:1), topic) == 0) {
+            return (pair.second.strVariable.length()) ? pair.second.strVariable.c_str() : nullptr;
+         }
+      }
+      return nullptr;
+   }
+   
 };
 
 
@@ -600,6 +629,9 @@ public:
 class CxMqttTopicBase {
 private:
    String _strTopic;          ///< Stores the MQTT topic string.
+   String _strVariable;
+   String _strCmd;
+
    bool _bRetained;           ///< Retained message flag.
    uint8_t _nQos;             ///< QoS level (0, 1, or 2).
    CxMqttManager& _mqttManager = CxMqttManager::getInstance(); ///< MQTT manager instance.
@@ -626,6 +658,12 @@ public:
    ~CxMqttTopicBase() {unsubscribe();}
    
    void setCb( CxMqttManager::tCallback cb) {_cb = cb;} ///< Sets the callback function.
+   void setVariable(const char* set) {_strVariable = set;}
+   const char* getVariable() {return _strVariable.c_str();}
+   void setCmd(const char* set) {_strCmd = set;}
+   const char* getCmd() {return _strVariable.c_str();}
+
+   
    bool hasTopic() { return (_strTopic.length());} ///< Checks if the topic is set.
    
    const char* getTopic() {return _strTopic.c_str();} ///< Retrieves the topic string.
@@ -673,7 +711,7 @@ public:
          return;
       }
       if (_mqttManager.isIntitialized()) {
-         _mqttManager.subscribe(_strTopic.c_str(), _cb);
+         _mqttManager.subscribe(_strTopic.c_str(), _cb, _strVariable.length()?_strVariable.c_str():nullptr, _strCmd.length()?_strCmd.c_str():nullptr);
       }
    }
    
@@ -703,6 +741,7 @@ public:
    CxMqttTopic(const char* topic, CxMqttManager::tCallback cb = nullptr, bool retain = false, bool autoSubscribe = true) : CxMqttTopicBase(topic, cb, retain) {if (autoSubscribe) subscribe();}
    
    CxMqttTopic() : CxMqttTopicBase() {};
+   
 };
 
 

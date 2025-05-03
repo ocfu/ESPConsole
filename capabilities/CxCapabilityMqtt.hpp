@@ -147,6 +147,34 @@ public:
          } else if (strSubCmd == "publish") {
             publish(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3), (bool) TKTOINT(tkArgs, 4, 0));
          }
+         else if (strSubCmd == "subscribe") {
+            // subscribe <topic> <variable> [<command>]
+            CxMqttTopic* pMqttTopic = nullptr;
+
+            if (TKTOCHAR(tkArgs, 2) && !__mqttManager.findTopic(TKTOCHAR(tkArgs, 2))) {
+               
+               // FIXME: store and enable deletion of the object
+               
+               pMqttTopic = new CxMqttTopic(TKTOCHAR(tkArgs, 2), [this](const char* topic, uint8_t* payload, unsigned int length) {
+                  const char* szCmd = __mqttManager.getCmd(topic);
+                  const char* szVar = __mqttManager.getVariable(topic);
+                  
+                  if (szVar) {
+                     __console.addVariable(szVar, (char*) payload);
+                  }
+                  
+                  if (szCmd) {
+                     __console.processCmd(szCmd);
+                  }
+                  
+               }, false, false); // not retained, not auto subscribed
+            }
+            if (pMqttTopic) {
+               pMqttTopic->setVariable(TKTOCHAR(tkArgs, 3));
+               pMqttTopic->setCmd(TKTOCHAR(tkArgs, 4));
+               pMqttTopic->subscribe();
+            }
+         }
          else {
             printf(F(ESC_ATTR_BOLD " Server:       " ESC_ATTR_RESET "%s (%s)\n"), __mqttManager.getServer(), _bMqttServerOnline? ESC_TEXT_GREEN "online" ESC_ATTR_RESET: ESC_TEXT_BRIGHT_RED "offline" ESC_ATTR_RESET);
             printf(F(ESC_ATTR_BOLD " Port:         " ESC_ATTR_RESET "%d\n"), __mqttManager.getPort());
