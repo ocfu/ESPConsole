@@ -5,9 +5,11 @@
 
 class CxTablePrinter {
 private:
-   std::vector<uint8_t> columnWidths;
-   uint8_t currentColumn = 0;
-   Stream& output; // Reference to a Stream object
+   std::vector<uint8_t> _vColumnWidths;
+   uint8_t _nCurrentColumn = 0;
+   Stream& _output; // Reference to a Stream object
+   const char* _szName;
+   uint16_t _nLines;
    
    // Helper to truncate strings
    String truncateString(const String& str, uint8_t width) {
@@ -20,47 +22,73 @@ private:
    
 public:
    // Constructor accepting a Stream reference
-   CxTablePrinter(Stream& stream) : output(stream) {}
+   CxTablePrinter(Stream& stream, const char* name = nullptr) : _output(stream), _szName(name), _nLines(0) {}
    
    void printHeader(const std::vector<String>& titles, const std::vector<uint8_t>& widths) {
-      columnWidths = widths; // Store the widths
-      output.print(ESC_ATTR_BOLD);
+      _vColumnWidths = widths; // Store the widths
+      _output.print(ESC_ATTR_BOLD);
+      printLine(false);
+#ifndef MINIMAL_COMMAND_SET
+      // print centered name of the table, if given
+      if (_szName) {
+         uint16_t nLen = 0;
+         for (auto& w : widths) {
+            nLen += w;
+         }
+         nLen /= 2;
+         nLen -= strlen(_szName)/2;
+         while (nLen--) _output.print(" ");
+         _output.println(_szName);
+         printLine(false);
+      }
+#endif
+      
       for (size_t i = 0; i < titles.size(); i++) {
          if (i > 0) {
-            output.print(" | ");
+            _output.print(" | ");
          }
          String truncated = truncateString(titles[i], widths[i]);
-         output.printf("%-*s", widths[i], truncated.c_str());
+         _output.printf("%-*s", widths[i], truncated.c_str());
       }
-      output.print(ESC_ATTR_RESET);
-      output.println();
+      _output.println();
       printLine();
+      _output.print(ESC_ATTR_RESET);
    }
 
-   void printLine() {
-      output.print(ESC_ATTR_BOLD);
-      for (size_t i = 0; i < columnWidths.size(); i++) {
+   void printLine(bool bDelimiter = true) {
+#ifndef MINIMAL_COMMAND_SET
+      for (size_t i = 0; i < _vColumnWidths.size(); i++) {
          if (i > 0) {
-            output.print("-+-");
+            _output.print(bDelimiter?"-+-":"---");
          }
-         for (uint8_t j = 0; j < columnWidths[i]; j++) {
-            output.print('-');
+         for (uint8_t j = 0; j < _vColumnWidths[i]; j++) {
+            _output.print('-');
          }
       }
-      output.println();
-      output.print(ESC_ATTR_RESET);
+      _output.println();
+#endif
    }
    
    void printRow(const std::vector<String>& values) {
       for (size_t i = 0; i < values.size(); i++) {
          if (i > 0) {
-            output.print(ESC_ATTR_BOLD " | " ESC_ATTR_RESET);
+            _output.print(ESC_ATTR_BOLD " | " ESC_ATTR_RESET);
          }
-         String truncated = truncateString(values[i], columnWidths[i]);
-         output.printf("%-*s", columnWidths[i], truncated.c_str());
+         String truncated = truncateString(values[i], _vColumnWidths[i]);
+         _output.printf("%-*s", _vColumnWidths[i], truncated.c_str());
       }
-      output.println();
-      currentColumn = 0; // Reset for the next row
+      _output.println();
+      _nCurrentColumn = 0; // Reset for the next row
+      _nLines++;
+   }
+   
+   void printFooter() {
+#ifndef MINIMAL_COMMAND_SET
+      _output.print(ESC_ATTR_BOLD);
+      printLine(false);
+      _output.print(_nLines);
+      _output.println(F(" rows"));
+#endif
    }
 };
 #endif /* CxTablePrinter_hpp */
