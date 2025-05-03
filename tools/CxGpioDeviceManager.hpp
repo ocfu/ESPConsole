@@ -134,6 +134,54 @@ public:
 
 };
 
+class CxGPIOVirtual : public CxGPIODevice {
+   
+public:
+   enum EVirtualEvent {evon, evoff};
+   
+private:
+   
+   static void _Action(CxDevice* dev, uint8_t id, const char* cmd) {
+      if (!cmd  || !*cmd) return;
+      
+      String strCmd;
+      strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.
+      strCmd = cmd;
+      
+      if (id == CxGPIOVirtual::EVirtualEvent::evon) {
+         strCmd.replace("$STATE", "ON");
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (id == CxGPIOVirtual::EVirtualEvent::evoff) {
+         strCmd.replace("$STATE", "OFF");
+         ESPConsole.processCmd(strCmd.c_str());
+      }
+   }
+   
+public:
+   CxGPIOVirtual(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) { addCallback(fp); addCallback(_Action);setName(name);;}
+   
+   virtual ~CxGPIOVirtual() {end();}
+   
+   bool isOn() {return __gpioTracker.getDigitalState(getPin());}
+   
+   virtual void set(int16_t set) override {CxGPIODevice::set(set);callCb(set ? EVirtualEvent::evon : EVirtualEvent::evoff);}
+   virtual int16_t get() override {return CxGPIODevice::get();}
+      
+   void on() {
+      set(HIGH);
+   }
+   
+   void off() {
+      set(LOW);
+   }
+
+   virtual const char* getTypeSz() override {return "virtual";}
+   
+   virtual void loop(bool bDegraded = false) override {  // degraded: e.g. in Wifi in AP mode or esp in setup process. If degraded, then no callback and no relay action
+   }
+};
+
+
 
 class CxGPIODeviceManagerManager {
 private:
@@ -190,10 +238,10 @@ public:
    }
 
    /// Get a Device by its name
-   CxDevice* getDevice(const char* name) {
+   CxDevice* getDevice(const char* name, const char* type = nullptr) {
       if (name) {
          for (auto& it : _mapDevices) {
-            if (strcmp(it.second->getName(), name) == 0) {
+            if (strcmp(it.second->getName(), name) == 0 && (!type || strcmp(it.second->getTypeSz(), type) == 0)) {
                return it.second;
             }
          }
@@ -229,7 +277,20 @@ public:
       }
       return nullptr;
    };
-   
+
+   /// get a device by its type.
+   /// The first device found will be returned.
+   CxDevice* getDeviceByName(const char* name) {
+      if (name) {
+         for (auto& it : _mapDevices) {
+            if (strcmp(it.second->getName(), name) == 0) {
+               return it.second;
+            }
+         }
+      }
+      return nullptr;
+   };
+
    /// Loop through all Devices and update their state
    void loop(bool bDegraded = false) {
       for (auto& it : _mapDevices) {

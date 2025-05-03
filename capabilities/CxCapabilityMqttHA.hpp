@@ -315,28 +315,23 @@ public:
    }
    
    void addButton(const char* szName) {
-      CxButton* pDevice = static_cast<CxButton*>(_gpioDeviceManager.getDevice(szName));
+      CxButton* pDevice = static_cast<CxButton*>(_gpioDeviceManager.getDevice(szName, "button"));
       if (pDevice) {
-         String strType = pDevice->getTypeSz();
-         if (strType == "button") {
-            if (!_mqttHAdev.findItem(szName)) {
-               _vHAButton.push_back(std::make_unique<CxMqttHAButton>(pDevice));
-               pDevice->addCallback([this, pDevice](CxDevice* dev, uint8_t id, const char* cmd) {
-                  for (auto& pButton : _vHAButton) {
-                     if (strcmp(pButton->getName(), pDevice->getName()) == 0) {
-                        if (id == (uint8_t)CxButton::EBtnEvent::pressed) {
-                           pButton->publishState("pressed");
-                        } else if (id == CxButton::EBtnEvent::singlepress) {
-                           pButton->publishState("single");
-                        }
-                        pButton->publishState("");
-                        break;
+         if (!_mqttHAdev.findItem(szName)) {
+            _vHAButton.push_back(std::make_unique<CxMqttHAButton>(pDevice));
+            pDevice->addCallback([this, pDevice](CxDevice* dev, uint8_t id, const char* cmd) {
+               for (auto& pButton : _vHAButton) {
+                  if (strcmp(pButton->getName(), pDevice->getName()) == 0) {
+                     if (id == (uint8_t)CxButton::EBtnEvent::pressed) {
+                        pButton->publishState("pressed");
+                     } else if (id == CxButton::EBtnEvent::singlepress) {
+                        pButton->publishState("single");
                      }
+                     pButton->publishState("");
+                     break;
                   }
-               });
-            }
-         } else {
-            __console.printf(F("Device '%s' is not a button."), szName);
+               }
+            });
          }
       } else {
          __console.printf(F("Button '%s' not found."), szName);
@@ -353,46 +348,77 @@ public:
       }
    }
    
-   void addSwitch(const char* szName) {
-      CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(szName));
+   void addSwitch(const char* szName, const char* fn = nullptr, const char* cmd = nullptr) {
+      CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(szName, "relay"));
       if (pRelay) {
-         String strType = pRelay->getTypeSz();
-         if (strType == "relay") {
+         // set call back to publish the state of the relay on change
+         pRelay->addCallback([this, pRelay](CxDevice* dev, uint8_t id, const char* cmd) {
+            for (auto& pSwitch : _vHASwitch) {
+               if (strcmp(pSwitch->getName(), pRelay->getName()) == 0) {
+                  if (id == CxRelay::ERelayEvent::relayon) {
+                     pSwitch->publishState(pRelay->isOn());
+                  } else if (id == CxRelay::ERelayEvent::relayoff) {
+                     pSwitch->publishState(pRelay->isOn());
+                  }
+                  return;
+               }
+            }
+         });
+         
+         if (!_mqttHAdev.findItem(szName)) _vHASwitch.push_back(std::make_unique<CxMqttHASwitch>(pRelay, [this, pRelay](const char* topic, uint8_t* payload, unsigned int len) -> bool {
+            // this callback handles commands on the subscribed topic (./cmd)
+            for (auto& pSwitch : _vHASwitch) {
+               if (strcmp(pSwitch->getName(), pRelay->getName()) == 0) {
+                  if (strncmp((char*)payload, "ON", 2) == 0) {
+                     pRelay->on();
+                  } else if (strncmp((char*)payload, "OFF", 3) == 0) {
+                     pRelay->off();
+                  } else {
+                     return false;
+                  }
+                  return true;
+               }
+            }
+            return false;
+         }));
+      } else {
+         CxGPIOVirtual* pVirtual = static_cast<CxGPIOVirtual*>(_gpioDeviceManager.getDevice(szName, "virtual"));
+         if (pVirtual) {
             // set call back to publish the state of the relay on change
-            pRelay->addCallback([this, pRelay](CxDevice* dev, uint8_t id, const char* cmd) {
+            pVirtual->addCallback([this, pVirtual](CxDevice* dev, uint8_t id, const char* cmd) {
                for (auto& pSwitch : _vHASwitch) {
-                  if (strcmp(pSwitch->getName(), pRelay->getName()) == 0) {
+                  if (strcmp(pSwitch->getName(), pVirtual->getName()) == 0) {
                      if (id == CxRelay::ERelayEvent::relayon) {
-                        pSwitch->publishState(pRelay->isOn());
+                        pSwitch->publishState(pVirtual->isOn());
                      } else if (id == CxRelay::ERelayEvent::relayoff) {
-                        pSwitch->publishState(pRelay->isOn());
+                        pSwitch->publishState(pVirtual->isOn());
                      }
                      return;
                   }
                }
             });
-               
-            if (!_mqttHAdev.findItem(szName)) _vHASwitch.push_back(std::make_unique<CxMqttHASwitch>(pRelay, [this, pRelay](const char* topic, uint8_t* payload, unsigned int len) -> bool {
-               // this callback handles commands on the subscribed topic (./cmd)
-               for (auto& pSwitch : _vHASwitch) {
-                  if (strcmp(pSwitch->getName(), pRelay->getName()) == 0) {
-                     if (strncmp((char*)payload, "ON", 2) == 0) {
-                        pRelay->on();
-                     } else if (strncmp((char*)payload, "OFF", 3) == 0) {
-                        pRelay->off();
-                     } else {
-                        return false;
+            
+            if (!_mqttHAdev.findItem(szName)) {
+               _vHASwitch.push_back(std::make_unique<CxMqttHASwitch>(pVirtual, [this, pVirtual](const char* topic, uint8_t* payload, unsigned int len) -> bool {
+                  // this callback handles commands on the subscribed topic (./cmd)
+                  for (auto& pSwitch : _vHASwitch) {
+                     if (strcmp(pSwitch->getName(), pVirtual->getName()) == 0) {
+                        if (strncmp((char*)payload, "ON", 2) == 0) {
+                           pVirtual->on();
+                        } else if (strncmp((char*)payload, "OFF", 3) == 0) {
+                           pVirtual->off();
+                        } else {
+                           return false;
+                        }
+                        return true;
                      }
-                     return true;
                   }
-               }
-               return false;
-            }));
+                  return false;
+               }));
+            }
          } else {
-            __console.printf(F("Device '%s' is not a relay."), szName);
+            __console.printf(F("Device '%s' is not a ok."), szName);
          }
-      } else {
-         __console.printf(F("Relay '%s' not found."), szName);
       }
    }
    

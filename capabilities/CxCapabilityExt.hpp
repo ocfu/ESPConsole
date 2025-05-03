@@ -531,6 +531,8 @@ public:
                      gpio.setInverted(false);
                   } else if (strValue == "analog") {
                      
+                  } else if (strValue == "virtual") {
+                     
                   } else {
                      printf(F("invalid pin mode!"));
                   }
@@ -542,7 +544,11 @@ public:
                   }
                   else {
                      println("write digital");
-                     gpio.writePin(nValue);
+                     //gpio.writePin(nValue);
+                     
+                     CxDevice* pDev = _gpioDeviceManager.getDeviceByPin(nPin);
+                     if (pDev) pDev->set(nValue);
+
                   }
 #else
                   println("write digital");
@@ -666,6 +672,19 @@ public:
                      pAnalog->begin();
                   } else {
                      CxAnalog* p = new CxAnalog(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                     if (p) {
+                        p->begin();
+                     }
+                  }
+               } else if (strType == "virtual") {
+                  CxGPIOVirtual* pVirtual = static_cast<CxGPIOVirtual*>(_gpioDeviceManager.getDeviceByName(strName.c_str()));
+                  if (pVirtual) {
+                     pVirtual->setName(strName.c_str());
+                     pVirtual->setInverted(bInverted);
+                     pVirtual->setCmd(strGpioCmd.c_str());
+                     pVirtual->begin();
+                  } else {
+                     CxGPIOVirtual* p = new CxGPIOVirtual(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
                      }

@@ -18,6 +18,8 @@
 #define GPIO_MAX_PIN_NUMBER 17 // Maximum GPIO pin number for other platforms
 #endif
 
+#define GPIO_VIRTUAL_PIN_NUMBER_START 100 // 100 ... 254 are virtual pins
+#define VIRTUAL_MODE 254
 #define INVALID_MODE 255 // Represents an invalid pin mode
 #define INVALID_PIN  255
 
@@ -323,12 +325,12 @@ public:
  */
 class CxGPIO {
 private:
-   CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance(); // Reference to the GPIO tracker singleton
-   int8_t _nPin;                 // The GPIO pin number
+   uint8_t _nPin;                 // The GPIO pin number
    uint8_t _nPwmChannel;         // PWM channel associated with the pin
 
 protected:
    //CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
+   CxGPIOTracker& __gpioTracker = CxGPIOTracker::getInstance(); // Reference to the GPIO tracker singleton
 
    typedef void (*isr_t)();
    uint8_t __isrMode = 0;
@@ -351,8 +353,8 @@ public:
     * @param inverted  Whether the pin logic is inverted. Defalut is false.
     */
    CxGPIO(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false) : _nPin(pin), _nPwmChannel(0) {
-      if (_gpioTracker.isAnalogPin(pin)) {
-         _gpioTracker.setAnalog(pin, true);
+      if (__gpioTracker.isAnalogPin(pin)) {
+         __gpioTracker.setAnalog(pin, true);
       } else if (isValidPin(pin) && isValidMode(mode)) {
          setPin(pin);
          setPinMode(mode);
@@ -375,7 +377,7 @@ public:
    bool setPin(uint8_t pin) {
       if (isValidPin(pin)) {
          if (isSet(pin)) {
-            _gpioTracker.changePin(_nPin, pin);
+            __gpioTracker.changePin(_nPin, pin);
          }
          _nPin = pin;
       }
@@ -383,7 +385,7 @@ public:
    }
    
    bool isSet(uint8_t pin) {
-      return _gpioTracker.hasPin(pin);
+      return __gpioTracker.hasPin(pin);
    }
    
    bool isSet() {return isSet(_nPin);}
@@ -391,20 +393,24 @@ public:
    uint8_t getPin() {return _nPin;}
    
    static bool isValidPin(uint8_t pin) {
-      return (pin <= GPIO_MAX_PIN_NUMBER);
+      return (pin <= GPIO_MAX_PIN_NUMBER || isVirtualPin(pin));
    }
-   
+   static bool isVirtualPin(uint8_t pin) {
+      return (pin >= GPIO_VIRTUAL_PIN_NUMBER_START && pin < INVALID_PIN);
+   }
+
    void setGpioName(const char* name) {
       if (isValidPin(_nPin)) {
-         _gpioTracker.setName(_nPin, name);
+         __gpioTracker.setName(_nPin, name);
       }
    }
    
    const char* getGpioName() {
-      return _gpioTracker.getName(_nPin);
+      return __gpioTracker.getName(_nPin);
    }
    
-   bool isValid() {return (isValidPin(_nPin));}
+   bool isValid() {return isValidPin(_nPin);}
+   bool isVirtual() {return isVirtualPin(_nPin);}
    
    void enableISR() {
       if (__isr != nullptr) {
@@ -472,20 +478,26 @@ public:
    void printInvalidReason(Stream& stream) {printInvalidReason(stream, _nPin);}
    
    void remove() {
-      _gpioTracker.removePin(_nPin);
+      __gpioTracker.removePin(_nPin);
    }
    
    void setPwmChannel(uint8_t set) {_nPwmChannel = set;}
    uint8_t getPwmChannel() {return _nPwmChannel;}
    
    // Set and get the inverted property
-   void setInverted(bool set) {_gpioTracker.setInverted(_nPin, set); }
-   bool isInverted() const { return _gpioTracker.isInverted(_nPin); }
+   void setInverted(bool set) {__gpioTracker.setInverted(_nPin, set); }
+   bool isInverted() const { return __gpioTracker.isInverted(_nPin); }
    
    void setPinMode(uint8_t mode) {
-      if (isValid() && isValidMode(mode)) {
-         pinMode(_nPin, mode);
-         _gpioTracker.setMode(_nPin, mode);
+      if (isValid()) {
+         if (isVirtual()) {
+            __gpioTracker.setMode(_nPin, VIRTUAL_MODE);
+         } else {
+            if (isValidMode(mode)) {
+               pinMode(_nPin, mode);
+               __gpioTracker.setMode(_nPin, mode);
+            }
+         }
       }
    }
    
@@ -495,25 +507,25 @@ public:
    
    // Get the pin mode as a string
    String getPinModeString() {
-      return _gpioTracker.getPinModeString(_nPin);
+      return __gpioTracker.getPinModeString(_nPin);
    }
    
    const char* getPinModeSz() {
-      return _gpioTracker.getPinModeSz(_nPin);
+      return __gpioTracker.getPinModeSz(_nPin);
    };
    
    // Get the pin mode as a raw value
    uint8_t getPinMode() {
-      return _gpioTracker.getMode(_nPin);
+      return __gpioTracker.getMode(_nPin);
    }
    
    bool getDigitalState() {
-      bool state = _gpioTracker.getDigitalState(_nPin);
+      bool state = __gpioTracker.getDigitalState(_nPin);
       return isInverted() ? !state : state;
    }
 #ifndef MINIMAL_COMMAND_SET
    uint16_t getAnalogValue() {
-      return _gpioTracker.getAnalogValue(_nPin);
+      return __gpioTracker.getAnalogValue(_nPin);
    }
 #endif
    
@@ -521,18 +533,21 @@ public:
    void writePin(uint8_t value) {
       if (isValid()) {
          if (value != LOW) value = HIGH;
-         // set the pin mode, if not done yet to the default
-         if (!isPinModeSet() || !isOutput()) {
-            setPinMode(OUTPUT);
-         }
-         digitalWrite(_nPin, isInverted() ? !value : value);
          
+         if (!isVirtual()) {
+            // set the pin mode, if not done yet to the default
+            if (!isPinModeSet() || !isOutput()) {
+               setPinMode(OUTPUT);
+            }
+            digitalWrite(_nPin, isInverted() ? !value : value);
+            
 #ifndef ARDUINO
-         std::cout << (isInverted() ? !value : value) << std::endl;
+            std::cout << (isInverted() ? !value : value) << std::endl;
 #endif
-         _gpioTracker.setDigitalState(_nPin, (value == HIGH) != isInverted());
+         }
+         __gpioTracker.setDigitalState(_nPin, (value == HIGH) != isInverted());
 #ifndef MINIMAL_COMMAND_SET
-         _gpioTracker.setAnalog(_nPin, false);
+         __gpioTracker.setAnalog(_nPin, false);
 #endif
       }
    }
@@ -540,12 +555,17 @@ public:
    // Read the digital state of the pin and sets the mode implicitly
    bool readPin() {
       if (isValid()) {
-         // set the pin mode, if not done yet to the default input
-         if (!isPinModeSet() || !isInput()) {
-            setPinMode(INPUT);
+         bool state = LOW;
+         if (!isVirtual()) {
+            // set the pin mode, if not done yet to the default input
+            if (!isPinModeSet() || !isInput()) {
+               setPinMode(INPUT);
+            }
+            state = digitalRead(_nPin);
+            __gpioTracker.setDigitalState(_nPin, state);
+         } else {
+            state = __gpioTracker.getDigitalState(_nPin);
          }
-         bool state = digitalRead(_nPin);
-         _gpioTracker.setDigitalState(_nPin, state);
          return isInverted() ? !state : state;
       } else {
          return false;
@@ -564,8 +584,8 @@ public:
          analogWriteFreq(frequency);
          analogWrite(_nPin, isInverted() ? map(255 - dutyCycle, 0, 255, 0, 1023) : map(dutyCycle, 0, 255, 0, 1023));
 #endif
-         _gpioTracker.setPWM(_nPin, true);
-         _gpioTracker.setAnalog(_nPin, false);
+         __gpioTracker.setPWM(_nPin, true);
+         __gpioTracker.setAnalog(_nPin, false);
       }
    }
    
@@ -577,7 +597,7 @@ public:
 #elif defined(ESP8266)
          digitalWrite(_nPin, LOW);
 #endif
-         _gpioTracker.setPWM(_nPin, false);
+         __gpioTracker.setPWM(_nPin, false);
       }
    }
 
@@ -586,8 +606,8 @@ public:
       if (isValid()) {
          if (! isAnalog()) return -1;
          int16_t value = analogRead(_nPin);
-         _gpioTracker.setAnalog(_nPin, true);
-         _gpioTracker.setAnalogValue(_nPin, value);
+         __gpioTracker.setAnalog(_nPin, true);
+         __gpioTracker.setAnalogValue(_nPin, value);
          return value;
       } else {
          return -1;
@@ -604,8 +624,8 @@ public:
 #elif defined(ESP8266)
          analogWrite(_nPin, isInverted() ? 1023 - value : value);
 #endif
-         _gpioTracker.setAnalog(_nPin, true);
-         _gpioTracker.setAnalogValue(_nPin, value);
+         __gpioTracker.setAnalog(_nPin, true);
+         __gpioTracker.setAnalogValue(_nPin, value);
       }
    }
 #endif
@@ -667,26 +687,26 @@ public:
 
    // Check if PWM is enabled
    bool isPWM() {
-      return _gpioTracker.isPWM(_nPin);
+      return __gpioTracker.isPWM(_nPin);
    }
    
    bool isAnalog() {
-      return _gpioTracker.isAnalogPin(_nPin);
+      return __gpioTracker.isAnalogPin(_nPin);
    }
 #endif
    bool isInput() {
-      return _gpioTracker.isInput(_nPin);
+      return (isVirtual() || __gpioTracker.isInput(_nPin));
    }
    
    bool isOutput() {
-      return _gpioTracker.isOutput(_nPin);
+      return (isVirtual() || __gpioTracker.isOutput(_nPin));
    }
    
    // Print the state of the GPIO pin
    void printState(Stream& stream) {
       if (isSet()) {
          get();
-         _gpioTracker.printState(stream, _nPin);
+         __gpioTracker.printState(stream, _nPin);
       }
    }
 };
