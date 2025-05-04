@@ -23,38 +23,44 @@ CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 bool CxESPConsole::processCmd(const char* cmd, bool bQuiet) {
    if (!cmd) return false;
 
-   CxStrToken tkCmd(cmd, ";");
+   CxStrToken* ptkCmd = new CxStrToken(cmd, ";");
+   
+   if (!ptkCmd) {
+      return false;
+   }
    
    bool overallResult = false;
    
-   for (uint8_t i = 0; i < tkCmd.count(); i++) {
-
-      String strCmd = TKTOCHAR(tkCmd, i);
-      
-      if (strCmd.startsWith("{")) {
-         processData(strCmd.c_str());
-      } else {
-         substitueVariables(strCmd);
-         strCmd.replace("§", "$"); // § used in quotes for variables.
-         
-         for (auto& entry : _mapCapInstances) {
-            bool bResult = false;
+   for (uint8_t i = 0; i < ptkCmd->count(); i++) {
+      String* pstrCmd = new String(TKTOCHAR(*ptkCmd, i));
+      if (pstrCmd) {
+         if (pstrCmd->startsWith("{")) {
+            processData(pstrCmd->c_str());
+         } else {
+            substitueVariables(*pstrCmd);
+            pstrCmd->replace("§", "$"); // § used in quotes for variables.
             
-            entry.second->setIoStream(*__ioStream);
-            bResult = entry.second->processCmd(strCmd.c_str());
-            if (bResult && !strCmd.startsWith("?")) {
-               overallResult = true;
-               break; // Stop processing further instances for this command
+            for (auto& entry : _mapCapInstances) {
+               bool bResult = false;
+               
+               entry.second->setIoStream(*__ioStream);
+               bResult = entry.second->processCmd(pstrCmd->c_str());
+               if (bResult && !pstrCmd->startsWith("?")) {
+                  overallResult = true;
+                  break; // Stop processing further instances for this command
+               }
+            }
+            
+            if (!overallResult && !bQuiet && pstrCmd->length() > 0 && !pstrCmd->startsWith("?")) {
+               println("Unknown command: ");
+               println(pstrCmd->c_str());
             }
          }
-         
-         if (!overallResult && !bQuiet && strCmd.length() > 0 && !strCmd.startsWith("?")) {
-            println("Unknown command: ");
-            println(strCmd.c_str());
-         }
+         delete pstrCmd;
       }
    }
-   return overallResult;   
+   delete ptkCmd;
+   return overallResult;
 }
 
 void CxESPConsoleMaster::begin() {
