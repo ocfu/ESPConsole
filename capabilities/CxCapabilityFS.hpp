@@ -202,9 +202,9 @@ public:
           }
        } else if (cmd == "exec") {
           if (a) {
-             executeBatch(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2));
+             executeBatch(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3));
           } else {
-             println(F("usage: exec <batchfile>"));
+             println(F("usage: exec <batchfile> [<label> [<args>]]"));
           }
        } else if (cmd == "break" ) {
           String strCond = TKTOCHAR(tkArgs, 1);
@@ -806,7 +806,7 @@ private:
       if (__console.getLogLevel() >= LOGLEVEL_ERROR) _print2logServer(buf);
    }
    
-   void executeBatch(const char* path, const char* label) {
+   void executeBatch(const char* path, const char* label, const char* arg = nullptr) {
       
       g_Stack.DEBUGPrint(getIoStream(), label);
       
@@ -816,7 +816,8 @@ private:
 
       mapTempVariables.clear();
       
-      mapTempVariables[F("LABEL")] = label;
+      if (label) mapTempVariables[F("LABEL")] = label;
+      if (arg) mapTempVariables[F("?")] = arg;
 
       strBatchFile = "";
       
@@ -838,7 +839,7 @@ private:
          label = "default";
       };
 
-      _CONSOLE_INFO(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
+      _CONSOLE_INFO(F("Execute batch file: %s %s %s"), strBatchFile.c_str(), label, arg ? arg : "");
       
 #ifdef ARDUINO
       if (!LittleFS.exists(strBatchFile.c_str())) {

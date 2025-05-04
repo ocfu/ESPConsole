@@ -82,6 +82,8 @@ echo "  <name> toggle"
 echo "  <name> offtimer <ms>"
 echo "  <name> default <0|1>"
 
+exec:
+echo "usage: exec <batchfile> [<label> [<args>]]"
 
 #
 # fs
