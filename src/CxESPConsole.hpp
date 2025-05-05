@@ -180,10 +180,10 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    
    
    uint32_t _nCmdBufferLen = 64;
-   char* _pszCmdBuffer;                 // Command line buffer
+   char* _pszCmdBuffer = nullptr;                 // Command line buffer
    int _iCmdBufferIndex = 0;            // Actual cursor position in command line (always at the last char of input, cur left/right not supported)
    
-   char** _aszCmdHistory;               // Command line history buffer
+   char** _aszCmdHistory = nullptr;               // Command line history buffer
    int _nCmdHistorySize;                // History size (max. number of command lines in the buffer)
    int _nCmdHistoryCount = 0;           // Actual number of command lines in the buffer
    int _iCmdHistoryIndex = -1;          // Acutal index of the command line buffer
