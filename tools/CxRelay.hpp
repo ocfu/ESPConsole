@@ -25,7 +25,19 @@ private:
    bool m_bDefaultOn = false;
    
    static void _rlyAction(CxDevice* dev, uint8_t id, const char* cmd) {
-      ESPConsole.processCmd(cmd);
+      if (!cmd  || !*cmd) return;
+      
+      String strCmd;
+      strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.
+      strCmd = cmd;
+      
+      if (id == ERelayEvent::relayon) {
+         strCmd.replace("$STATE", "ON");
+         ESPConsole.processCmd(strCmd.c_str());
+      } else if (id == ERelayEvent::relayoff) {
+         strCmd.replace("$STATE", "OFF");
+         ESPConsole.processCmd(strCmd.c_str());
+      }
    }
    
 public:
@@ -115,7 +127,7 @@ public:
             _CONSOLE_INFO(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
             __console.processCmd("led blink");
             _timerOff.start([this](const char*) {
-               _CONSOLE_INFO(F("RLY: Relay on GPIO%02d off-timer ends"));
+               _CONSOLE_INFO(F("RLY: Relay on GPIO%02d off-timer ends"), getPin());
                off();
             }, true); // stop after due
          }
