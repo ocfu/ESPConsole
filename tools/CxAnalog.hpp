@@ -68,10 +68,7 @@ public:
       }
       
       // don't call analog read at every cylce, it will cause wifi connections problems!
-      // If the sensor read and processing takes less than 1 ms, the loop may return and
-      // you will get multiple executions of analogRead within the same millisecond - not the desired result.
-      // Considering that analogRead(A0) itself only takes about 70 microseconds,
-      // if the processing is quick you could easily have 10 or so executions of analogRead(A0) in that millisecond
+      // It is set to 100ms by default.
       
       if (_timer.isDue()) {
          _nValue = get();
