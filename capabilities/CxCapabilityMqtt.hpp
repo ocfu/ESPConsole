@@ -158,9 +158,22 @@ public:
                pMqttTopic = new CxMqttTopic(TKTOCHAR(tkArgs, 2), [this](const char* topic, uint8_t* payload, unsigned int length) {
                   const char* szCmd = __mqttManager.getCmd(topic);
                   const char* szVar = __mqttManager.getVariable(topic);
+                  const char* szPayload = (char*) payload;
+                  
+                  String strValue;
+                  
+                  if (szPayload && *szPayload == '{') {
+                     DynamicJsonDocument doc(1024);
+                     DeserializationError error = deserializeJson(doc, szPayload);
+                     if (!error) {
+                        strValue = doc["value"] | "";
+                     }
+                  } else {
+                     strValue = szPayload;
+                  }
                   
                   if (szVar) {
-                     __console.addVariable(szVar, (char*) payload);
+                     __console.addVariable(szVar, strValue.c_str());
                   }
                   
                   if (szCmd) {
