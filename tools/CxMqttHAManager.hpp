@@ -103,7 +103,7 @@ public:
       HAswitch,      ///< Switch entity
       HAbinary,      ///< Binary sensor entity
       HAnumber,      ///< Number input entity
-#ifdef MINIMAL_COMMAND_SET
+#ifndef MINIMAL_COMMAND_SET
       HAsiren,       ///< Siren entity
       HAalarmpanel,  ///< Alarm panel entity
       HAnotify,      ///< Notification entity
@@ -148,7 +148,7 @@ public:
          case e_type::HAswitch: return "switch";
          case e_type::HAbinary: return "binary_sensor";
          case e_type::HAnumber: return "number";
-#ifdef MINIMAL_COMMAND_SET
+#ifndef MINIMAL_COMMAND_SET
          case e_type::HAsiren: return "siren";
          case e_type::HAalarmpanel: return "alarm_control_panel";
          case e_type::HAnotify: return "notify";
@@ -281,7 +281,7 @@ public:
     */
    e_cat getCat() const {return __eCat;}
 
-#ifdef MINIMAL_COMMAND_SET
+#ifndef MINIMAL_COMMAND_SET
    /**
     * @brief Mark entity as configuration category
     * @details Sets entity category to config and enables command retention
@@ -1165,7 +1165,7 @@ public:
    
 };
 
-#ifdef MINIMAL_COMMAND_SET
+#ifndef MINIMAL_COMMAND_SET
 
 class CxMqttHASiren : public CxMqttHABase {
    // https://www.home-assistant.io/integrations/siren.mqtt/
