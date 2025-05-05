@@ -538,23 +538,8 @@ public:
                      printf(F("invalid pin mode!"));
                   }
                } else if (nValue < 1024) {
-#ifndef MINIMAL_COMMAND_SET
-                  if (nValue > HIGH && gpio.isAnalog()) {
-                     println("write analog");
-                     gpio.writeAnalog(nValue);
-                  }
-                  else {
-                     println("write digital");
-                     //gpio.writePin(nValue);
-                     
-                     CxDevice* pDev = _gpioDeviceManager.getDeviceByPin(nPin);
-                     if (pDev) pDev->set(nValue);
-
-                  }
-#else
-                  println("write digital");
-                  gpio.writePin(nValue);
-#endif
+                  CxDevice* pDev = _gpioDeviceManager.getDeviceByPin(nPin);
+                  if (pDev) pDev->set(nValue);
                } else {
                   printf(F("invalid value!"));
                }
