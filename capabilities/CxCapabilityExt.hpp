@@ -162,6 +162,7 @@ class CxCapabilityExt : public CxCapability {
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
    CxGPIODeviceManagerManager& _gpioDeviceManager = CxGPIODeviceManagerManager::getInstance();
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();
+   CxGPIOTracker& __gpioTracker = CxGPIOTracker::getInstance(); // Reference to the GPIO tracker singleton
    
    /// timer for updating stack info and sensor data
    CxTimer10s _timerUpdate;
@@ -515,7 +516,7 @@ public:
                }
             }
          } else if (strSubCmd == "set") {
-            if (CxGPIO::isValidPin(nPin)) {
+            if (__gpioTracker.isValidPin(nPin)) {
                CxGPIO gpio(nPin);
                if (nValue < 0) { // setting the pin mode
                   if (strValue == "in") {
@@ -559,14 +560,14 @@ public:
                }
             } else {
                println("invalid");
-               CxGPIO::printInvalidReason(getIoStream(), nPin);
+               __gpioTracker.printInvalidReason(getIoStream(), nPin);
             }
          } else if (strSubCmd == "get") {
-            if (CxGPIO::isValidPin(nPin)) {
+            if (__gpioTracker.isValidPin(nPin)) {
                CxGPIO gpio(nPin);
                gpio.printState(getIoStream());
             } else {
-               CxGPIO::printInvalidReason(getIoStream(), nPin);
+               __gpioTracker.printInvalidReason(getIoStream(), nPin);
             }
          } else if (strSubCmd == "list") {
             _gpioDeviceManager.printList();
@@ -712,7 +713,7 @@ public:
                _gpioDeviceManager.removeDevice(strName.c_str());
             }
          } else if (strSubCmd == "name") {
-            if (CxGPIO::isValidPin(nPin)) {
+            if (__gpioTracker.isValidPin(nPin)) {
                CxDevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
                if (p) {
                   p->setFriendlyName(strValue.c_str());

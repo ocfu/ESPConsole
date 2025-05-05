@@ -125,7 +125,7 @@ public:
    };
    
    virtual const std::vector<uint8_t> getWidths(bool bDefault = true) override {
-      return {3, 11, 10, 4, 10, 3, 5, 20};
+      return {3, 11, 10, 4, 12, 3, 5, 20};
    };
    
    virtual const std::vector<String> getData(bool bDefault = true) override {

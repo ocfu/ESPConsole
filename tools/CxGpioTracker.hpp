@@ -84,12 +84,27 @@ public:
       _pinData.erase(pin);
    }
    
+   bool isValidPin(uint8_t pin) {
+      return (pin <= GPIO_MAX_PIN_NUMBER || isVirtualPin(pin));
+   }
+   
+   bool isVirtualPin(uint8_t pin) {
+      return (pin >= GPIO_VIRTUAL_PIN_NUMBER_START && pin < INVALID_PIN);
+   }
+   
+   void printInvalidReason(Stream& stream, uint8_t pin) {
+      if (!isValidPin(pin)) stream.printf("invalid pin number! (0...%d)", GPIO_MAX_PIN_NUMBER);
+   }
+
    /**
     * @brief Set the mode of a GPIO pin.
     * @param pin The GPIO pin number.
     * @param mode The desired mode (e.g., INPUT, OUTPUT).
     */
    void setMode(uint8_t pin, uint8_t mode = INVALID_MODE) {
+      if (isVirtualPin(pin)) {
+         mode = VIRTUAL_MODE; // Treat virtual pins as special case
+      }
       setDefaultValues(pin); // Ensure the pin is initialized
       _pinData[pin].mode = mode;
    }
@@ -133,6 +148,8 @@ public:
                return "OUTPUT_OPEN_DRAIN";
             case INVALID_MODE:
                return "UNSET";
+            case VIRTUAL_MODE:
+               return "VIRTUAL I/O";
             default:
                return "UNKNOWN";
          }
@@ -392,11 +409,12 @@ public:
    
    uint8_t getPin() {return _nPin;}
    
-   static bool isValidPin(uint8_t pin) {
-      return (pin <= GPIO_MAX_PIN_NUMBER || isVirtualPin(pin));
+   bool isValidPin(uint8_t pin) {
+      return __gpioTracker.isValidPin(pin);
    }
-   static bool isVirtualPin(uint8_t pin) {
-      return (pin >= GPIO_VIRTUAL_PIN_NUMBER_START && pin < INVALID_PIN);
+   
+   bool isVirtualPin(uint8_t pin) {
+      return __gpioTracker.isVirtualPin(pin);
    }
 
    void setGpioName(const char* name) {
@@ -470,13 +488,7 @@ public:
             return false;
       }
    }
-                           
-   static void printInvalidReason(Stream& stream, uint8_t pin) {
-      if (!isValidPin(pin)) stream.printf("invalid pin number! (0...%d)", GPIO_MAX_PIN_NUMBER);
-   }
-   
-   void printInvalidReason(Stream& stream) {printInvalidReason(stream, _nPin);}
-   
+                              
    void remove() {
       __gpioTracker.removePin(_nPin);
    }
