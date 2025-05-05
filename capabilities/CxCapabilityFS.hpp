@@ -813,7 +813,7 @@ private:
       
       g_Stack.DEBUGPrint(getIoStream(), label);
       
-      static String strBatchFile;
+      String strBatchFile;
       std::map<String, String> mapTempVariables;
 
 
@@ -842,8 +842,9 @@ private:
          label = "default";
       };
 
-      _CONSOLE_INFO(F("Execute batch file: %s %s %s"), strBatchFile.c_str(), label, arg ? arg : "");
-      
+      _CONSOLE_INFO(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
+      if (arg) _CONSOLE_INFO(F("Argument: %s"), arg);
+
 #ifdef ARDUINO
       if (!LittleFS.exists(strBatchFile.c_str())) {
          __console.error(F("Batch file '%s' not found"), strBatchFile.c_str());
