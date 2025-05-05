@@ -169,6 +169,7 @@ public:
           _handleFile();
        } else if (cmd == "log") {
           String strSubCmd = TKTOCHAR(tkArgs, 1);
+          strSubCmd.toLowerCase();
           String strEnv = ".log";
           if (strSubCmd == "server") {
              _strLogServer = TKTOCHAR(tkArgs, 2);
@@ -208,6 +209,8 @@ public:
           }
        } else if (cmd == "break" ) {
           String strCond = TKTOCHAR(tkArgs, 1);
+          strCond.toLowerCase();
+
           uint8_t nValue = TKTOINT(tkArgs, 2, 0);
           
           if (strCond == "on" && nValue) {

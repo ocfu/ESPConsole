@@ -210,6 +210,7 @@ public:
          printCommands();
       } else if (strCmd == "rc") {
          String strSubCmd = TKTOCHAR(tkCmd, 1);
+         strSubCmd.toLowerCase();
          if (strSubCmd == "enable") {
             _bEnabled = (bool)TKTOINT(tkCmd, 2, 0);
             if (_bEnabled) init();

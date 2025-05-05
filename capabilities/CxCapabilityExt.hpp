@@ -797,6 +797,8 @@ public:
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
+         strSubCmd.toLowerCase();
+
          if (strSubCmd == "on") {
             Led1.on();
          } else if (strSubCmd == "off") {
@@ -929,6 +931,7 @@ public:
       } else if (cmd == "relay") {
          String strName = TKTOCHAR(tkArgs, 1);
          String strSubCmd = TKTOCHAR(tkArgs, 2);
+         strSubCmd.toLowerCase();
          
          CxDevice* pDev = _gpioDeviceManager.getDevice(strName.c_str());
          

@@ -435,6 +435,7 @@ public:
          printCommands();
       } else if (strCmd == "seg") {
          String strSubCmd = TKTOCHAR(tkCmd, 1);
+         strSubCmd.toLowerCase();
          String strEnv = ".seg";
          if (strSubCmd == "enable") {
             _bEnabled = (bool)TKTOINT(tkCmd, 2, 0);
@@ -490,6 +491,7 @@ public:
             setActiveScreenIndex(TKTOINT(tkCmd, 2, INVALID_UINT8));
          } else if (strSubCmd == "slideshow") {
             String strFunc = TKTOCHAR(tkCmd, 2);
+            strFunc.toLowerCase();
             if (strFunc == "add") {
                uint8_t n = TKTOINT(tkCmd, 3, INVALID_UINT8);
                if (n != INVALID_UINT8) {

@@ -234,6 +234,8 @@ public:
          println();
       } else if (cmd == "stack" ) {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
+         strSubCmd.toLowerCase();
+
          if (strSubCmd == "on") {
             g_Stack.enableDebugPrint(true);
          } else if (strSubCmd == "off") {
