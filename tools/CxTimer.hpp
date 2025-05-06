@@ -25,8 +25,8 @@ class CxTimer {
    bool _bHoldAfterDue;
    String _strCmd; ///< The command associated with the timer
 
-   uint8_t _nId = 0; ///< The timer ID
-   ///<
+   String _strId; ///< The timer ID
+
    // timer callback
    std::function<void(const char* szCmd)> _cb;
 
@@ -35,8 +35,8 @@ public:
    CxTimer() : CxTimer(0) {}
    CxTimer(uint32_t period, std::function<void(const char*)> cb, bool bHoldAfterDue = false) : _nPeriod(period), _last(0), _bOnHold(false), _isDue(false), _bHoldAfterDue(bHoldAfterDue), _cb(cb) {if (!bHoldAfterDue) start();}
 
-   void setId(uint8_t id) {_nId = id;}
-   uint8_t getId() {return _nId;}
+   void setId(const char* set) {_strId = set;}
+   const char* getId() {return _strId.c_str();}
    
    void start() {_last = (uint32_t)millis(); _bOnHold = (_nPeriod == 0);}
    void stop() {_bOnHold = true;}

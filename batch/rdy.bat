@@ -40,7 +40,7 @@ sm:
 log warn "ESP in safemode"
 exec $userscript sm
 prompt "$ESC_BOLD$USER@serial-$ESC_BRED$ESC_BLINKSAFEMODE$ESC_RESET:/> "
-timer add 100 2000 1 "led flash 100 100 2"
+timer add 2s "led flash 100 100 2" tiSMLed repeat
 
 sm-cl:
 log warn "ESP in safemode"

@@ -357,26 +357,41 @@ public:
             //__console.setEchoOff();
          }
       } else if (cmd == "timer") {
-         // timer <add|del> <id> <ms> <mode> <cmd>
-         // mode: 0: once, 1: repeat
+         // timer add <ms> <cmd> [<id> [<mode>]]
+         // timer del [id]
          // cmd: command to execute
+         // id: id of the timer. without id the timer runs one time, with id the timer repeats
          String strSubCmd = TKTOCHAR(tkArgs, 1);
          
          if (strSubCmd == "add") {
             // add a timer
-            if (tkArgs.count() > 5) {
-               uint8_t nId = TKTOINT(tkArgs, 2, INVALID_UINT8);
-               uint32_t nPeriod = __console.convertToMilliseconds(TKTOCHAR(tkArgs, 3));
+            if (tkArgs.count() > 3) {
+               uint32_t nPeriod = __console.convertToMilliseconds(TKTOCHAR(tkArgs, 2));
+               uint8_t nMode = 0; // once
                if (nPeriod > 100 && nPeriod <= 7*24*3600*1000) {
-                  uint8_t nMode = TKTOINT(tkArgs, 4, 0);
-                  
                   CxTimer* pTimer = new CxTimer();
-                  
                   if (pTimer) {
-                     pTimer->setId(nId);
+                     if (TKTOCHAR(tkArgs, 4)) {  // id
+                        pTimer->setId(TKTOCHAR(tkArgs, 4));
+                        nMode = 1; // id is set -> repeat timer
+                     }
+                     
+                     if (TKTOCHAR(tkArgs, 5)) { // mode
+                        String strMode = TKTOCHAR(tkArgs, 5);
+                        if (strMode == "once") nMode = 0;
+                        if (strMode == "repeat") nMode = 1;
+                        if (strMode == "replace") {
+                           CxTimer* p = __console.getTimer(TKTOCHAR(tkArgs, 4));
+                           if (p) {
+                              nMode = p->getMode();
+                              __console.delTimer(TKTOCHAR(tkArgs, 4));
+                           }
+                        }
+                     }
+                     
                      if (__console.addTimer(pTimer)) {
-                        __console.info(F("add timer %d, period %d ms, mode %d, cmd %s"), pTimer->getId(), nPeriod, nMode, TKTOCHAR(tkArgs, 5));
-                        pTimer->setCmd(TKTOCHAR(tkArgs, 5));
+                        __console.info(F("add timer %d, period %d ms, mode %d, cmd %s"), pTimer->getId(), nPeriod, nMode, TKTOCHAR(tkArgs, 3));
+                        pTimer->setCmd(TKTOCHAR(tkArgs, 3));
                         pTimer->start(nPeriod, [this, pTimer](const char* szCmd) {
                            __console.processCmd(szCmd);
                            // if the timer is set to once, remove it
@@ -386,7 +401,7 @@ public:
                            }
                         }, (nMode == 0));
                      } else {
-                        __console.error(F("could not add timer %d! (existing or too many timers)"), nId);
+                        __console.error(F("could not add timer %s! (existing or too many timers)"), pTimer->getId());
                         delete pTimer;
                      }
                   }
@@ -395,11 +410,11 @@ public:
                }
             }
          } else if (strSubCmd == "del") {
-            __console.delTimer(TKTOINT(tkArgs, 2, INVALID_UINT8));
+            __console.delTimer(TKTOCHAR(tkArgs, 2));
          } else if (strSubCmd == "stop") {
-            __console.stopTimer(TKTOINT(tkArgs, 2, INVALID_UINT8));
+            __console.stopTimer(TKTOCHAR(tkArgs, 2));
          } else if (strSubCmd == "start") {
-            __console.startTimer(TKTOINT(tkArgs, 2, INVALID_UINT8));
+            __console.startTimer(TKTOCHAR(tkArgs, 2));
          }
          else if (strSubCmd == "list") {
             // list all timers

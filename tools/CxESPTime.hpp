@@ -45,9 +45,17 @@ public:
    
    bool addTimer(CxTimer* pTimer) {
       if (pTimer && _timers.size() < _nTimerMax) {
+         // Check, if the timer has an id
+         if (!pTimer->getId()[0]) {
+            static uint8_t nId = 1;
+            char szId[10];
+            snprintf(szId, sizeof(szId), "_t%d", nId++);
+            pTimer->setId(szId);
+         }
+         
          // Check if the timer ID already exists
          for (const auto& timer : _timers) {
-            if (timer && timer->getId() == pTimer->getId()) {
+            if (timer && (strcmp(timer->getId(), pTimer->getId()) == 0)) {
                return false; // Timer ID already exists
             }
          }
@@ -57,9 +65,9 @@ public:
       return false;
    }
  
-   bool delTimer(uint8_t nId) {
+   bool delTimer(const char* szId) {
       for (auto it = _timers.begin(); it != _timers.end(); ++it) {
-         if ((*it)->getId() == nId) {
+         if (strcmp((*it)->getId(), szId) == 0) {
             delete *it;
             _timers.erase(it);
             return true;
@@ -68,17 +76,17 @@ public:
       return false;
    }
    
-   void startTimer(uint8_t nId) {
+   void startTimer(const char* szId) {
       for (auto& timer : _timers) {
-         if (timer != nullptr && timer->getId() == nId) {
+         if (timer != nullptr && (strcmp(timer->getId(), szId) == 0)) {
             timer->start();
          }
       }
    }
    
-   void stopTimer(uint8_t nId) {
+   void stopTimer(const char* szId) {
       for (auto& timer : _timers) {
-         if (timer != nullptr && timer->getId() == nId) {
+         if (timer != nullptr && (strcmp(timer->getId(), szId) == 0)) {
             timer->stop();
          }
       }
@@ -96,9 +104,9 @@ public:
       }
    }
    
-   CxTimer* getTimer(uint8_t nId) {
+   CxTimer* getTimer(const char* szId) {
       for (auto& timer : _timers) {
-         if (timer != nullptr && timer->getId() == nId) {
+         if (timer != nullptr && (strcmp(timer->getId(), szId) == 0)) {
             return timer;
          }
       }
@@ -134,10 +142,9 @@ public:
    
    void printTimers(Stream& stream) {
       CxTablePrinter table(stream);
-      table.printHeader({F("Id"), F("Period"), F("Mode"), F("Remain"), F("Cmd")}, {4, 6, 6, 7, 30});
+      table.printHeader({F("Id"), F("Period"), F("Mode"), F("Remain"), F("Cmd")}, {10, 6, 6, 7, 30});
       char* szPeriod = new char[15];
       char* szRemain = new char[15];
-      char* szId = new char[4];
       for (uint8_t i = 0; i < _timers.size(); i++) {
          if (_timers[i] != nullptr) {
             convertToHumanReadableTime(_timers[i]->getPeriod(), szPeriod, 15);
@@ -146,8 +153,7 @@ public:
             } else {
                convertToHumanReadableTime(_timers[i]->getRemain(), szRemain, 15);
             }
-            snprintf(szId, 4, "%d", _timers[i]->getId());
-            table.printRow({szId, szPeriod, _timers[i]->getModeSz(), szRemain, _timers[i]->getCmd()});
+            table.printRow({_timers[i]->getId(), szPeriod, _timers[i]->getModeSz(), szRemain, _timers[i]->getCmd()});
          }
       }
       delete[] szPeriod;

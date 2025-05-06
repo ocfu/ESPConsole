@@ -99,7 +99,7 @@ timer add 200 1m 1 "wifi check -q"
 #
 sm:
 wifi connect
-timer add 200 1m 1 "wifi check -q"
+timer add 1m "wifi check -q" 200 repeat
 
 #
 # Wifi is up and connected
@@ -131,7 +131,7 @@ wifi-offline:
 echo "wifi offline"
 log off
 timer del 201
-timer add 201 15s 0 "wifi connect;prompt"
+timer add 15s "wifi connect;prompt" 201 once
 
 #
 # Access Point is up
