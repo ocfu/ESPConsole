@@ -596,7 +596,7 @@ public:
       return _mapSetVariables;
    }
    
-   void substitueVariables(String& str) {
+   void substituteVariables(String& str) {
       // Perform variable substitution in the value
       for (const auto& var : _mapSetVariables) {
          str.replace("$" + var.first, var.second);
