@@ -38,8 +38,6 @@ break on $SAFEMODE
 # wifi is up and connected
 wifi-up:
 break on $SAFEMODE
-timer add 1s "exec $userscript $LABEL"
-break on 1
 
 # wifi is down
 wifi-down:
