@@ -811,16 +811,14 @@ private:
    
    void executeBatch(const char* path, const char* label, const char* arg = nullptr) {
       
-      g_Stack.DEBUGPrint(getIoStream(), label);
+      g_Stack.DEBUGPrint(getIoStream(), 0, label);
       
       String strBatchFile;
-      std::map<String, String> mapTempVariables;
 
-
-      mapTempVariables.clear();
+      _mapTempVariables.clear();
       
-      if (label) mapTempVariables[F("LABEL")] = label;
-      if (arg) mapTempVariables[F("?")] = arg;
+      if (label) _mapTempVariables[F("LABEL")] = label;
+      if (arg) _mapTempVariables[F("?")] = arg;
 
       strBatchFile = "";
       
@@ -865,7 +863,7 @@ private:
 
       if (buffer) {
          
-         g_Stack.DEBUGPrint(getIoStream(), "buffer");
+         g_Stack.DEBUGPrint(getIoStream(), 0, "buffer");
 
          while (file.available()) {
             size_t len = file.readBytesUntil('\n', buffer, 128 - 1);
@@ -911,16 +909,16 @@ private:
                   }
 
                   // Perform variable substitution in the value
-                  for (const auto& var : mapTempVariables) {
+                  for (const auto& var : _mapTempVariables) {
                      varValue.replace("$" + var.first, var.second);
                   }
                   
-                  mapTempVariables[varName] = varValue; // Store the variable
+                  _mapTempVariables[varName] = varValue; // Store the variable
                   continue;
                }
+               g_Stack.DEBUGPrint(getIoStream(), 0, "Variables");
             }
             
-            g_Stack.DEBUGPrint(getIoStream(), "Variables");
 
             // Handle variables in the batch file
             static String command;
@@ -931,7 +929,7 @@ private:
             
             
             // Replace variables in temporary buffer in the command
-            for (const auto& var : mapTempVariables) {
+            for (const auto& var : _mapTempVariables) {
                command.replace("$" + var.first, var.second);
             }
 
@@ -944,10 +942,18 @@ private:
             if (processCommands) {
                _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
                
-               g_Stack.DEBUGPrint(getIoStream(), "processCmd");
+               if (command.startsWith("exec")) {
+                  __console.substituteVariables(command);
+                  CxStrToken tkExecCmd(command.c_str(), " ");
+                  _CONSOLE_DEBUG(F("exec command found: %s"), command.c_str());
+                  // recursively call executeBatch and not go deeper by calling processCmd, this shall safe stack usage
+                  executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
+               } else {
+                  g_Stack.DEBUGPrint(getIoStream(), +1, "processCmd-A");
+                  __console.processCmd(*__console.getStream(), command.c_str());
+                  g_Stack.DEBUGPrint(getIoStream(), -1, "processCmd-B");
+               }
 
-               __console.processCmd(*__console.getStream(), command.c_str());
-               
                if (_bBreakBatch) break;
             }
          } // while (file.available())
@@ -960,9 +966,9 @@ private:
 
       file.close();
 #endif
-      mapTempVariables.clear();
-      
-      g_Stack.DEBUGPrint(getIoStream(), "end");
+      _mapTempVariables.clear();
+            
+      g_Stack.DEBUGPrint(getIoStream(), 0, "end");
    }
    
    void man(const char* szCap) {
