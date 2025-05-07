@@ -19,12 +19,16 @@ class CxESPStackTracker {
    
    bool _bDebugPrint = false;
    uint8_t _nDebugPrintCnt = 0;
+   uint8_t _nLevel = 0;
+   uint8_t _nMaxLevel = 0;
    
 public:
    
    void enableDebugPrint(bool set) {_bDebugPrint = set; _nDebugPrintCnt = 1;}
    
-   void DEBUGPrint(Stream &stream, const char* label = "") {
+   void DEBUGPrint(Stream &stream, uint8_t levelinc = 0, const char* label = "") {
+      _nLevel += levelinc;
+      _nMaxLevel = (_nLevel > _nMaxLevel) ? _nLevel : _nMaxLevel;
 #ifdef DEBUG_BUILD
       if (!_bDebugPrint) return;
       stream.printf("=== %s %03d ", label, _nDebugPrintCnt++);
@@ -38,8 +42,14 @@ public:
       stream.print(F(" MAX: "));
       if (getHigh() > 1500) stream.print(F(ESC_TEXT_BRIGHT_YELLOW));
       if (getHigh() > 2500) stream.print(F(ESC_TEXT_BRIGHT_RED ESC_ATTR_BLINK));
-      stream.println(getHigh());
+      stream.print(getHigh());
       stream.print(ESC_ATTR_RESET);
+      stream.print(F(" LEV: "));
+      stream.print(_nLevel);
+      stream.print(F(" (m: "));
+      stream.print(_nMaxLevel);
+      stream.print(F(")"));
+      stream.println();
 #endif
    }
    
