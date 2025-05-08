@@ -452,24 +452,23 @@ public:
    /**
     * @brief Publishes a message to a topic.
     * @param topic The topic path.
-    * @param value The message value.
+    * @param payload The message payload.
     * @param retain Whether the message should be retained.
     * @return True if the message is published successfully, otherwise false.
     */
-   bool publish(const char* topic, const char* value, bool retain = false) {
+   bool publish(const char* topic, const char* payload, bool retain = false) {
+      if (!payload) return false;
+      
       // is topic given as an absolute path (indicated with a starting '/'), than ignore the root path.
       
-      //      if (topic) {
-      //         __console.print("publish to topic: "); __console.println(topic);
-      //         __console.println(value);
-      //      }
-      //
+      _CONSOLE_DEBUG_EXT(DEBUG_FLAG_MQTT_PUBLISH, F("MQTT: publish to %s %s retain = %d "), topic, payload, retain);
+
       if (topic && topic[0] == '/' && topic[1]) {
-         return _mqttClient.publish(topic+1, value, retain);
+         return _mqttClient.publish(topic+1, payload, retain);
       } else if (topic && topic[0]){
-         return _mqttClient.publish((_strRootPath + '/' + topic).c_str(), value, retain);
+         return _mqttClient.publish((_strRootPath + '/' + topic).c_str(), payload, retain);
       } else {
-         return _mqttClient.publish(_strRootPath.c_str(), value, retain);
+         return _mqttClient.publish(_strRootPath.c_str(), payload, retain);
       }
    }
    
