@@ -34,7 +34,7 @@ log info "Client is ready!"
 prompt -CL "$USER@$HOSTNAME:/> "
 
 #
-# ESP in safemoce
+# ESP in safemode
 #
 sm:
 log warn "ESP in safemode"
