@@ -270,7 +270,7 @@ public:
       _mqttHAdev.setModel(__console.getAppName());
       
       // the device defines the topic base by dedault
-      // Note: all topics are relative to the root topiec defined in mqtt
+      // Note: all topics are relative to the root topic defined in mqtt
       _mqttHAdev.setTopicBase("ha");
       _mqttHAdev.setManufacturer("ocfu");
       _mqttHAdev.setSwVersion(__console.getAppVer());
@@ -279,7 +279,8 @@ public:
       _mqttHAdev.setStrId();
    
       _mqttHAdev.regItems(enabled);
-      _mqttHAdev.publishAvailability(enabled);
+      //_mqttHAdev.publishAvailability(enabled);
+      _mqttHAdev.publishAvailabilityAllItems();
       
       if (enabled) {
          if (_mapHADiag[DIAG_RESTART_REASON]) _mapHADiag[DIAG_RESTART_REASON]->publishState(::getResetInfo());
