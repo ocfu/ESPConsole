@@ -20,7 +20,7 @@ std::map<String, String> _mapTempVariables; // Map to store environment variable
 
 CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 
-bool CxESPConsole::processCmd(const char* cmd, bool bQuiet) {
+bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
    if (!cmd) return false;
 
    CxStrToken* ptkCmd = new CxStrToken(cmd, ";");
@@ -44,14 +44,14 @@ bool CxESPConsole::processCmd(const char* cmd, bool bQuiet) {
                bool bResult = false;
                
                entry.second->setIoStream(*__ioStream);
-               bResult = entry.second->processCmd(pstrCmd->c_str());
+               bResult = entry.second->processCmd(pstrCmd->c_str(), nClient);
                if (bResult && !pstrCmd->startsWith("?")) {
                   overallResult = true;
                   break; // Stop processing further instances for this command
                }
             }
             
-            if (!overallResult && !bQuiet && pstrCmd->length() > 0 && !pstrCmd->startsWith("?")) {
+            if (!overallResult && pstrCmd->length() > 0 && !pstrCmd->startsWith("?")) {
                println("Unknown command: ");
                println(pstrCmd->c_str());
             }
@@ -140,7 +140,7 @@ void CxESPConsole::__handleConsoleInputs() {
 #endif
          println();
  */
-         CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _pszCmdBuffer);
+         CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _pszCmdBuffer, isWiFiClient() ? 1 : 0);
          _storeCmd(_pszCmdBuffer);
          _clearCmdBuffer();
          prompt();
@@ -238,7 +238,7 @@ void CxESPConsoleMaster::loop() {
             
             if (commandReceived) {
                info(F("remote command received: %s"), commandBuffer);
-               processCmd(client, commandBuffer);
+               processCmd(client, commandBuffer, 1);
                client.stop();
                
                info(F("Client disconnected after command."));
@@ -312,19 +312,13 @@ void CxESPConsole::debug(const char *fmt, ...) {
 
    va_list args;
    va_start(args, fmt);
-   
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
-   }
-   
+
    char buf[100];
-   
    uint32_t len = _addPrefix('D', buf, sizeof(buf));
-   
    vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   __debug(buf);
-   
+
+   printLog(LOGLEVEL_DEBUG, 0, buf);
+
    va_end(args);
 }
 
@@ -334,18 +328,12 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug(fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('D', buf, sizeof(buf));
-   
    vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
-   __debug(buf);
-   
+   printLog(LOGLEVEL_DEBUG, 0, buf);
+
    va_end(args);
 }
 
@@ -355,20 +343,13 @@ void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('X', buf, sizeof(buf));
-   
    vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
    
-   __debug_ext(flag, buf);
-      
+   printLog(LOGLEVEL_DEBUG_EXT, flag, buf);
+
    va_end(args);
-   
 }
 
 void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
@@ -377,20 +358,13 @@ void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->debug_ext(flag, fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('X', buf, sizeof(buf));
-   
    vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
-   __debug_ext(flag, buf);
-   
+   printLog(LOGLEVEL_DEBUG_EXT, flag, buf);
+
    va_end(args);
-   
 }
 
 void CxESPConsole::info(const char *fmt, ...) {
@@ -399,18 +373,12 @@ void CxESPConsole::info(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('I', buf, sizeof(buf));
-   
    vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
    
-   __info(buf);
-   
+   printLog(LOGLEVEL_INFO, 0, buf);
+
    va_end(args);
 }
 
@@ -420,18 +388,12 @@ void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->info(fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('I', buf, sizeof(buf));
-   
    vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
-   __info(buf);
-   
+   printLog(LOGLEVEL_INFO, 0, buf);
+
    va_end(args);
 }
 
@@ -441,18 +403,12 @@ void CxESPConsole::warn(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('W', buf, sizeof(buf));
-   
    vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-
-   __warn(buf);
    
+   printLog(LOGLEVEL_WARN, 0, buf);
+
    va_end(args);
 }
 
@@ -462,18 +418,12 @@ void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->warn(fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('W', buf, sizeof(buf));
-   
    vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
-   __warn(buf);
-   
+   printLog(LOGLEVEL_WARN, 0, buf);
+
    va_end(args);
 }
 
@@ -483,18 +433,12 @@ void CxESPConsole::error(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('E', buf, sizeof(buf));
-   
    vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-
-   __error(buf);
    
+   printLog(LOGLEVEL_ERROR, 0, buf);
+
    va_end(args);
 }
 
@@ -504,17 +448,26 @@ void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
    va_list args;
    va_start(args, fmt);
    
-   if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->error(fmt, args); // forward to wifi client console
-   }
-   
    char buf[100];
-   
    uint32_t len = _addPrefix('E', buf, sizeof(buf));
-   
    vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-
-   __error(buf);
+   
+   printLog(LOGLEVEL_ERROR, 0, buf);
    
    va_end(args);
+}
+
+void CxESPConsole::printLog(uint8_t level, uint32_t flag, const char *sz) {
+   if (!sz) return;
+   
+   if (!isWiFiClient()) {
+      if (__espConsoleWiFiClient) __espConsoleWiFiClient->printLog(level, flag, sz); // forward to wifi client console
+   }
+   
+   if (level == LOGLEVEL_DEBUG_EXT && !(getDebugFlag() & flag)) {
+      return;
+   }
+   
+   if (getUsrLogLevel() >= level) println(sz);
+   if (getLogLevel() >= level) print2LogServer(sz);
 }

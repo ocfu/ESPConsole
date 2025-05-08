@@ -82,7 +82,7 @@ public:
    
    virtual void setup() {}
    virtual void loop() {}
-   virtual bool execute(const char* cmd) {return false;}
+   virtual bool execute(const char* cmd, uint8_t nClient) {return false;}
    
    virtual size_t write(uint8_t c) override;
    virtual size_t write(const uint8_t *buffer, size_t size) override;
@@ -107,7 +107,7 @@ public:
       print(buffer);  // Use Print's built-in print()
    }
    
-   bool processCmd(const char* cmd);
+   bool processCmd(const char* cmd, uint8_t nClient);
    
    // Function to print all commands ordered by setName
    void printCommands() {

@@ -61,11 +61,7 @@ extern std::map<String, String> _mapTempVariables; // Map to store temporary var
 ///
 class CxESPConsoleBase : public Print, public CxPersistentBase {
    
-   std::function<void(const char*)> _funcDebug;
-   std::function<void(uint32_t flag, const char*)> _funcDebugExt;
-   std::function<void(const char*)> _funcWarn;
-   std::function<void(const char*)> _funcInfo;
-   std::function<void(const char*)> _funcError;
+   std::function<void(const char*)> _funcPrint2logServer;
    std::function<void(const char*, const char*)> _funcExecuteBatch;
    std::function<void(const char*)> _funcMan;
    std::function<bool(const char*)> _funcProcessData;
@@ -76,12 +72,6 @@ protected:
    
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    
-   virtual void __debug(const char* sz) {if(_funcDebug) _funcDebug(sz); else if (!__bIsWiFiClient) println(sz);}
-   virtual void __debug_ext(uint32_t flag, const char* sz) {if(_funcDebugExt) _funcDebugExt(flag, sz); else if (!__bIsWiFiClient) println(sz);}
-   virtual void __info(const char* sz) {if(_funcInfo) _funcInfo(sz); else if (!__bIsWiFiClient) println(sz);}
-   virtual void __warn(const char* sz) {if(_funcWarn) _funcWarn(sz); else if (!__bIsWiFiClient) println(sz);}
-   virtual void __error(const char* sz) {if(_funcError) _funcError(sz); else if (!__bIsWiFiClient) println(sz);}
-
 public:
    explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream), __bIsSafeMode(false), __bIsWiFiClient(false) {}
    CxESPConsoleBase() : __ioStream(nullptr), __bIsSafeMode(false), __bIsWiFiClient(false) {}
@@ -133,6 +123,7 @@ public:
       }
    }
    
+   void print2LogServer(const char* sz) {if (_funcPrint2logServer) _funcPrint2logServer(sz);}
    void executeBatch(const char* sz, const char* label) {if (_funcExecuteBatch) _funcExecuteBatch(sz, label);}
    void executeBatch(Stream& stream, const char* sz, const char* label) {
       if (_funcExecuteBatch) {
@@ -145,16 +136,8 @@ public:
    void man(const char* sz) {if (_funcMan) _funcMan(sz);}
    bool processData(const char* data) {if (_funcProcessData) return _funcProcessData(data); else return false;}
    
-   void setFuncDebug(std::function<void(const char*)> f) {_funcDebug = f;}
-   void clearFuncDebug() {_funcDebug = nullptr;}
-   void setFuncDebugExt(std::function<void(uint32_t flag, const char*)> f) {_funcDebugExt = f;}
-   void clearFuncDebugExt() {_funcDebugExt = nullptr;}
-   void setFuncInfo(std::function<void(const char*)> f) {_funcInfo = f;}
-   void clearFuncInfo() {_funcInfo = nullptr;}
-   void setFuncWarn(std::function<void(const char*)> f) {_funcWarn = f;}
-   void clearFuncWarn() {_funcWarn = nullptr;}
-   void setFuncError(std::function<void(const char*)> f) {_funcError = f;}
-   void clearFuncError() {_funcError = nullptr;}
+   void setFuncPrintLog2Server(std::function<void(const char*)> f) {_funcPrint2logServer = f;}
+   void clearFuncPrintLog2Server() {_funcPrint2logServer = nullptr;}
    
    void setFuncExecuteBatch(std::function<void(const char*, const char*)> f) {_funcExecuteBatch = f;}
    void clearFuncExecuteBatch() {_funcExecuteBatch = nullptr;}
@@ -398,12 +381,12 @@ public:
    }
 
       
-   bool processCmd(const char* cmd, bool bQuiet = false);
+   bool processCmd(const char* cmd, uint8_t nClient = 0);
    
-   bool processCmd(Stream& stream, const char* cmd, bool bQuiet = false) {
+   bool processCmd(Stream& stream, const char* cmd, uint8_t nClient) {
       Stream* pStream = __ioStream;
       __ioStream = &stream;
-      bool ret = processCmd(cmd, bQuiet);
+      bool ret = processCmd(cmd, nClient);
       __ioStream = pStream;
       return ret;
    }
@@ -504,6 +487,8 @@ public:
    void error(const char* fmt...);
    void error(String& str) {error(str.c_str());}
    void error(const FLASHSTRINGHELPER * fmt...);
+   
+   void printLog(uint8_t level, uint32_t flag, const char* sz);
 
 
    virtual void begin();
@@ -514,8 +499,8 @@ public:
    
    void cls() {print(F(ESC_CLEAR_SCREEN));}
       
-   void setLogLevel(uint32_t set) {__nLogLevel = set;}
-   uint32_t getLogLevel() {return __nLogLevel;}
+   void setLogLevel(uint32_t set) { __nLogLevel = isWiFiClient() ? 0 : set;}
+   uint32_t getLogLevel() {return isWiFiClient() ? 0 : __nLogLevel;}
    
    void setUsrLogLevel(uint32_t set) {__nUsrLogLevel = set;}
    uint32_t getUsrLogLevel() {return __nUsrLogLevel;}
@@ -607,7 +592,7 @@ public:
 
 class CxESPConsoleClient : public CxESPConsole {
 public:
-   CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
+   CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;setUsrLogLevel(0);}
 
    virtual void begin() override;
    

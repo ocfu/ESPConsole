@@ -156,6 +156,9 @@
 
 #define DEBUG_FLAG_SENSOR           0x80
 
+
+#define DEBUG_FLAG_USER             0x1000
+
 #define DEBUG_FLAG_ALL      0xfffffffe
 
 

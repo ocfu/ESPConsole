@@ -280,7 +280,7 @@ public:
     * @param szCmd The command to execute.
     * @return True if the command is executed successfully, otherwise false.
     */
-   bool execute(const char *szCmd) override {
+   bool execute(const char *szCmd, uint8_t nClient) override {
       // validate the call
       if (!szCmd) return false;
       

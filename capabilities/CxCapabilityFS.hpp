@@ -75,11 +75,7 @@ public:
       umount();
       
       // remove log functions
-      ESPConsole.setFuncDebug([this](const char *c) { this->_debug(c); });
-      ESPConsole.setFuncDebugExt([this](uint32_t flag, const char *c) { this->_debug_ext(flag, c); });
-      ESPConsole.setFuncInfo([this](const char *c) { this->_info(c); });
-      ESPConsole.setFuncWarn([this](const char *c) { this->_warn(c); });
-      ESPConsole.setFuncError([this](const char *c) { this->_error(c); });
+      ESPConsole.clearFuncPrintLog2Server();
    }
    
    void setup() override {
@@ -99,12 +95,7 @@ public:
       }
 
       // implement specific fs functions
-      ESPConsole.setFuncDebug([this](const char *c) { this->_debug(c); });
-      ESPConsole.setFuncDebugExt([this](uint32_t flag, const char *c) { this->_debug_ext(flag, c); });
-      ESPConsole.setFuncInfo([this](const char *c) { this->_info(c); });
-      ESPConsole.setFuncWarn([this](const char *c) { this->_warn(c); });
-      ESPConsole.setFuncError([this](const char *c) { this->_error(c); });
-      
+      ESPConsole.setFuncPrintLog2Server([this](const char *sz) { this->_print2logServer(sz); });
       ESPConsole.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
       ESPConsole.setFuncMan([this](const char *sz) { this->man(sz); });
  
@@ -117,7 +108,7 @@ public:
    void loop() override {
    }
    
-   bool execute(const char *szCmd) override {
+   bool execute(const char *szCmd, uint8_t nClient) override {
        
       // validate the call
       if (!szCmd) return false;
@@ -764,51 +755,6 @@ private:
       }
    }
    
-   void _debug(const char *buf) {
-      if (__console.getUsrLogLevel() >= LOGLEVEL_DEBUG) {
-         print(F(ESC_ATTR_DIM));
-         println(buf);
-         print(F(ESC_ATTR_RESET));
-      }
-      if (__console.getLogLevel() >= LOGLEVEL_DEBUG) _print2logServer(buf);
-   }
-   
-   void _debug_ext(uint32_t flag, const char *buf) {
-      if (__console.getUsrLogLevel() >= LOGLEVEL_DEBUG_EXT) {
-         print(F(ESC_ATTR_DIM));
-         println(buf);
-         print(F(ESC_ATTR_RESET));
-      }
-      if (__console.getLogLevel() >= LOGLEVEL_DEBUG_EXT) _print2logServer(buf);
-   }
-   
-   void _info(const char *buf) {
-      if (__console.getUsrLogLevel() >= LOGLEVEL_INFO) {
-         println(buf);
-         print(F(ESC_ATTR_RESET));
-      }
-      if (__console.getLogLevel() >= LOGLEVEL_INFO) _print2logServer(buf);
-   }
-   
-   void _warn(const char *buf) {
-      if (__console.getUsrLogLevel() >= LOGLEVEL_WARN) {
-         print(F(ESC_TEXT_YELLOW));
-         println(buf);
-         print(F(ESC_ATTR_RESET));
-      }
-      if (__console.getLogLevel() >= LOGLEVEL_WARN) _print2logServer(buf);
-   }
-   
-   void _error(const char *buf) {
-      if (__console.getUsrLogLevel() >= LOGLEVEL_ERROR) {
-         print(F(ESC_ATTR_BOLD));
-         print(F(ESC_TEXT_BRIGHT_RED));
-         println(buf);
-         print(F(ESC_ATTR_RESET));
-      }
-      if (__console.getLogLevel() >= LOGLEVEL_ERROR) _print2logServer(buf);
-   }
-   
    void executeBatch(const char* path, const char* label, const char* arg = nullptr) {
       
       g_Stack.DEBUGPrint(getIoStream(), 0, label);
@@ -950,7 +896,7 @@ private:
                   executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
                } else {
                   g_Stack.DEBUGPrint(getIoStream(), +1, "processCmd-A");
-                  __console.processCmd(*__console.getStream(), command.c_str());
+                  __console.processCmd(*__console.getStream(), command.c_str(), 0); // MARK: getStream needed here?
                   g_Stack.DEBUGPrint(getIoStream(), -1, "processCmd-B");
                }
 

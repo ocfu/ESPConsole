@@ -95,7 +95,7 @@ public:
    }
    
    /// Execute a command
-   bool execute(const char *szCmd) override {
+   bool execute(const char *szCmd, uint8_t nClient) override {
       
       bool bQuiet = false;
       
@@ -279,32 +279,34 @@ public:
          uint32_t nValue = TKTOINT(tkArgs, 2, 0);
          int8_t set = TKTOINT(tkArgs, 3, -1);
          
+         CxESPConsole& con = __console.getConsole(nClient);
+         
          switch (nCmd) {
                // usr 0: be quite, switch all loggings off on the console. log to server/file remains
             case 0:
-               __console.setUsrLogLevel(LOGLEVEL_OFF);
+               con.setUsrLogLevel(LOGLEVEL_OFF);
                break;
                
                // usr 1: set the usr log level to show logs on the console
             case 1:
                if (nValue) {
-                  __console.setUsrLogLevel(nValue>LOGLEVEL_MAX ? LOGLEVEL_MAX : nValue);
+                  con.setUsrLogLevel(nValue>LOGLEVEL_MAX ? LOGLEVEL_MAX : nValue);
                } else {
-                  printf(F("usr log level: %d\n"), __console.getUsrLogLevel());
+                  printf(F("usr log level: %d\n"), con.getUsrLogLevel());
                }
                break;
                
                // usr 2: set extended debug flag
             case 2:
                if (set < 0) {
-                  __console.setDebugFlag(nValue);
+                  con.setDebugFlag(nValue);
                } else if (set == 0) {
-                  __console.resetDebugFlag(nValue);
+                  con.resetDebugFlag(nValue);
                } else {
-                  __console.setDebugFlag(__console.getDebugFlag() | nValue);
+                 con.setDebugFlag(con.getDebugFlag() | nValue);
                }
-               if (__console.getDebugFlag()) {
-                  __console.setLogLevel(LOGLEVEL_DEBUG_EXT);
+               if (con.getDebugFlag()) {
+                  con.setUsrLogLevel(LOGLEVEL_DEBUG_EXT);
                }
                break;
                

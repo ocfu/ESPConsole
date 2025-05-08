@@ -190,7 +190,7 @@ public:
     * @return True if the initialization is successful, otherwise false.
     *
     */
-   bool execute(const char *szCmd) override {
+   bool execute(const char *szCmd, uint8_t nClient) override {
       // validate the call
       if (!szCmd) return false;
       
