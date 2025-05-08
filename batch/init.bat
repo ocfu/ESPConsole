@@ -1,6 +1,5 @@
 # Initialisation at start
 
-
 #
 # Filesystem capability and environment settings
 #
@@ -33,31 +32,50 @@ break on $SAFEMODE
 
 # final initialisations
 final:
+timer add 15s "wifi connect;prompt" tiRecon repeat
+timer add 1m "wifi check -q" tiWifi repeat
+wifi connect
+stack off
+usr 0
 break on $SAFEMODE
 
 # wifi is up and connected
 wifi-up:
+timer stop tiRecon
 break on $SAFEMODE
 
 # wifi is down
 wifi-down:
+timer start tiRecon
 break on $SAFEMODE
 
 # wifi is online
 wifi-online:
+timer stop tiRecon
 break on $SAFEMODE
 
 # wifi is offline
 wifi-offline:
+timer start tiRecon
 break on $SAFEMODE
 
 # Access Point up
 ap-up:
+timer stop tiWifi
+timer stop tiRecon
 break on $SAFEMODE
 
 # Access Point down
 ap-down:
+timer start tiWifi
+timer start tiRecon
 break on $SAFEMODE
+
+#
+# Safemode
+#
+sm:
+
 
 # more commands for all labels
 all:
