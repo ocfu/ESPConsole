@@ -443,7 +443,7 @@ public:
     * @param doc JSON document to populate
     */
    void addJsonConfigBase(JsonDocument &doc) {
-      char szTopicBase[126];
+      static char szTopicBase[126];
       snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getRootPath(), getTopicBase());
       doc["~"] = szTopicBase;
       doc[F("name")] = getFriendlyName();
@@ -456,7 +456,7 @@ public:
       if (__pDev) {
          JsonArray array = doc.createNestedArray(F("avty"));
          JsonObject objDev = array.createNestedObject();
-         snprintf(szTopicBase, sizeof(szTopicBase), "%s/%s", getRootPath(), getTopicBaseFromDevice<CxMqttHADevice>()); // tricky way to overcome the incomplete type
+         snprintf(szTopicBase, sizeof(szTopicBase), "%s", getRootPath());
          objDev[F("t")] = szTopicBase;
          if (__eCat != e_cat::diagnostic) {
             JsonObject objSen = array.createNestedObject();
@@ -594,13 +594,13 @@ public:
    //--------------------------------------------------
 
    void publishState(double fValue, uint8_t prec = 2) {
-      StaticJsonDocument<256> doc;
+      DynamicJsonDocument doc(256);
       doc["value"] = roundToPrecision(fValue, prec);
       publishState(doc);
    }
       
    void publishState(const char* szValue) {
-      StaticJsonDocument<256> doc;
+      DynamicJsonDocument doc(256);
       doc["value"] = szValue;
       publishState(doc);
    }
@@ -610,7 +610,7 @@ public:
     * @param bState New state value
     */
    void publishState(bool bState) {
-      StaticJsonDocument<256> doc;
+      DynamicJsonDocument doc(256);
       _bState = bState;
       
       doc["value"] = _bState ? "ON" : "OFF";;
@@ -622,15 +622,15 @@ public:
     * @param doc JSON document containing state data
     */
    void publishState(JsonDocument& doc) {
-      char szTopic[128] = {'\0'};
-      char szPayload[128] = {'\0'};
+      String strTopic;
+      String strPayload;
       
       doc["state"] = getState() ? "ON" : "OFF";
-      serializeJson(doc, szPayload, sizeof(szPayload));
-      snprintf(szTopic, sizeof(szTopic), "%s/state", getTopicBase());
-      snprintf(szPayload, sizeof(szPayload), "%s", szPayload);
+      serializeJson(doc, strPayload);
+      strTopic = getTopicBase();
+      strTopic += "/state";
             
-      if (publish(szTopic, szPayload, isRetained()) && !isAvailable()) {
+      if (publish(strTopic.c_str(), strPayload.c_str(), isRetained()) && !isAvailable()) {
          // every published state should make the related entity available automatically.
          publishAvailability(true);
       }
@@ -658,19 +658,20 @@ public:
    }
    
    void publishAttributes(const char* szJsonAttr) {
-      char szTopic[128] = {'\0'};
+      String strTopic;
       
-      snprintf(szTopic, sizeof(szTopic), "%s/attributes", getTopicBase());
+      strTopic = getTopicBase();
+      strTopic += "/attribute";
       
-      if (publish(szTopic, szJsonAttr, isRetained()) && !isAvailable()) {
+      if (publish(strTopic.c_str(), szJsonAttr, isRetained()) && !isAvailable()) {
          publishAvailability(true);
       };
    }
    
    void publishAttributes(JsonDocument &doc) {
-      char szJsonAttributes[512];
-      serializeJson(doc, szJsonAttributes, sizeof(szJsonAttributes));
-      publishAttributes(szJsonAttributes);
+      String strJsonAttributes;
+      serializeJson(doc, strJsonAttributes);
+      publishAttributes(strJsonAttributes.c_str());
    }
    
    /**
@@ -678,10 +679,12 @@ public:
     * @param bSubscribe True to subscribe, false to unsubscribe
     */
    void subscribeCmd(bool bSubscribe = true) {
-      char szTopic[128] = {'\0'};
+      String strTopic;
       
-      snprintf(szTopic, sizeof(szTopic), "%s/cmd", getTopicBase());
-      _mqttCmdTopic.setTopic(szTopic);
+      strTopic = getTopicBase();
+      strTopic += "/cmd";
+      
+      _mqttCmdTopic.setTopic(strTopic.c_str());
       
       if (bSubscribe) {
          _mqttCmdTopic.subscribe();
@@ -689,8 +692,8 @@ public:
          // if (isRetainedCmd()) // no need as there is no harm if the cmd topic was actually not published with a retained flag.
          // Remember: HA (as the publisher of the cmd) is setting the retained flag, if 'retain' is set to true in the configuration for the entity.
          // The ha item is always the owner of a cmd topic and there will (normally) be no other subscriber to the cmd topic. The last message and its retained one can be removed. Note: Without set the retain flag to true, the broker would keep the last retained message.
-         _CONSOLE_DEBUG("MQTTHA: removing the cmd topic %s and its retained one.", szTopic);
-         publish(szTopic, "", true);
+         _CONSOLE_DEBUG("MQTTHA: removing the cmd topic %s and its retained one.", strTopic.c_str());
+         publish(strTopic.c_str(), "", true);
          _mqttCmdTopic.unsubscribe();
       }
    }
