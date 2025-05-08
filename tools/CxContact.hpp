@@ -40,7 +40,7 @@ private:
    };
 
 public:
-   CxContact(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) { addCallback(fp ? fp : _Action);setName(name);}
+   CxContact(uint8_t nPin = -1, const char* name = "", bool bInverted = false, bool bPullup = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, bPullup ? INPUT_PULLUP: INPUT, bInverted, cmd) { addCallback(fp ? fp : _Action);setName(name);}
 
    virtual ~CxContact() {end();}
 
@@ -112,7 +112,7 @@ public:
 class CxCounter : public CxContact {
    uint32_t _nCnt;
 public:
-   CxCounter(int nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "") : CxContact(nPin, name, bInverted, cmd, [this](CxDevice* dev, uint8_t id, const char* cmd){
+   CxCounter(int nPin = -1, const char* name = "", bool bInverted = false, bool bPullup = false, const char* cmd = "") : CxContact(nPin, name, bInverted, bPullup, cmd, [this](CxDevice* dev, uint8_t id, const char* cmd){
       if (id == CxContact::EContactEvent::close) {
          String strCmd;
          strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.

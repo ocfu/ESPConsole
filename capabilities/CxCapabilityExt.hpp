@@ -562,6 +562,7 @@ public:
                String strName = TKTOCHAR(tkArgs, 4);
                bool bInverted = TKTOINT(tkArgs, 5, false);
                String strGpioCmd = TKTOCHAR(tkArgs, 6);
+               bool bPullup = TKTOINT(tkArgs, 7, false);
                if (strType == "button") {
                   // FIXME: pointer without proper deletion? even if managed internally? maybe container as for the bme?
                   /// TODO: consider dyanmic cast to ensure correct type
@@ -573,12 +574,12 @@ public:
                      pButton->begin();
                   } else {
                      if (strGpioCmd == "reset") {
-                        CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted);
+                        CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted, bPullup);
                         if (p) {
                            p->begin();
                         }
                      } else {
-                        CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                        CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
                         if (p) {
                            p->begin();
                         }
@@ -630,7 +631,7 @@ public:
                      pContact->setCmd(strGpioCmd.c_str());
                      pContact->begin();
                   } else {
-                     CxContact* p = new CxContact(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                     CxContact* p = new CxContact(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
                      }
@@ -643,7 +644,7 @@ public:
                      pCoutner->setCmd(strGpioCmd.c_str());
                      pCoutner->begin();
                   } else {
-                     CxCounter* p = new CxCounter(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+                     CxCounter* p = new CxCounter(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
                      }
@@ -775,7 +776,7 @@ public:
                println(F("  fn <pin> <friendly name>"));
                println(F("  get <pin>"));
                println(F("  list"));
-               println(F("  add <pin> <type> <name> <inverted> [<cmd>]"));
+               println(F("  add <pin> <type> <name> <inverted> [<cmd> [<param>]]")); // param: bPullup (input) or period (analog)
                println(F("  del <name>"));
                println(F("  let <name> = <name>"));
 #endif

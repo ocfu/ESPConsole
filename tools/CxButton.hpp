@@ -56,7 +56,7 @@ private:
    };
 
 public:
-   CxButton(uint8_t nPin = -1, const char* name = "", bool bInverted = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, INPUT, bInverted, cmd) {addCallback(_btnAction); addCallback(fp);setName(name);}
+   CxButton(uint8_t nPin = -1, const char* name = "", bool bInverted = false, bool bPullup = false, const char* cmd = "", cbFunc fp = nullptr) : CxGPIODevice(nPin, bPullup ? INPUT_PULLUP : INPUT, bInverted, cmd) {addCallback(_btnAction); addCallback(fp);setName(name);}
    //CxButton(uint8_t nPin = -1, bool bInverted = false, const char* name = "", isr_t isr = nullptr) : CxGPIODevice(nPin, isr) {setName(name);setInverted(bInverted);}
 
    virtual ~CxButton() {end();}
@@ -208,7 +208,7 @@ public:
 
 class CxButtonReset : public CxButton {
 public:
-   CxButtonReset(int nPin = -1, const char* name = "", bool bInverted = false, cbFunc fp = nullptr) : CxButton(nPin, name, bInverted, "reset", fp) {setPin(nPin); setPinMode(INPUT); setResetButton(true);}
+   CxButtonReset(int nPin = -1, const char* name = "", bool bInverted = false, bool bPullup = false, cbFunc fp = nullptr) : CxButton(nPin, name, bInverted, bPullup, "reset", fp) {setPin(nPin); setPinMode(INPUT); setResetButton(true);}
    
    const char* getTypeSz() {return "reset";}
    
