@@ -834,7 +834,10 @@ public:
                Led1.setInverted(!Led1.isInverted());
                Led1.toggle();
             }
-         } else {
+         } else if (strSubCmd == "toggle") {
+            Led1.toggle();
+         }
+         else {
             printf(F("LED on pin %02d%s\n"), Led1.getPin(), Led1.isInverted() ? ",inverted":"");
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
@@ -842,6 +845,7 @@ public:
 #ifndef MINIMAL_HELP
                println(F("led commands:"));
                println(F("  on|off"));
+               println(F("  toggle"));
                println(F("  blink [period] [duty]"));
                println(F("  blink [pattern] (ok, error...)"));
                println(F("  flash [period] [duty] [number]"));

@@ -60,6 +60,7 @@ echo "  ap"
 led:
 echo "led commands:"
 echo "  on|off"
+echo "  toggle"
 echo "  blink [period] [duty]"
 echo "  blink [pattern] (ok, error...)"
 echo "  flash [period] [duty] [number]"
