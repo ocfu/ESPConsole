@@ -760,11 +760,11 @@ private:
       g_Stack.DEBUGPrint(getIoStream(), 0, label);
       
       String strBatchFile;
-
-      _mapTempVariables.clear();
       
-      if (label) _mapTempVariables[F("LABEL")] = label;
-      if (arg) _mapTempVariables[F("?")] = arg;
+      std::map<String, String> mapTempVariables;
+      
+      if (label) mapTempVariables[F("LABEL")] = label;
+      if (arg) mapTempVariables[F("?")] = arg;
 
       strBatchFile = "";
       
@@ -855,11 +855,11 @@ private:
                   }
 
                   // Perform variable substitution in the value
-                  for (const auto& var : _mapTempVariables) {
+                  for (const auto& var : mapTempVariables) {
                      varValue.replace("$" + var.first, var.second);
                   }
                   
-                  _mapTempVariables[varName] = varValue; // Store the variable
+                  mapTempVariables[varName] = varValue; // Store the variable
                   continue;
                }
                g_Stack.DEBUGPrint(getIoStream(), 0, "Variables");
@@ -875,7 +875,7 @@ private:
             
             
             // Replace variables in temporary buffer in the command
-            for (const auto& var : _mapTempVariables) {
+            for (const auto& var : mapTempVariables) {
                command.replace("$" + var.first, var.second);
             }
 
@@ -912,7 +912,7 @@ private:
 
       file.close();
 #endif
-      _mapTempVariables.clear();
+      mapTempVariables.clear();
             
       g_Stack.DEBUGPrint(getIoStream(), 0, "end");
    }

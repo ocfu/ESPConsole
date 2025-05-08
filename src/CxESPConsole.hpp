@@ -49,7 +49,6 @@ class CxESPConsoleMaster;
 extern CxESPConsoleMaster& ESPConsole;
 
 extern std::map<String, String> _mapSetVariables; // Map to store static variables added by the command set
-extern std::map<String, String> _mapTempVariables; // Map to store temporary variables
 
 
 
@@ -504,6 +503,28 @@ public:
    
    void setUsrLogLevel(uint32_t set) {__nUsrLogLevel = set;}
    uint32_t getUsrLogLevel() {return __nUsrLogLevel;}
+   
+   void setUsrLogLevelClient(uint32_t set) {
+      if (__espConsoleWiFiClient) {
+         __espConsoleWiFiClient->setUsrLogLevel(set);
+      }
+   }
+   
+   uint32_t getUsrLogLevelClient() {
+      if (__espConsoleWiFiClient) {
+         return __espConsoleWiFiClient->getUsrLogLevel();
+      } else {
+         return __nUsrLogLevel;
+      }
+   }
+   
+   CxESPConsole& getConsole(uint8_t nClient = 0) {
+      if (nClient && __espConsoleWiFiClient) {
+         return *__espConsoleWiFiClient;
+      } else {
+         return *this;
+      }
+   }
 
    void setDebugFlag(uint32_t set) {__nExtDebugFlag = set;}
    void resetDebugFlag(uint32_t set) {__nExtDebugFlag &= ~set;}
