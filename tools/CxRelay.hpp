@@ -62,8 +62,6 @@ public:
 
       if (isDefaultOn()) {
          on();
-      } else {
-         off();
       }
    }
    
@@ -119,18 +117,16 @@ public:
       if (!isEnabled()) {
          return;
       }
-      if (!isHigh()) {
-         setHigh();
-         callCb(ERelayEvent::relayon);
-         _CONSOLE_INFO(F("RLY: Relay on GPIO%02d switched on"), getPin());
-         if (_timerOff.getPeriod() > 0) {
-            _CONSOLE_INFO(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
-            __console.processCmd("led blink");
-            _timerOff.start([this](const char*) {
-               _CONSOLE_INFO(F("RLY: Relay on GPIO%02d off-timer ends"), getPin());
-               off();
-            }, true); // stop after due
-         }
+      setHigh();
+      callCb(ERelayEvent::relayon);
+      _CONSOLE_INFO(F("RLY: Relay on GPIO%02d switched on"), getPin());
+      if (_timerOff.getPeriod() > 0) {
+         _CONSOLE_INFO(F("RLY: Relay on GPIO%02d start off-timer (%dms)"), getPin(), _timerOff.getPeriod());
+         __console.processCmd("led blink");
+         _timerOff.start([this](const char*) {
+            _CONSOLE_INFO(F("RLY: Relay on GPIO%02d off-timer ends"), getPin());
+            off();
+         }, true); // stop after due
       }
    }
    
@@ -138,12 +134,10 @@ public:
       if (!isEnabled()) {
          return;
       }
-      if (!isLow()) {
-         setLow();
-         callCb(ERelayEvent::relayoff);
-         _CONSOLE_INFO(F("RLY: Relay on GPIO%02d switched off"), getPin());
-         __console.processCmd("led off");
-      }
+      setLow();
+      callCb(ERelayEvent::relayoff);
+      _CONSOLE_INFO(F("RLY: Relay on GPIO%02d switched off"), getPin());
+      __console.processCmd("led off");
    }
    bool isOn() {return isHigh();}
    bool isOff() {return isLow();}
