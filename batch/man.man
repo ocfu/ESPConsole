@@ -124,6 +124,7 @@ echo "  button add <name>"
 echo "  button del <name>"
 echo "  switch add <name> [<variable> [<command>]]"
 echo "  switch del <name>"
+echo "  state <name> <state>"
 
 #
 # seg

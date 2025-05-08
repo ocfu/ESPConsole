@@ -240,9 +240,16 @@ public:
             if (strSub2Cmd == "add") {
                addSwitch(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOCHAR(tkArgs, 5));
             } else if (strSub2Cmd == "del") {
-               deleteSwitch(TKTOCHAR(tkArgs, 23));
+               deleteSwitch(TKTOCHAR(tkArgs, 3));
             }
-         } else {
+         } else if (strSubCmd == "state") {
+            // ha state <name> <state>
+            CxMqttHABase* pHAItem = _mqttHAdev.findItem(TKTOCHAR(tkArgs, 2));
+            if (pHAItem) {
+               pHAItem->publishState(TKTOCHAR(tkArgs, 3));
+            }
+         }
+         else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bHAEnabled);
             __console.man(getName());
          }
