@@ -784,67 +784,80 @@ public:
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
+         uint8_t nIndexOffset = 0;
+         
+         CxLed* led = &Led1;
+         
+         CxLed* p = static_cast<CxLed*>(_gpioDeviceManager.getDeviceByName(TKTOCHAR(tkArgs, 1)));
+         
+         if (p) {
+            led = p;
+            strSubCmd = TKTOCHAR(tkArgs, 2);
+            nIndexOffset = 1;
+         }
+         
          strSubCmd.toLowerCase();
 
          if (strSubCmd == "on") {
-            Led1.on();
+            led->on();
          } else if (strSubCmd == "off") {
-            Led1.off();
+            led->off();
          } else if (strSubCmd == "blink") {
-            String strPattern = TKTOCHAR(tkArgs, 2);
+            String strPattern = TKTOCHAR(tkArgs, 2+nIndexOffset);
             if (strPattern == "ok") {
-               Led1.blinkOk();
+               led->blinkOk();
             } else if (strPattern == "error") {
-               Led1.blinkError();
+               led->blinkError();
             } else if (strPattern == "busy") {
-               Led1.blinkBusy();
+               led->blinkBusy();
             } else if (strPattern == "flash") {
-               Led1.blinkFlash();
+               led->blinkFlash();
             } else if (strPattern == "data") {
-               Led1.blinkData();
+               led->blinkData();
             } else if (strPattern == "wait") {
-               Led1.blinkWait();
+               led->blinkWait();
             } else if (strPattern == "connect") {
-               Led1.blinkConnect();
+               led->blinkConnect();
             }  else {
-               Led1.setBlink(TKTOINT(tkArgs, 2, 1000), TKTOINT(tkArgs, 3, 128));
+               led->setBlink(TKTOINT(tkArgs, 2+nIndexOffset, 1000), TKTOINT(tkArgs, 3+nIndexOffset, 128));
             }
          } else if (strSubCmd == "flash") {
-            String strPattern = TKTOCHAR(tkArgs, 2);
+            String strPattern = TKTOCHAR(tkArgs, 2+nIndexOffset);
             if (strPattern == "ok") {
-               Led1.flashOk();
+               led->flashOk();
             } else if (strPattern == "error") {
-               Led1.flashError();
+               led->flashError();
             } else if (strPattern == "busy") {
-               Led1.flashBusy();
+               led->flashBusy();
             } else if (strPattern == "flash") {
-               Led1.flashFlash();
+               led->flashFlash();
             } else if (strPattern == "data") {
-               Led1.flashData();
+               led->flashData();
             } else if (strPattern == "wait") {
-               Led1.flashWait();
+               led->flashWait();
             } else if (strPattern == "connect") {
-               Led1.flashConnect();
+               led->flashConnect();
             } else {
-               Led1.setFlash(TKTOINT(tkArgs, 2, 250), TKTOINT(tkArgs, 3, 128), TKTOINT(tkArgs, 4, 1));
+               led->setFlash(TKTOINT(tkArgs, 2+nIndexOffset, 250), TKTOINT(tkArgs, 3+nIndexOffset, 128), TKTOINT(tkArgs, 4+nIndexOffset, 1));
             }
          } else if (strSubCmd == "invert") {
             if (b) {
-               Led1.setInverted(TKTOINT(tkArgs, 2, false));
+               led->setInverted(TKTOINT(tkArgs, 2+nIndexOffset, false));
             } else {
-               Led1.setInverted(!Led1.isInverted());
-               Led1.toggle();
+               led->setInverted(!led->isInverted());
+               led->toggle();
             }
          } else if (strSubCmd == "toggle") {
-            Led1.toggle();
+            led->toggle();
          }
          else {
-            printf(F("LED on pin %02d%s\n"), Led1.getPin(), Led1.isInverted() ? ",inverted":"");
+            printf(F("LED on pin %02d%s\n"), led->getPin(), led->isInverted() ? ",inverted":"");
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
             } else {
 #ifndef MINIMAL_HELP
-               println(F("led commands:"));
+               println(F("usage: led [name] <command>"));
+               println(F("commands: ");
                println(F("  on|off"));
                println(F("  toggle"));
                println(F("  blink [period] [duty]"));
