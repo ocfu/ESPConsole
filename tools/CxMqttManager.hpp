@@ -431,7 +431,11 @@ public:
       bool bConnected = false;
       if (_bWill) {
          // set retained last will topic with message and QoS=1
-         bConnected = _mqttClient.connect(_strClientId.c_str(), NULL, NULL, (_strRootPath + "/" + _strWillTopic).c_str(), 1, true, _strWillMessage.c_str());
+         if (_strWillTopic.length()) {
+            bConnected = _mqttClient.connect(_strClientId.c_str(), NULL, NULL, (_strRootPath + "/" + _strWillTopic).c_str(), 1, true, _strWillMessage.c_str());
+         } else {
+            bConnected = _mqttClient.connect(_strClientId.c_str(), NULL, NULL, _strRootPath.c_str(), 1, true, _strWillMessage.c_str());
+         }
       } else {
          bConnected = _mqttClient.connect(_strClientId.c_str());
       }
