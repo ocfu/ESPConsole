@@ -281,6 +281,7 @@ public:
          publish(F("info/fragmentation"), getHeapFragmentation());
          publish(F("info/uptime"), __console.getUpTimeISO());
          publish(F("info/name"), __mqttManager.getName());
+         publish(F("info/hostname"), __console.getHostName());
          //      publish(F("info/looptime"), Time1.getLoopTimeAvr());
          //      publish(F("info/chip"), CxTools::getChipInfo());
          //      publish(F("info/rssi"), "%d", Wifi1.getRSSI());
