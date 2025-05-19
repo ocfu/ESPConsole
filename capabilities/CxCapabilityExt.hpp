@@ -857,7 +857,7 @@ public:
             } else {
 #ifndef MINIMAL_HELP
                println(F("usage: led [name] <command>"));
-               println(F("commands: ");
+               println(F("commands: "));
                println(F("  on|off"));
                println(F("  toggle"));
                println(F("  blink [period] [duty]"));
