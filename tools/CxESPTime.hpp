@@ -142,21 +142,29 @@ public:
    
    void printTimers(Stream& stream) {
       CxTablePrinter table(stream);
-      table.printHeader({F("Id"), F("Period"), F("Mode"), F("Remain"), F("Cmd")}, {10, 6, 6, 7, 30});
-      char* szPeriod = new char[15];
+      table.printHeader({F("Id"), F("Time"), F("Mode"), F("Remain"), F("Cmd")}, {10, 10, 6, 7, 60});
+      char* szTime = new char[15];
       char* szRemain = new char[15];
       for (uint8_t i = 0; i < _timers.size(); i++) {
          if (_timers[i] != nullptr) {
-            convertToHumanReadableTime(_timers[i]->getPeriod(), szPeriod, 15);
+            if (_timers[i]->isCron()) {
+               snprintf(szTime, 15, "%s", _timers[i]->getCron());
+            } else {
+               convertToHumanReadableTime(_timers[i]->getPeriod(), szTime, 15);
+            }
             if (!_timers[i]->isRunning()) {
                snprintf(szRemain, 15, "Stopped");
             } else {
-               convertToHumanReadableTime(_timers[i]->getRemain(), szRemain, 15);
+               if (_timers[i]->isCron()) {
+                  snprintf(szRemain, 15, "-");
+               } else {
+                  convertToHumanReadableTime(_timers[i]->getRemain(), szRemain, 15);
+               }
             }
-            table.printRow({_timers[i]->getId(), szPeriod, _timers[i]->getModeSz(), szRemain, _timers[i]->getCmd()});
+            table.printRow({_timers[i]->getId(), szTime, _timers[i]->getModeSz(), szRemain, _timers[i]->getCmd()});
          }
       }
-      delete[] szPeriod;
+      delete[] szTime;
       delete[] szRemain;
    }
       

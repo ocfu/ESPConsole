@@ -359,7 +359,7 @@ public:
             //__console.setEchoOff();
          }
       } else if (cmd == "timer") {
-         // timer add <ms> <cmd> [<id> [<mode>]]
+         // timer add <period>|<cron> <cmd> [<id> [<mode>]]
          // timer del [id]
          // cmd: command to execute
          // id: id of the timer. without id the timer runs one time, with id the timer repeats
@@ -368,14 +368,21 @@ public:
          if (strSubCmd == "add") {
             // add a timer
             if (tkArgs.count() > 3) {
-               uint32_t nPeriod = __console.convertToMilliseconds(TKTOCHAR(tkArgs, 2));
+               String strTime = TKTOCHAR(tkArgs, 2);
+               bool bCron = (strTime.indexOf(' ') != -1);
+               uint32_t nPeriod = __console.convertToMilliseconds(strTime.c_str());
                uint8_t nMode = 0; // once
-               if (nPeriod > 100 && nPeriod <= 7*24*3600*1000) {
-                  CxTimer* pTimer = new CxTimer();
+               if (bCron || (nPeriod > 100 && nPeriod <= 7*24*3600*1000)) {
+                  CxTimer* pTimer;
+                  if (bCron) {
+                     pTimer = new CxTimerCron(strTime.c_str());
+                  } else {
+                     pTimer = new CxTimer();
+                  }
                   if (pTimer) {
                      if (TKTOCHAR(tkArgs, 4)) {  // id
                         pTimer->setId(TKTOCHAR(tkArgs, 4));
-                        nMode = 1; // id is set -> repeat timer
+                        nMode = bCron ? 2 : 1; // id is set -> repeat timer
                      }
                      
                      if (TKTOCHAR(tkArgs, 5)) { // mode
@@ -392,13 +399,17 @@ public:
                      }
                      
                      if (__console.addTimer(pTimer)) {
-                        __console.info(F("add timer %d, period %d ms, mode %d, cmd %s"), pTimer->getId(), nPeriod, nMode, TKTOCHAR(tkArgs, 3));
+                        if (bCron) {
+                           __console.info(F("add timer %s, at %s, cmd %s"), pTimer->getId(), strTime.c_str(), TKTOCHAR(tkArgs, 3));
+                        } else {
+                           __console.info(F("add timer %s, period %d ms, mode %d, cmd %s"), pTimer->getId(), nPeriod, nMode, TKTOCHAR(tkArgs, 3));
+                        }
                         pTimer->setCmd(TKTOCHAR(tkArgs, 3));
                         pTimer->start(nPeriod, [this, pTimer](const char* szCmd) {
                            __console.processCmd(szCmd);
                            // if the timer is set to once, remove it
                            if (pTimer->getMode() == 0) {
-                              __console.info(F("timer %d expired, removing"), pTimer->getId());
+                              __console.info(F("timer %s expired, removing"), pTimer->getId());
                               __console.delTimer(pTimer->getId());
                            }
                         }, (nMode == 0));
@@ -407,10 +418,11 @@ public:
                         delete pTimer;
                      }
                   }
+                  
                } else {
-                  __console.printf("invalid timer period %d ms, min. 100 ms, max 7 days", nPeriod);
+                  __console.printf("invalid time for timer", nPeriod);
                }
-            }
+            } // count
          } else if (strSubCmd == "del") {
             __console.delTimer(TKTOCHAR(tkArgs, 2));
          } else if (strSubCmd == "stop") {
