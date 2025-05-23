@@ -972,9 +972,9 @@ private:
       } else if (vExpression.size() == 3) {
          char* end1;
          char* end2;
-         int32_t n1 = (int32_t)std::strtol(vExpression[0], &end1, 0); // return as int32_t with auto base
+         float n1 = std::strtof(vExpression[0], &end1);
          while (isspace(*end1)) end1++;
-         int32_t n2 = (int32_t)std::strtol(vExpression[2], &end2, 0);
+         float n2 = std::strtof(vExpression[2], &end2);
          while (isspace(*end2)) end2++;
          if (vExpression[0]!=end1 && *end1 == '\0' && vExpression[2]!=end2 && *end2 == '\0') {
             // check numeric comparison
