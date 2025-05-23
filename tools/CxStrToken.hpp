@@ -29,6 +29,8 @@ private:
    uint8_t      _nCount;           // Count of found tokens
    
    mutable char* _result; // Mutable to allow modification in const method
+   mutable uint8_t _currentIndex = 0;
+
 
    void tokenize() {
       if (!_szStrCopy || !_szDelimiters) {
@@ -133,7 +135,7 @@ public:
       }
    };
 
-   CxStrToken() : _szStrCopy(nullptr), _szDelimiters(nullptr), _nCount(0), _result(nullptr) {}
+   CxStrToken() : _szStrCopy(nullptr), _szDelimiters(nullptr), _nCount(0), _result(nullptr) {reset();}
    CxStrToken(const char* sz, const char* szDelimiters)
    : CxStrToken() {
       setString(sz, szDelimiters);
@@ -221,7 +223,29 @@ public:
       
       return _result;
    }
-
+   
+   // Resets and returns the first token
+   ctkProxy get() const {
+      if (_nCount == 0 || _currentIndex >= _nCount) {
+         return ctkProxy(nullptr);
+      }
+      return ctkProxy(_aszTokens[_currentIndex]);
+   }
+   
+   // Advances to the next token and returns it
+   ctkProxy next() const {
+      if (_currentIndex + 1 < _nCount) {
+         ++_currentIndex;
+         return ctkProxy(_aszTokens[_currentIndex]);
+      }
+      // No more tokens, return invalid
+      return ctkProxy(nullptr);
+   }
+   
+   // Optionally, add a method to reset the index
+   void reset() const {
+      _currentIndex = 0;
+   }
 };
 
 #endif /* CxToken_hpp */
