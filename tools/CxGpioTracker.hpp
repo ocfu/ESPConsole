@@ -23,6 +23,26 @@
 #define INVALID_MODE 255 // Represents an invalid pin mode
 #define INVALID_PIN  255
 
+// isr handling
+volatile uint32_t g_anEdgeCounter[3] = {0, 0, 0};
+volatile uint32_t g_anLastInterruptTime[3] = {0, 0, 0};
+volatile uint32_t g_anDebounceDelay[3] = {20000, 20000, 20000}; // debounce time in microseconds (20ms default)
+
+void ICACHE_RAM_ATTR handleInterrupt(uint8_t idx) {
+   uint32_t now = (uint32_t)micros();
+   if ((now - g_anLastInterruptTime[idx]) > g_anDebounceDelay[idx]) {
+      g_anEdgeCounter[idx] = g_anEdgeCounter[idx] + 1;
+      g_anLastInterruptTime[idx] = now;
+   }
+}
+
+void ICACHE_RAM_ATTR handleInterrupt0() { handleInterrupt(0); }
+void ICACHE_RAM_ATTR handleInterrupt1() { handleInterrupt(1); }
+void ICACHE_RAM_ATTR handleInterrupt2() { handleInterrupt(2); }
+
+
+
+
 /**
  * @brief Class to track and manage the state and configuration of GPIO pins.
  *
@@ -344,22 +364,32 @@ class CxGPIO {
 private:
    uint8_t _nPin;                 // The GPIO pin number
    uint8_t _nPwmChannel;         // PWM channel associated with the pin
+   uint32_t _nDebounce = 100000; // us, 100ms debounce time
 
 protected:
-   //CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
    CxGPIOTracker& __gpioTracker = CxGPIOTracker::getInstance(); // Reference to the GPIO tracker singleton
 
    typedef void (*isr_t)();
    uint8_t __isrMode = 0;
-   uint8_t __isrId = -1;
+   uint8_t __isrId = INVALID_UINT8;
    isr_t __isr = nullptr;
 
-   void setISR(uint8_t id, isr_t p, uint8_t mode = RISING) { setIsrId(id); __isr=p; setIsrMode(mode);}
-   void setIsrId(uint8_t set) {__isrId = set;}
-   int getIsrId() {return __isrId;}
-   
    void setIsrMode(uint8_t set) {__isrMode = set;}
    int getIsrMode() {return __isrMode;}
+   
+   uint32_t getIsrEdgeCounter() {
+      if (__isrId >= 0 && __isrId < 3) {
+         return g_anEdgeCounter[__isrId];
+      }
+      return 0;
+   }
+   
+   void resetIsrEdgeCounter() {
+      if (__isrId >= 0 && __isrId < 3) {
+         g_anEdgeCounter[__isrId] = 0;
+      }
+   }
 
 
 public:
@@ -382,10 +412,42 @@ public:
    
    
    // special constructors (input, interrupt etc.)
-   CxGPIO(uint8_t nPin, isr_t p, uint8_t mode = 0x1) {setPin(nPin);setPinMode(INPUT_PULLUP); setISR(0, p, mode);}
+   //CxGPIO(uint8_t nPin, isr_t p, uint8_t mode = 0x1) {setPin(nPin);setPinMode(INPUT_PULLUP); setISR(0, p, mode);}
 //   CxGPIO(int nPin, INPUT_PULLUP, int id = 0, isr_t p = nullptr, int mode = RISING) {setPinMode(nPin, eMode, eUse);setISR(id, p, mode);}
 
+   int getIsrId() {return __isrId;}
+   void setISR(uint8_t id) {
+      if (id > 2) return;
+      
+      __isrId = id;
+      g_anDebounceDelay[id] = getDebounce();
+      
+      switch(id) {
+         case 0:
+            __isr = handleInterrupt0;
+            break;
+         case 1:
+            __isr = handleInterrupt1;
+            break;
+         case 2:
+            __isr = handleInterrupt2;
+            break;
+         default:
+            __isr = nullptr;
+      }
+      if (__isr != nullptr) {
+         setIsrMode(RISING);
+      }
+   }
    
+   void setDebounce(uint32_t set) {
+      _nDebounce = set;
+      if (__isrId >= 0 && __isrId < 3) {
+         g_anDebounceDelay[__isrId] = set;
+      }
+   }
+   uint32_t getDebounce() {return _nDebounce;}
+
    /**
     * @brief Set the pin number for this instance.
     * @param pin The new GPIO pin number.
@@ -452,8 +514,8 @@ public:
                nMode = (isInverted()) ? RISING : FALLING;
                break;
          }
+         __console.debug(F("GPIO%02d: attchInterrupt to pin %d, mode=%d, pinMode=%s"), getPin(), getPin(), nMode,  __gpioTracker.getPinModeString(getPin()).c_str());
 #ifdef ARDUINO
-         //__CONSOLE_DEBUG(F("GPIO%02d: attchInterrupt to pin %d, mode=%d, pinMode=%s"), getPin(), getPin(), nMode, _gpioTracker.getPinModeString().c_str());
          attachInterrupt(digitalPinToInterrupt(getPin()), __isr, nMode);
 #endif
          delay(10);
@@ -464,6 +526,9 @@ public:
 #ifdef ARDUINO
          detachInterrupt(digitalPinToInterrupt(getPin()));
 #endif
+         __isr = nullptr;
+         __isrId = INVALID_UINT8;
+         
          delay(10);
       }
    }

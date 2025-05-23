@@ -327,7 +327,7 @@ public:
       if (pDevice) {
          if (!_mqttHAdev.findItem(szName)) {
             _vHAButton.push_back(std::make_unique<CxMqttHAButton>(pDevice));
-            pDevice->addCallback([this, pDevice](CxDevice* dev, uint8_t id, const char* cmd) {
+            pDevice->addCallback([this, pDevice](CxGPIODevice* dev, uint8_t id, const char* cmd) {
                for (auto& pButton : _vHAButton) {
                   if (strcmp(pButton->getName(), pDevice->getName()) == 0) {
                      if (id == (uint8_t)CxButton::EBtnEvent::pressed) {
@@ -360,7 +360,7 @@ public:
       CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(szName, "relay"));
       if (pRelay) {
          // set call back to publish the state of the relay on change
-         pRelay->addCallback([this, pRelay](CxDevice* dev, uint8_t id, const char* cmd) {
+         pRelay->addCallback([this, pRelay](CxGPIODevice* dev, uint8_t id, const char* cmd) {
             for (auto& pSwitch : _vHASwitch) {
                if (strcmp(pSwitch->getName(), pRelay->getName()) == 0) {
                   if (id == CxRelay::ERelayEvent::relayon) {
@@ -393,7 +393,7 @@ public:
          CxGPIOVirtual* pVirtual = static_cast<CxGPIOVirtual*>(_gpioDeviceManager.getDevice(szName, "virtual"));
          if (pVirtual) {
             // set call back to publish the state of the relay on change
-            pVirtual->addCallback([this, pVirtual](CxDevice* dev, uint8_t id, const char* cmd) {
+            pVirtual->addCallback([this, pVirtual](CxGPIODevice* dev, uint8_t id, const char* cmd) {
                for (auto& pSwitch : _vHASwitch) {
                   if (strcmp(pSwitch->getName(), pVirtual->getName()) == 0) {
                      if (id == CxRelay::ERelayEvent::relayon) {

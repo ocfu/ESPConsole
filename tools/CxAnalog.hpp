@@ -27,7 +27,7 @@ private:
    
    bool _bEnabled = true;
    
-   static void _Action(CxDevice* dev, uint8_t id, const char* cmd) {
+   static void _Action(CxGPIODevice* dev, uint8_t id, const char* cmd) {
       if (!cmd  || !*cmd) return;
       
       String strCmd;

@@ -235,7 +235,7 @@ public:
             // rc let <ch> = <dev name>
             uint8_t ch = TKTOINT(tkCmd, 2, INVALID_UINT8);
             String strOperator = TKTOCHAR(tkCmd, 3);
-            CxDevice* dev = _gpioDeviceManager.getDevice(TKTOCHAR(tkCmd, 4));
+            CxGPIODevice* dev = _gpioDeviceManager.getDevice(TKTOCHAR(tkCmd, 4));
             if (dev && ch != INVALID_UINT8) {
                if (strOperator == "=") {
                   set(ch, dev->get());

@@ -538,7 +538,7 @@ public:
                      printf(F("invalid pin mode!"));
                   }
                } else if (nValue < 1024) {
-                  CxDevice* pDev = _gpioDeviceManager.getDeviceByPin(nPin);
+                  CxGPIODevice* pDev = _gpioDeviceManager.getDeviceByPin(nPin);
                   if (pDev) pDev->set(nValue);
                } else {
                   printf(F("invalid value!"));
@@ -637,12 +637,12 @@ public:
                      }
                   }
                } else if (strType == "counter") {
-                  CxCounter* pCoutner = static_cast<CxCounter*>(_gpioDeviceManager.getDeviceByPin(nPin));
-                  if (pCoutner) {
-                     pCoutner->setName(strName.c_str());
-                     pCoutner->setInverted(bInverted);
-                     pCoutner->setCmd(strGpioCmd.c_str());
-                     pCoutner->begin();
+                  CxCounter* pCounter = static_cast<CxCounter*>(_gpioDeviceManager.getDeviceByPin(nPin));
+                  if (pCounter) {
+                     pCounter->setName(strName.c_str());
+                     pCounter->setInverted(bInverted);
+                     pCounter->setCmd(strGpioCmd.c_str());
+                     pCounter->begin();
                   } else {
                      CxCounter* p = new CxCounter(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
                      if (p) {
@@ -690,7 +690,7 @@ public:
                Led1.setPin(INVALID_PIN);
                Led1.setName("");
             } else {
-               CxDevice* p = _gpioDeviceManager.getDevice(strName.c_str());
+               CxGPIODevice* p = _gpioDeviceManager.getDevice(strName.c_str());
                if (p) {
                   delete p;
                } else {
@@ -700,7 +700,7 @@ public:
             }
          } else if (strSubCmd == "name") {
             if (__gpioTracker.isValidPin(nPin)) {
-               CxDevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+               CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
                if (p) {
                   p->setFriendlyName(strValue.c_str());
                   p->setName(strValue.c_str());
@@ -711,7 +711,7 @@ public:
                println(F("invalid pin!"));
             }
          } else if (strSubCmd == "fn") {
-            CxDevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+            CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
             
             if (p) {
                p->setFriendlyName(TKTOCHAR(tkArgs, 3));
@@ -720,18 +720,32 @@ public:
             }
             
          } else if (strSubCmd == "deb") {
-            CxDevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+            CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
             
             if (p) {
                p->setDebounce(TKTOINT(tkArgs, 3, p->getDebounce()));
             } else {
                println(F("device not found!"));
             }
+         } else if (strSubCmd == "isr") {
+            // isr <pin> <id> [<debounce time>]
+            CxGPIODevice* p = _gpioDeviceManager.getDeviceByPin(nPin);
+            if (p) {
+               p->setDebounce(TKTOINT(tkArgs, 4, p->getDebounce()));
+               p->setISR(TKTOINT(tkArgs, 3, INVALID_UINT8));
+               p->enableISR();
+            } else {
+               CxTablePrinter table(getIoStream());
+               table.printHeader({F("ID"), F("Counter"), F("Debounce")}, {3, 10, 8});
+               for (int i = 0; i < 3; i++) {
+                  table.printRow({String(i).c_str(), String(g_anEdgeCounter[i]).c_str(), String(g_anDebounceDelay[i]).c_str()});
+               }
+            }
          }
          else if (strSubCmd == "let" && tkArgs.count() > 4) {
             String strOperator = TKTOCHAR(tkArgs, 3);
-            CxDevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
-            CxDevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
+            CxGPIODevice* dev1 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
+            CxGPIODevice* dev2 = _gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
             
             if (strOperator == "=") {
                if (dev1 && dev2) {
@@ -779,6 +793,7 @@ public:
                println(F("  add <pin> <type> <name> <inverted> [<cmd> [<param>]]")); // param: bPullup (input) or period (analog)
                println(F("  del <name>"));
                println(F("  let <name> = <name>"));
+               println(F("  isr <pin> <id> [<debounce time>]"));
 #endif
             }
          }
@@ -937,7 +952,7 @@ public:
          String strSubCmd = TKTOCHAR(tkArgs, 2);
          strSubCmd.toLowerCase();
          
-         CxDevice* pDev = _gpioDeviceManager.getDevice(strName.c_str());
+         CxGPIODevice* pDev = _gpioDeviceManager.getDevice(strName.c_str());
          
          if (strName == "list") {
             _gpioDeviceManager.printList("relay");

@@ -34,6 +34,7 @@ echo "  add <pin> <type> <name> <inverted> [<cmd> [<param>]]"
 echo "  del <name>"
 echo "  let <name> = <name>"
 echo "  deb <pin> <debounce time>"
+echo "  isr <pin> <id> [<debounce time>]"
 
 set:
 echo "set environment variable."

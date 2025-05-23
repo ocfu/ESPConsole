@@ -33,7 +33,7 @@ private:
    const uint32_t _nDebounceTime = 100; // ms
          
    
-   static void _btnAction(CxDevice* dev, uint8_t id, const char* cmd) {
+   static void _btnAction(CxGPIODevice* dev, uint8_t id, const char* cmd) {
       String strCmd;
       strCmd.reserve((uint32_t)(strlen(cmd) + 10)); // preserve some space for the command and additional parameters.
       strCmd = cmd;

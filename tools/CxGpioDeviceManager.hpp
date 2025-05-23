@@ -12,18 +12,15 @@
 #include "CxTimer.hpp"
 
 
-class CxDevice {
+class CxGPIODevice : public CxGPIO {
    String _strName;
    String _strFriendlyName;
    String _strCmd;
    
    uint8_t _id = INVALID_UINT8;
    
-   uint32_t _nDebounce = 100;
-   
-
 public:
-   typedef std::function<void(CxDevice* dev, uint8_t id, const char* cmd)> cbFunc;
+   typedef std::function<void(CxGPIODevice* dev, uint8_t id, const char* cmd)> cbFunc;
    
    void addCallback(cbFunc fp) {if(fp)__cbVec.push_back(fp);}
    
@@ -50,27 +47,18 @@ protected:
    void unregisterDevice();
    
 public:
-   CxDevice(uint8_t id, const char* name, const char* cmd = "") : _id(id), _strName(name), _strCmd(cmd) {
+   CxGPIODevice(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false, const char* cmd = "") : CxGPIO(pin, mode, inverted), _id(pin), _strCmd(cmd) {
       registerDevice();
    }
    
-   virtual ~CxDevice() {
+   virtual ~CxGPIODevice() {
       unregisterDevice();
       end();
    }
    
    uint8_t getId() {return _id;}
    void setId(uint8_t id) {_id = id;}
-   
-   void setDebounce(uint32_t set) {_nDebounce = set;}
-   uint32_t getDebounce() {return _nDebounce;}
-   
-   virtual void begin() {}
-   virtual void loop(bool bDegraded = false) {}
-   virtual void end() {}
-   
-   virtual const char* getTypeSz() = 0;
-   
+      
    void setCmd(String strCmd) {_strCmd = strCmd;}
    const char* getCmd() {return _strCmd.c_str();}
    
@@ -89,46 +77,24 @@ public:
    }
    const char* getName() {return _strName.c_str();}
    
-   virtual const std::vector<String> getHeadLine(bool bDefault = true) = 0;
-   virtual const std::vector<uint8_t> getWidths(bool bDefault = true) = 0;
-   virtual const std::vector<String> getData(bool bDefault = true) = 0;
+   virtual void set(int16_t set) {CxGPIO::set(set);}
+   virtual int16_t get() {return CxGPIO::get();}
    
-   virtual void set(int16_t set) = 0;
-   virtual int16_t get() = 0;
-
-};
-
-
-class CxGPIODevice : public CxDevice, public CxGPIO {
+   virtual void begin() {}
+   virtual void loop(bool bDegraded = false) {}
+   virtual void end() {}
    
-public:
-   CxGPIODevice(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false, const char* cmd = "") : CxDevice(pin, "", cmd), CxGPIO(pin, mode, inverted) {
-      registerDevice();
-   }
+   virtual const char* getTypeSz() = 0;
    
-   virtual ~CxGPIODevice() {
-      unregisterDevice();
-      end();
-   }
-
-   virtual void set(int16_t set) override {CxGPIO::set(set);}
-   virtual int16_t get() override {return CxGPIO::get();}
-   
-   virtual void begin() override {}
-   virtual void loop(bool bDegraded = false) override {}
-   virtual void end() override {}
-   
-   virtual const char* getTypeSz() override = 0;
-   
-   virtual const std::vector<String> getHeadLine(bool bDefault = true) override {
+   virtual const std::vector<String> getHeadLine(bool bDefault = true) {
       return {F("Id"), F("Name"), F("Type"), F("GPIO"), F("Mode"), F("Inv"), F("State"), F("Cmd")};
    };
    
-   virtual const std::vector<uint8_t> getWidths(bool bDefault = true) override {
+   virtual const std::vector<uint8_t> getWidths(bool bDefault = true) {
       return {3, 11, 10, 4, 12, 3, 5, 20};
    };
    
-   virtual const std::vector<String> getData(bool bDefault = true) override {
+   virtual const std::vector<String> getData(bool bDefault = true) {
       return {String(getId()), getName(), getTypeSz(), String(getPin()).c_str(), getPinModeSz(), isInverted() ? "yes" : "no", getDigitalState() ? "on" : "off", getCmd()};
    };
 
@@ -141,7 +107,7 @@ public:
    
 private:
    
-   static void _Action(CxDevice* dev, uint8_t id, const char* cmd) {
+   static void _Action(CxGPIODevice* dev, uint8_t id, const char* cmd) {
       if (!cmd  || !*cmd) return;
       
       String strCmd;
@@ -190,7 +156,7 @@ private:
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
    
    /// Map to store Devices with their unique IDs
-   std::map<uint8_t, CxDevice*> _mapDevices;
+   std::map<uint8_t, CxGPIODevice*> _mapDevices;
    
    /// Private constructor to enforce singleton pattern
    CxGPIODeviceManagerManager() = default;
@@ -217,7 +183,7 @@ public:
    uint8_t getDeviceCount() {return _mapDevices.size();}
    
    /// add Device
-   void addDevice(CxDevice* pDevice) {
+   void addDevice(CxGPIODevice* pDevice) {
       if (pDevice) {
          if (pDevice && pDevice->getId() != INVALID_UINT8) {
             /// Add the sensor to the map
@@ -238,7 +204,7 @@ public:
    }
 
    /// Get a Device by its name
-   CxDevice* getDevice(const char* name, const char* type = nullptr) {
+   CxGPIODevice* getDevice(const char* name, const char* type = nullptr) {
       if (name) {
          for (auto& it : _mapDevices) {
             if (strcmp(it.second->getName(), name) == 0 && (!type || strcmp(it.second->getTypeSz(), type) == 0)) {
@@ -250,7 +216,7 @@ public:
    }
    
    /// get a device by its pin
-   CxDevice* getDeviceByPin(uint8_t pin) {
+   CxGPIODevice* getDeviceByPin(uint8_t pin) {
       for (auto& it : _mapDevices) {
          if (it.second->getId() == pin) {
             return it.second;
@@ -267,7 +233,7 @@ public:
    
    /// get a device by its type.
    /// The first device found will be returned.
-   CxDevice* getDeviceByType(const char* type) {
+   CxGPIODevice* getDeviceByType(const char* type) {
       if (type) {
          for (auto& it : _mapDevices) {
             if (strcmp(it.second->getTypeSz(), type) == 0) {
@@ -280,7 +246,7 @@ public:
 
    /// get a device by its type.
    /// The first device found will be returned.
-   CxDevice* getDeviceByName(const char* name) {
+   CxGPIODevice* getDeviceByName(const char* name) {
       if (name) {
          for (auto& it : _mapDevices) {
             if (strcmp(it.second->getName(), name) == 0) {
@@ -323,12 +289,12 @@ public:
    }
 };
 
-void CxDevice::registerDevice() {
+void CxGPIODevice::registerDevice() {
    CxGPIODeviceManagerManager::getInstance().addDevice(this);
    
 }
 
-void CxDevice::unregisterDevice() {
+void CxGPIODevice::unregisterDevice() {
    CxGPIODeviceManagerManager::getInstance().removeDevice(getName());
 }
 
