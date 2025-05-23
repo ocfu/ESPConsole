@@ -1296,6 +1296,7 @@ public:
          Led1.off();
          
          if (WiFi.status() != WL_CONNECTED) {
+            _bWifiConnected = true;
             println(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "not connected!" ESC_ATTR_RESET));
             __console.error("WiFi not connected.");
             Led1.blinkError();
