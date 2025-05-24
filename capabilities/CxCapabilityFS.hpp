@@ -168,15 +168,15 @@ public:
           } else if (strSubCmd == "level") {
              __console.setLogLevel(TKTOINT(tkArgs, 2, __console.getLogLevel()));
           } else if (strSubCmd == "error") {
-             __console.error(TKTOCHAR(tkArgs, 2));
+             __console.error(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "info") {
-             __console.info(TKTOCHAR(tkArgs, 2));
+             __console.info(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "warn") {
-             __console.warn(TKTOCHAR(tkArgs, 2));
+             __console.warn(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "debug") {
-             __console.debug(TKTOCHAR(tkArgs, 2));
+             __console.debug(TKTOCHARAFTER(tkArgs, 2));
           } else if (strSubCmd == "debug_ext") {
-             __console.debug_ext(TKTOINT(tkArgs, 2, 0), TKTOCHAR(tkArgs, 3));
+             __console.debug_ext(TKTOINT(tkArgs, 2, 0), TKTOCHARAFTER(tkArgs, 3));
           } else if (strSubCmd == "on") {
              enableLog(true);
              _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
