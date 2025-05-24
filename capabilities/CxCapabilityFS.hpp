@@ -849,16 +849,13 @@ private:
                   varValue = String(buffer).substring(equalsSign - buffer + 1);
                   varValue.trim();
                   
-                  // Replace variables in the command
-                  for (const auto& var : __console.getVariables()) {
-                     varValue.replace("$" + var.first, var.second);
-                  }
-
-                  // Perform variable substitution in the value
-                  for (const auto& var : mapTempVariables) {
-                     varValue.replace("$" + var.first, var.second);
-                  }
+                  // Substitue value with local variables first
+                  __console.substituteVariables(varValue, mapTempVariables, false);
                   
+                  // Substitue value with global variables
+                  __console.substituteVariables(varValue);
+
+
                   mapTempVariables[varName] = varValue; // Store the variable
                   continue;
                }
@@ -872,12 +869,13 @@ private:
             
             command.reserve(strlen(buffer) + extra_size); // Reserve enough space for the command and potential longer label
             command = buffer;
+                        
+            // Substitue command with local variables first
+            __console.substituteVariables(command, mapTempVariables, false);
             
+            // Substitue command with global variables
+            __console.substituteVariables(command);
             
-            // Replace variables in temporary buffer in the command
-            for (const auto& var : mapTempVariables) {
-               command.replace("$" + var.first, var.second);
-            }
 
             if (command.endsWith(":")) {
                // Check for labels
@@ -889,7 +887,7 @@ private:
                _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
                
                if (command.startsWith("exec")) {
-                  __console.substituteVariables(command);
+                  __console.substituteVariables(command); // needed ?
                   CxStrToken tkExecCmd(command.c_str(), " ");
                   _CONSOLE_DEBUG(F("exec command found: %s"), command.c_str());
                   // recursively call executeBatch and not go deeper by calling processCmd, this shall safe stack usage

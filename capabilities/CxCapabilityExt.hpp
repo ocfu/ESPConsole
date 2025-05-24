@@ -344,14 +344,10 @@ public:
          } else if (strVar.length() > 0) {
             float fValue = 0.0F;
             char* end = nullptr;
-            if (strValue.startsWith("$")) {
-               const char* szVariable = __console.getVariable(strValue.substring(1).c_str());
-               if (szVariable) {
-                  fValue = std::strtod(szVariable, &end); // return as uint32_t with auto base
-               }
-            } else {
-               fValue = std::strtod(strValue.c_str(), &end); // return as uint32_t with auto base
+            if (strValue.startsWith("$")) {  // we need this? substitution done on higher level actually
+               __console.substituteVariables(strValue);
             }
+            fValue = std::strtod(strValue.c_str(), &end); // return as uint32_t with auto base
             
             // Check if the conversion failed (no characters processed or out of range), then concat two strings
             if (!end || end == strValue.c_str() || *end != '\0') {
@@ -755,16 +751,11 @@ public:
                   uint32_t nValue = INVALID_UINT32;
                   char* end = nullptr;
 
-                  if (strValue.startsWith("$")) {
-                     const char* szVariable = __console.getVariable(strValue.substring(1).c_str());
-                     if (szVariable) {
-                        nValue = (uint32_t)std::strtol(szVariable, &end, 0); // return as uint32_t with auto base
-                     } else {
-                        _CONSOLE_DEBUG(F("variable not found!"));
-                     }
-                  } else {
-                     nValue = (uint32_t)std::strtol(strValue.c_str(), &end, 0); // return as uint32_t with auto base
+                  if (strValue.startsWith("$")) {  // we need this? substitution done on higher level actually
+                     __console.substituteVariables(strValue);
                   }
+
+                  nValue = (uint32_t)std::strtol(strValue.c_str(), &end, 0); // return as uint32_t with auto base
                   
                   // Check if the conversion failed (no characters processed or out of range)
                   if (!end || end == strValue.c_str() || *end != '\0') {

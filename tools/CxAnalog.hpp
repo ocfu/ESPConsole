@@ -41,7 +41,7 @@ private:
          strCmd += " #below";
          ESPConsole.processCmd(strCmd.c_str());
       } else if (id == CxAnalog::EAnalogEvent::value) {
-         strCmd.replace(F("$VALUE"), String(dev->get()));
+         strCmd.replace(F("$(VALUE)"), String(dev->get()));
          ESPConsole.processCmd(strCmd.c_str());
       }
    };

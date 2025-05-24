@@ -115,10 +115,10 @@ private:
       strCmd = cmd;
       
       if (id == CxGPIOVirtual::EVirtualEvent::evon) {
-         strCmd.replace("$STATE", "ON");
+         strCmd.replace("$(STATE)", "ON");
          ESPConsole.processCmd(strCmd.c_str());
       } else if (id == CxGPIOVirtual::EVirtualEvent::evoff) {
-         strCmd.replace("$STATE", "OFF");
+         strCmd.replace("$(STATE)", "OFF");
          ESPConsole.processCmd(strCmd.c_str());
       }
    }

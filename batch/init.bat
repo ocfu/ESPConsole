@@ -6,29 +6,29 @@
 fs:
 touch .safemode   # system will boot into safe mode if this file exists on next boot
 loopdelay 1       # sets the delay at the end of each loop in usec
-set userscript init.$HOSTNAME.bat
-test ! -f $userscript "cp $userscript.bak $userscript"  #first fall back backup file
-test ! -f $userscript "cp init.user.bat $userscript"    #second fall back default init file
+set userscript init.$(HOSTNAME).bat
+test ! -f $(userscript) "cp $(userscript).bak $(userscript)"  #first fall back backup file
+test ! -f $(userscript) "cp init.user.bat $(userscript)"    #second fall back default init file
 
 # I2C capability
 i2c:
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # MQTT capability
 mqtt:
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # Home Assistant capability
 ha:
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # Segment Display (seg) capability
 seg:
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # RC
 rc:
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # final initialisations
 final:
@@ -37,39 +37,39 @@ timer add 1m "wifi check -q" tiWifi repeat
 wifi connect
 stack off
 usr 0
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # wifi is up and connected
 wifi-up:
 timer stop tiRecon
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # wifi is down
 wifi-down:
 timer start tiRecon
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # wifi is online
 wifi-online:
 timer stop tiRecon
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # wifi is offline
 wifi-offline:
 timer start tiRecon
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # Access Point up
 ap-up:
 timer stop tiWifi
 timer stop tiRecon
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 # Access Point down
 ap-down:
 timer start tiWifi
 timer start tiRecon
-break on $SAFEMODE
+break on $(SAFEMODE)
 
 #
 # Safemode
@@ -79,4 +79,5 @@ sm:
 
 # more commands for all labels
 all:
-exec $userscript $LABEL
+echo label is $(LABEL)
+exec $(userscript) $(LABEL)

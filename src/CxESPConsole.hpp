@@ -602,11 +602,29 @@ public:
       return _mapSetVariables;
    }
    
-   void substituteVariables(String& str) {
-      // Perform variable substitution in the value
-      for (const auto& var : _mapSetVariables) {
-         str.replace("$" + var.first, var.second);
+   void substituteVariables(String& str, std::map<String, String>& mapVariables, bool bReplaceIfNotSet = true) {
+      int32_t start = 0;
+      while ((start = str.indexOf("$(", start)) != -1) {
+         int end = str.indexOf(")", start + 2);
+         if (end == -1) break;
+         String varName = str.substring(start + 2, end);
+         auto it = mapVariables.find(varName);
+         if (it != mapVariables.end()) {
+            String value = it->second;
+            str = str.substring(0, start) + value + str.substring(end + 1);
+            start += value.length();
+         } else {
+            if (bReplaceIfNotSet) {
+               str = str.substring(0, start) + str.substring(end + 1);
+            } else {
+               start = end + 1;
+            }
+         }
       }
+   }
+   
+   void substituteVariables(String& str) {
+      substituteVariables(str, _mapSetVariables);
    }
 
 };

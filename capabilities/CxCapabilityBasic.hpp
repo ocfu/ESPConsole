@@ -332,10 +332,8 @@ public:
          while (i < 7) { //tkArgs can max. hold 8 tokens, the first token in the command
             strValue = TKTOCHAR(tkArgs, i);
             
-            // Perform variable substitution in the value
-            for (const auto& var : __console.getVariables()) {
-               strValue.replace("$" + var.first, var.second);
-            }
+            // Substitue with global variables
+            __console.substituteVariables(strValue);
             
             // Stop if argument is empty
             if (strValue.length() == 0) {
