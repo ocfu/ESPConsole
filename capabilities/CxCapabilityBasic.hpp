@@ -124,6 +124,7 @@ public:
                __console.listCap();
             }
          } else {
+            __console.setExitValue(1);
             if (__console.hasFS()) {
                __console.man("cap");
             } else {
@@ -136,7 +137,7 @@ public:
 #endif
             }
          }
-         return true;
+         return true;  // MARK: why not fallding down as the other commands?
       } else if (cmd == "reboot") {
          String opt = TKTOCHAR(tkArgs, 1);
          
@@ -311,6 +312,7 @@ public:
                break;
                
             default:
+               __console.setExitValue(1);
                if (__console.hasFS()) {
                   __console.man("usr");
                } else {
@@ -325,6 +327,7 @@ public:
                }
                break;
          }
+         __console.setExitValue(0);
       } else if (cmd == "echo") {
          String strValue;
          
@@ -412,15 +415,21 @@ public:
                            }
                         }, (nMode == 0));
                      } else {
+                        __console.setExitValue(1);
                         __console.error(F("could not add timer %s! (existing or too many timers)"), pTimer->getId());
                         delete pTimer;
                      }
                   }
                   
                } else {
-                  __console.printf("invalid time for timer", nPeriod);
+                  __console.setExitValue(1);
+                  __console.printf(F("invalid time for timer"), nPeriod);
                }
-            } // count
+               __console.setExitValue(0);
+            } else {
+               __console.man(cmd.c_str());
+               __console.setExitValue(1);
+            }// count
          } else if (strSubCmd == "del") {
             __console.delTimer(TKTOCHAR(tkArgs, 2));
          } else if (strSubCmd == "stop") {
@@ -431,8 +440,10 @@ public:
          else if (strSubCmd == "list") {
             // list all timers
             __console.printTimers(getIoStream());
+            __console.setExitValue(0);
          } else {
             __console.man(cmd.c_str());
+            __console.setExitValue(1);
          }
       }
       else {

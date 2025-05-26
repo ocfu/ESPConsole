@@ -74,6 +74,7 @@
 #include "../tools/CxAnalog.hpp"
 #include "esphw.h"
 #include "../tools/CxSensorManager.hpp"
+#include "../tools/espmath.h"
 
 #ifndef ESP_CONSOLE_NOWIFI
 #include "../tools/CxOta.hpp"
@@ -310,8 +311,7 @@ public:
          String strVar = TKTOCHAR(tkArgs, 1);
          uint8_t prec = 0;
          String strOp1 = TKTOCHAR(tkArgs, 2);
-         String strOp2;
-         String strValue2;
+         String strExpr;
          
          String strValue;
          strValue.reserve(128);  // 128 is an estimate. The worst case is a concat of two strings, while both could be a variable with a max lenght of ?
@@ -319,9 +319,7 @@ public:
          if (strOp1 != "=") {
             strValue = strOp1;            
          } else {
-            strValue = TKTOCHAR(tkArgs, 3);
-            strOp2 = TKTOCHAR(tkArgs, 4);
-            strValue2 = TKTOCHAR(tkArgs, 5);
+            strExpr = TKTOCHARAFTER(tkArgs, 3);
          }
          int32_t nPrecIndex = strVar.indexOf("/");
          if ( nPrecIndex > 0) {
@@ -332,14 +330,19 @@ public:
          if (strVar == "NTP" && strValue.length()) {
             __console.setNtpServer(strValue.c_str());
             __console.addVariable(strVar.c_str(), strValue.c_str());
+            __console.setExitValue(0);
          } else if (strVar == "TZ") {
             __console.setTimeZone(strValue.c_str());
             __console.addVariable(strVar.c_str(), strValue.c_str());
+            __console.setExitValue(0);
          } else if (strVar == "buf") {
             uint32_t nBufLen = TKTOINT(tkArgs, 3, __console.getCmdBufferLen());
             if (nBufLen >= 64) {
                __console.setCmdBufferLen(nBufLen);
                __console.addVariable(strVar.c_str(), String(__console.getCmdBufferLen()).c_str());
+               __console.setExitValue(0);
+            } else {
+               __console.setExitValue(1);
             }
          } else if (strVar.length() > 0) {
             float fValue = 0.0F;
@@ -392,6 +395,7 @@ public:
                println(F("usage: eeprom [<start address>] [<length>]"));
 #endif
             }
+            __console.setExitValue(1);
          }
       } else if (cmd == "wifi") {
          String strCmd = TKTOCHAR(tkArgs, 1);
@@ -443,8 +447,10 @@ public:
             if (!b) {
                print(F("WiFi is "));
                if (bStatus) {
+                  __console.setExitValue(0);
                   println(F("connected"));
                } else {
+                  __console.setExitValue(1);
                   println(F("not connected"));
                }
             }               
@@ -468,15 +474,23 @@ public:
                println(F("  check [-q]"));
 #endif
             }
+            __console.setExitValue(1);
          }
       } else if (cmd == "ping") {
+         __console.setExitValue(0);
          if (!a && !b) {
-            println(F("usage: ping <host> <port>"));
+            if (__console.hasFS()) {
+               __console.man(cmd.c_str());
+            } else {
+               println(F("usage: ping <host> <port>"));
+            }
          } else {
             if (isHostAvailble(TKTOCHAR(tkArgs, 1), TKTOINT(tkArgs, 2, 0))) {
                println(F("ok"));
+               __console.setExitValue(0);
             } else {
                println(F("host not available on this port!"));
+               __console.setExitValue(1);
             };
          }
       } else if (cmd == "gpio") {
@@ -540,6 +554,7 @@ public:
                   printf(F("invalid value!"));
                }
             } else {
+               __console.setExitValue(1);
                println("invalid");
                __gpioTracker.printInvalidReason(getIoStream(), nPin);
             }
@@ -548,6 +563,7 @@ public:
                CxGPIO gpio(nPin);
                gpio.printState(getIoStream());
             } else {
+               __console.setExitValue(1);
                __gpioTracker.printInvalidReason(getIoStream(), nPin);
             }
          } else if (strSubCmd == "list") {
@@ -674,9 +690,11 @@ public:
                   }
                }
                else {
+                  __console.setExitValue(1);
                   println(F("invalid device type!"));
                }
             } else {
+               __console.setExitValue(1);
                println(F("invalid pin!"));
             }
          } else if (strSubCmd == "del") {
@@ -690,6 +708,7 @@ public:
                if (p) {
                   delete p;
                } else {
+                  __console.setExitValue(1);
                   println(F("device not found!"));
                }
                _gpioDeviceManager.removeDevice(strName.c_str());
@@ -701,9 +720,11 @@ public:
                   p->setFriendlyName(strValue.c_str());
                   p->setName(strValue.c_str());
                } else {
+                  __console.setExitValue(1);
                   println(F("device not found!"));
                }
             } else {
+               __console.setExitValue(1);
                println(F("invalid pin!"));
             }
          } else if (strSubCmd == "fn") {
@@ -712,6 +733,7 @@ public:
             if (p) {
                p->setFriendlyName(TKTOCHAR(tkArgs, 3));
             } else {
+               __console.setExitValue(1);
                println(F("device not found!"));
             }
             
@@ -721,6 +743,7 @@ public:
             if (p) {
                p->setDebounce(TKTOINT(tkArgs, 3, p->getDebounce()));
             } else {
+               __console.setExitValue(1);
                println(F("device not found!"));
             }
          } else if (strSubCmd == "isr") {
@@ -764,6 +787,7 @@ public:
                      dev1->set((bool)nValue); // MARK: currently only bool is supported
                   }
                } else {
+                  __console.setExitValue(1);
                   println(F("device not found!"));
                }
             }
@@ -787,6 +811,7 @@ public:
                println(F("  isr <pin> <id> [<debounce time>]"));
 #endif
             }
+            __console.setExitValue(1);
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -872,6 +897,7 @@ public:
                println(F("  invert [0|1]"));
 #endif
             }
+            __console.setExitValue(1);
          }
       } else if (cmd == "sensor") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -882,6 +908,7 @@ public:
             if (nId != INVALID_UINT8) {
                _sensorManager.setSensorName(nId, TKTOCHAR(tkArgs, 3));
             } else {
+               __console.setExitValue(1);
                println(F("usage: sensor name <id> <name>"));
             }
          } else if (strSubCmd == "get") {
@@ -889,6 +916,7 @@ public:
             if (!std::isnan(f)) {
                println(f);
             } else {
+               __console.setExitValue(1);
                println(F("invalid sensor id!"));
             }
          } else if (strSubCmd == "add" && tkArgs.count() > 5) {
@@ -937,6 +965,7 @@ public:
                println(F("  add <name> <unit> <variable> [<friendly name>]"));
 #endif
             }
+            __console.setExitValue(1);
          }
       } else if (cmd == "relay") {
          String strName = TKTOCHAR(tkArgs, 1);
@@ -967,6 +996,7 @@ public:
                   p->setDefaultOn(TKTOINT(tkArgs, 3, 0));
                }
                else {
+                  __console.setExitValue(1);
                   __console.println(F("invalid relay command"));
                }
             }
@@ -984,6 +1014,7 @@ public:
                println(F("  <name> default <0|1>"));
 #endif
             }
+            __console.setExitValue(1);
          }
       } else {
          return false;

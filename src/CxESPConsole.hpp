@@ -576,6 +576,18 @@ public:
       _mapSetVariables[szName] = szValue;
    }
    
+   void setExitValue(int32_t set) {
+      addVariable("?", set);
+   }
+   
+   int32_t getExitValue() {
+      auto it = _mapSetVariables.find("?");
+      if (it != _mapSetVariables.end()) {
+         return (int32_t)it->second.toInt();
+      }
+      return -1; // Default exit value
+   }
+   
    const char* getVariable(const char* szName) {
       auto it = _mapSetVariables.find(szName);
       if (it != _mapSetVariables.end()) {
