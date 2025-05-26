@@ -18,6 +18,11 @@ echo " 2  <flag>   set the extended debug flag(s) to the value."
 echo " 2  <flag> 0 clear an extended debug flag."
 echo " 2  <flag> 1 add an extended debug flag."
 
+echo:
+echo "usage: echo [-n] [<string>]"
+echo "  -n   suppress the trailing newline character."
+echo "The echo utility exits 0 on success."
+
 #
 # ext
 #

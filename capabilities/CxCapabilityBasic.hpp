@@ -330,29 +330,35 @@ public:
          __console.setExitValue(0);
       } else if (cmd == "echo") {
          String strValue;
+         bool bSuppressNewLine = false;
          
          int i = 1;
          while (i < 7) { //tkArgs can max. hold 8 tokens, the first token in the command
             strValue = TKTOCHAR(tkArgs, i);
             
-            // Substitue with global variables
-            __console.substituteVariables(strValue);
-            
-            // Stop if argument is empty
-            if (strValue.length() == 0) {
-               break;
-            }
-
-            // Perform esc code substitution
-            strValue.replace("\\033", ESC_CODE);
-            strValue.replace("\\0x1b", ESC_CODE);
-            strValue.replace("\\0x1B", ESC_CODE);
-            print(strValue.c_str());
-            if (i < (tkArgs.count()-1)) print (" ");
-            
+            if (strValue == "-n") {
+               bSuppressNewLine = true;
+            } else {
+               
+               // Substitue with global variables
+               __console.substituteVariables(strValue);
+               
+               // Stop if argument is empty
+               if (strValue.length() == 0) {
+                  break;
+               }
+               
+               // Perform esc code substitution
+               strValue.replace("\\033", ESC_CODE);
+               strValue.replace("\\0x1b", ESC_CODE);
+               strValue.replace("\\0x1B", ESC_CODE);
+               print(strValue.c_str());
+               if (i < (tkArgs.count()-1)) print (" ");
+            }            
             i++;
          }
-         println();
+         if (! bSuppressNewLine) println();
+         __console.setExitValue(0);
       } else if (cmd == "@echo") {
          if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
             //__console.setEchoOn();
