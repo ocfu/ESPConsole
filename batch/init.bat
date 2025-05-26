@@ -79,5 +79,4 @@ sm:
 
 # more commands for all labels
 all:
-echo label is $(LABEL)
 exec $(userscript) $(LABEL)
