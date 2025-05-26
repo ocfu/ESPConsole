@@ -1,4 +1,14 @@
 # script to show help for commands
+ESC_BOLD=\033[1m
+ESC_BRED=\033[91m
+ESC_RESET=\033[0m
+ESC_BLINK=\033[5m
+
+USAGE=$(ESC_BOLD)Usage:$(ESC_RESET)
+COMMANDS=$(ESC_BOLD)Commands:$(ESC_RESET)
+PARAMETERS=$(ESC_BOLD)Parameters:$(ESC_RESET)
+EXAMPLES=$(ESC_BOLD)Examples:$(ESC_RESET)
+NOTE=$(ESC_BOLD)Note:$(ESC_RESET)
 
 #
 # basic
@@ -211,7 +221,10 @@ echo
 # timer
 #
 timer:
-echo "timer commands:"
+echo "$(USAGE) timer <command> [<parameters>]"
+echo "  Sets the exit value $? to 0 (true) or 1 (false) if the command fails."
+echo
+echo "$COMMANDS"
 echo "  add <period>|<cron> <cmd> [<id> [<mode>]]  | max. 8 timers, max. 7 days, mode: once, repeat, replace"
 echo "  del <id>"
 echo "  start <id>"
