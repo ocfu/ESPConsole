@@ -10,6 +10,8 @@
 #define CxToken_hpp
 
 
+// MARK: room for improvement here (code size)
+
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -22,7 +24,7 @@
 #define TKTOCHARAFTER(t, x)    ((t).getStringAfter((x)))
 
 class CxStrToken {
-private:
+protected:
    char*        _szStrCopy;
    const char*  _szDelimiters;     // token delimiter as string
    char*        _aszTokens[MAX_TOKENS];    // Maximal n Tokens allowed
@@ -31,6 +33,7 @@ private:
    mutable char* _result; // Mutable to allow modification in const method
    mutable uint8_t _currentIndex = 0;
 
+private:
 
    void tokenize() {
       if (!_szStrCopy || !_szDelimiters) {
@@ -245,6 +248,119 @@ public:
    // Optionally, add a method to reset the index
    void reset() const {
       _currentIndex = 0;
+   }
+};
+
+#define MAX_DELIMITERS 3
+
+class CxMultiStrToken : public CxStrToken {
+private:
+   const char* _delimiters[MAX_DELIMITERS];
+   uint8_t _delimiterCount;
+   uint8_t _delimiterUsed[MAX_TOKENS];
+   
+   void tokenize() {
+      if (!_szStrCopy || _delimiterCount == 0) return;
+      char* current = _szStrCopy;
+      _nCount = 0;
+      bool inQuotes = false;
+      while (*current && _nCount < MAX_TOKENS) {
+         // Skip leading delimiters if not inside quotes
+         if (!inQuotes) {
+            bool skipped = false;
+            for (uint8_t i = 0; i < _delimiterCount; ++i) {
+               size_t len = strlen(_delimiters[i]);
+               while (strncmp(current, _delimiters[i], len) == 0) {
+                  current += len;
+                  skipped = true;
+               }
+            }
+            if (skipped && *current == '\0') break;
+         }
+         if (*current == '\0') break;
+         
+         // Handle quote start
+         if (*current == '\"') {
+            inQuotes = true;
+            ++current;
+         }
+         
+         _aszTokens[_nCount] = current;
+         
+         // Find the end of the token
+         int foundDelimIdx = -1;
+         char* foundDelimPos = nullptr;
+         while (*current) {
+            if (inQuotes) {
+               if (*current == '\"') {
+                  inQuotes = false;
+                  ++current;
+                  break;
+               }
+               ++current;
+            } else {
+               bool foundDelim = false;
+               for (uint8_t i = 0; i < _delimiterCount; ++i) {
+                  size_t len = strlen(_delimiters[i]);
+                  if (strncmp(current, _delimiters[i], len) == 0) {
+                     foundDelim = true;
+                     foundDelimIdx = i;
+                     foundDelimPos = current;
+                     break;
+                  }
+               }
+               if (foundDelim) break;
+               if (*current == '\"') {
+                  inQuotes = true;
+               }
+               ++current;
+            }
+         }
+         
+         if (foundDelimPos) {
+            *foundDelimPos = '\0';
+            _delimiterUsed[_nCount] = foundDelimIdx + 1; // 1-based index
+            current = foundDelimPos + strlen(_delimiters[foundDelimIdx]);
+         } else {
+            _delimiterUsed[_nCount] = 0; // No delimiter after last token
+         }
+         ++_nCount;
+      }
+   }
+   
+public:
+   CxMultiStrToken() : CxStrToken(), _delimiterCount(0) {}
+   
+   CxMultiStrToken(const char* sz, const char* delimiters[], uint8_t delimiterCount)
+   : CxStrToken(), _delimiterCount(delimiterCount) {
+      for (uint8_t i = 0; i < delimiterCount && i < MAX_DELIMITERS; ++i) {
+         _delimiters[i] = delimiters[i];
+      }
+      setString(sz, delimiters, delimiterCount);
+   }
+   
+   void setString(const char* sz, const char* delimiters[], uint8_t delimiterCount) {
+      delete[] _szStrCopy;
+      if (!sz || delimiterCount == 0) {
+         _szStrCopy = nullptr;
+         _nCount = 0;
+         _delimiterCount = 0;
+         return;
+      }
+      _szStrCopy = new char[strlen(sz) + 1];
+      strcpy(_szStrCopy, sz);
+      _delimiterCount = delimiterCount;
+      for (uint8_t i = 0; i < delimiterCount && i < MAX_DELIMITERS; ++i) {
+         _delimiters[i] = delimiters[i];
+      }
+      _nCount = 0;
+      tokenize();
+   }
+   
+   // Returns the 1-based delimiter index used for the token at i, or 0 if none
+   uint8_t delimiterIndex(uint8_t i) const {
+      if (i >= _nCount) return 0;
+      return _delimiterUsed[i];
    }
 };
 

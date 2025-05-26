@@ -22,7 +22,11 @@ CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
    if (!cmd) return false;
 
-   CxStrToken* ptkCmd = new CxStrToken(cmd, ";");
+   // syntax:
+   // <cmd><delimiter><cmd><delimiter>...
+   const char* aszDelimiters[] = {";", "&&", "||"};
+   
+   CxMultiStrToken* ptkCmd = new CxMultiStrToken(cmd, aszDelimiters, 3);
    
    if (!ptkCmd) {
       return false;
@@ -32,6 +36,19 @@ bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
    
    for (uint8_t i = 0; i < ptkCmd->count(); i++) {
       String* pstrCmd = new String(TKTOCHAR(*ptkCmd, i));
+      uint8_t nLogic = 0; // 0: no logic, 1: AND, 2: OR
+      
+      switch (ptkCmd->delimiterIndex(i)) {  // 1-based return. 0: no delimiter used
+         case 2: // 2nd delimiter
+            nLogic = 1;
+            break;
+         case 3: // 3rd
+            nLogic = 2;
+            break;
+         default: // 0 and 1st
+            nLogic = 0;
+      }
+      
       if (pstrCmd) {
          if (pstrCmd->startsWith("{")) {
             processData(pstrCmd->c_str());
@@ -57,6 +74,20 @@ bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
          }
          delete pstrCmd;
       }
+            
+      // TODO: improve compatibility with POSIX
+      // example: test 1 -eq 0 && echo hello || echo world
+      // since the first expression fails, the later command echo world is not processed (same with ";").
+      // this is not compatible with the POSIX
+      
+      if (nLogic == 1 && getExitValue()) { // AND logic, break, if the command was not successful (exit value is > 0)
+         overallResult = true; // consider it as done, the next command will not be processed
+         break; // Stop processing further commands
+      } else if (nLogic == 2 && getExitValue() == 0) { // OR logic, break, if the command was successful
+         overallResult = true; // consider it as done, the next command will not be processed
+         break; // Stop processing further commands
+      }
+
    }
    delete ptkCmd;
    return overallResult;

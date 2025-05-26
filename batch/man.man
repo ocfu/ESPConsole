@@ -204,17 +204,27 @@ echo
 # condition evaluation utility
 #
 test:
-echo "test <expression> <cmd>"
-echo "expressions:"
-echo "-f <file>     True if file exists"
-echo "-z <string>   True if the length of string is zero"
-echo "-n <string>   True if the length of string is nonzero"
-echo "s1 = s2       True if s1 == s2"
-echo "s1 != s2      True if s1 != s2"
-echo "n1 -eq n2     True if n1 == n2"
-echo "n1 -ne n2     True if n1 != n2"
-echo "n1 -lt n2     True if n1 < n2"
-echo "n1 -le n2     True if n1 <= n2"
-echo "n1 -gt n2     True if n1 > n2"
-echo "n1 -ge n2     True if n1 >= n2"
-echo "! <expression> True if expression is false"
+echo "$(USAGE) test <expression>"
+echo "  Condition evaluation utility"
+echo "  The test utility evaluates the expression and, if it evaluates to true, returns a zero (true) exit value; otherwise it"
+echo "  returns 1 (false).  If there is no expression, test also returns 1 (false)."
+echo
+echo "$(ESC_BOLD)Expression:$(ESC_RESET)"
+echo "  -f <file>     True if file exists"
+echo "  -z <string>   True if the length of string is zero"
+echo "  -n <string>   True if the length of string is nonzero"
+echo "  s1 = s2       True if s1 == s2"
+echo "  s1 != s2      True if s1 != s2"
+echo "  n1 -eq n2     True if n1 == n2"
+echo "  n1 -ne n2     True if n1 != n2"
+echo "  n1 -lt n2     True if n1 < n2"
+echo "  n1 -le n2     True if n1 <= n2"
+echo "  n1 -gt n2     True if n1 > n2"
+echo "  n1 -ge n2     True if n1 >= n2"
+echo "  ! <expression> True if expression is false"
+
+#
+ping:
+echo "$(USAGE) ping <host> <port>"
+echo "   Sets the exit value $? to 0 (true) or 1 (false) if the host:port is reachable."
+
