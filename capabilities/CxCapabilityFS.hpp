@@ -798,6 +798,7 @@ private:
    }
    
    void executeBatch(const char* path, const char* label, const char* arg = nullptr) {
+      if (!path) return;
       
       g_Stack.DEBUGPrint(getIoStream(), 0, label);
       
@@ -805,8 +806,12 @@ private:
       
       std::map<String, String> mapTempVariables;
       
-      if (label) mapTempVariables[F("LABEL")] = label;
-      if (arg) mapTempVariables[F("?")] = arg;
+      mapTempVariables[F("0")] = label ? label : "?";
+      
+      if (label) {
+         mapTempVariables[F("LABEL")] = label;
+      }
+      if (arg) __console.setArgVariables(mapTempVariables, arg);
 
       strBatchFile = "";
       

@@ -616,6 +616,8 @@ public:
    
    void substituteVariables(String& str, std::map<String, String>& mapVariables, bool bReplaceIfNotSet = true) {
       int32_t start = 0;
+
+      // Perform variable substitution for variables using parenthesis
       while ((start = str.indexOf("$(", start)) != -1) {
          int end = str.indexOf(")", start + 2);
          if (end == -1) break;
@@ -633,10 +635,37 @@ public:
             }
          }
       }
+      
+      // Perform variable substitution for variables not using parenthesis
+      if (str.indexOf("$") != -1) {
+         for (const auto& var : mapVariables) {
+            str.replace("$" + var.first, var.second);
+         }
+      }
+
    }
    
    void substituteVariables(String& str) {
       substituteVariables(str, _mapSetVariables);
+   }
+   
+   void setArgVariables(std::map<String, String>& mapVariables, const char* szArgs) {
+      if (szArgs) {
+         // split the arguments by space and store them in the map
+         CxStrToken tkArgs(szArgs, " ");
+         mapVariables[F("@")] = mapVariables[F("0")] + " ";  // 0 should be set by the caller
+         mapVariables[F("@")] = mapVariables[F("@")] + szArgs; // store the whole original arguments string
+         mapVariables[F("#")] = String(tkArgs.count()); // store the number of arguments
+         
+         const char* szArg = tkArgs.get().as<const char*>();
+         
+         // Iterate through the arguments and store them in the map
+         uint32_t i = 1; // Start from 1
+         while (szArg) {
+            mapVariables[String(i++)] = szArg; // store the argument with its index
+            szArg = tkArgs.next().as<const char*>();
+         }
+      }
    }
 
 };
