@@ -345,31 +345,19 @@ public:
                __console.setExitValue(1);
             }
          } else if (strVar.length() > 0) {
-            float fValue = 0.0F;
-            char* end = nullptr;
-            if (strValue.startsWith("$")) {  // we need this? substitution done on higher level actually
-               __console.substituteVariables(strValue);
-            }
-            fValue = std::strtod(strValue.c_str(), &end); // return as uint32_t with auto base
+            bool bValid = true;
             
-            // Check if the conversion failed (no characters processed or out of range), then concat two strings
-            if (!end || end == strValue.c_str() || *end != '\0') {
-               // MARK: not sure, if we really need to concatenate strings...
-               //if (strValue.length() < 100 && strOp2 == "+") strValue.concat(strValue2);
-            } else {
-               if (strOp2 == "+") {
-                  fValue += strValue2.toFloat();
-               } else if (strOp2 == "-") {
-                  fValue -= strValue2.toFloat();
-               } else if (strOp2 == "*") {
-                  fValue *= strValue2.toFloat();
-               } else if (strOp2 == "/") {
-                  float f = strValue2.toFloat();
-                  if (f != 0.0) {
-                     fValue /= f;
-                  }
+            if (strExpr.length()) {
+               ExprParser parser;
+               float fValue = 0.0F;
+
+               fValue = parser.eval(strExpr.c_str(), bValid);
+               
+               if (bValid) {
+                  strValue = String(fValue, prec);
+               } else {
+                  strValue = "nan";
                }
-               strValue = String(fValue, prec);
             }
             
             strValue.trim();
@@ -378,6 +366,9 @@ public:
                __console.addVariable(strVar.c_str(), strValue.c_str());
             } else {
                __console.removeVariable(strVar.c_str());
+            }
+            if (strVar != "?") {
+               __console.setExitValue(!bValid); // don't set exit value, if variable is exit value
             }
          } else {
             /// print all variables
