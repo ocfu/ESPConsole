@@ -634,6 +634,7 @@ private:
    uint8_t _nQos;             ///< QoS level (0, 1, or 2).
    CxMqttManager& _mqttManager = CxMqttManager::getInstance(); ///< MQTT manager instance.
    CxMqttManager::tCallback _cb; ///< Callback function for received messages.
+   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
    /**
@@ -663,6 +664,7 @@ public:
 
    
    bool hasTopic() { return (_strTopic.length());} ///< Checks if the topic is set.
+   bool hasCb() {return (_cb != nullptr);}
    
    const char* getTopic() {return _strTopic.c_str();} ///< Retrieves the topic string.
    
