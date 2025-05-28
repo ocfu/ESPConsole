@@ -1017,10 +1017,12 @@ public:
    void blink() {_nBlinkCnt = 0xfff2;} // endless blinking
    
    void showMsg(const char *szMsg, unsigned nRemain = 5000) {
-      _timerMsg.start(nRemain, false);
-      _bDisableUpdate = true;
-      clear();
-      segprint(szMsg);
+      if (szMsg) {
+         _timerMsg.start(nRemain, false);
+         _bDisableUpdate = true;
+         clear();
+         segprint(szMsg);
+      }
    }
    
    void showOption(uint8_t nOptSeg) {
