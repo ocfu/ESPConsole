@@ -870,7 +870,7 @@ private:
             
             // Remove inline comments starting with #
             char* commentStart = strchr(buffer, '#');
-            if (commentStart) {
+            if (commentStart && *(commentStart - 1) != '$' && (len > 2 && *(commentStart - 2 ) != '$' && *(commentStart - 1) != '(')) { // $# and $(#) are not comments
                *commentStart = '\0'; // Truncate the line at the # character
                trim(buffer); // Remove any trailing whitespace after truncation
             }
