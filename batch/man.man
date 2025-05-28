@@ -230,7 +230,7 @@ echo "  del <id>"
 echo "  start <id>"
 echo "  stop <id>"
 echo "  list"
-echo
+
 
 #
 # test
@@ -260,4 +260,20 @@ echo "  ! <expression> True if expression is false"
 ping:
 echo "$(USAGE) ping <host> <port>"
 echo "   Sets the exit value $? to 0 (true) or 1 (false) if the host:port is reachable."
+
+#
+processdata:
+echo "$(USAGE) processdata <type>"
+echo   Processing of received data and converting into system variables.
+echo
+echo "$(ESC_BOLD)Types:$(ESC_RESET)"
+echo "  json <json path> <command>"
+echo "  list"
+echo
+echo $(EXAMPLES)
+echo "processdata json "data.a" "set a = $(VALUE) && echo $a"
+echo
+echo "$(ESC_BOLD)Variables:$(ESC_RESET)"
+echo " jsonstate <path to json state>   set this variable, if the json data contains a valid state.
+
 
