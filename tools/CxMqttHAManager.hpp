@@ -255,6 +255,10 @@ public:
       _strId += getName();
    }
    
+   bool hasCmdIF() {return __bCmd;}
+   
+   void setCmdCb(CxMqttManager::tCallback cb) {_mqttCmdTopic.setCb(cb);}
+   
    /**
     * @brief Sanitize and set entity name
     * @param sz Raw name input
@@ -905,8 +909,8 @@ public:
    void printList(Stream& stream) {
       CxTablePrinter table(stream);
       
-      std::vector<String> vHeadLine = {F("Nr"),F("Name"),F("Friendly Name"),F("Type"), F("Available"),F("Retained"),F("Topic Base")};
-      std::vector<uint8_t> vWidths =  {  3,  20,  20,  10,   9,   8,  30};
+      std::vector<String> vHeadLine = {F("Nr"),F("Name"),F("Friendly Name"),F("Type"), F("Available"),F("Retained"),F("Topic Base"), F("Has Cb"), F("/cmd")};
+      std::vector<uint8_t> vWidths =  {  3,  20,  20,  10,   9,   8,  30, 6, 10};
       
       table.printHeader(vHeadLine, vWidths);
      
@@ -916,7 +920,7 @@ public:
       
       while(it != _vecItems.end())
       {
-         table.printRow({String(n).c_str(), (*it)->getName(), (*it)->getFriendlyName(), (*it)->getTypeSz(), (*it)->isAvailable()?"yes":"no", (*it)->isRetainedCmd()?"yes":"no", (*it)->getTopicBase()});
+         table.printRow({String(n).c_str(), (*it)->getName(), (*it)->getFriendlyName(), (*it)->getTypeSz(), (*it)->isAvailable()?"yes":"no", (*it)->isRetainedCmd()?"yes":"no", (*it)->getTopicBase(), (*it)->hasCb()?"yes":"no", (*it)->hasCmdIF()?"yes":"no"});
          it++;
          n++;
       }
