@@ -170,12 +170,14 @@ class CxCapabilityExt : public CxCapability {
    
    bool _bWifiConnected = false;
    
+   std::map<String, String> _mapProcessJsonDataItems;
+   
 public:
    /// Default constructor and default capabilities methods
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -1007,13 +1009,100 @@ public:
             }
             __console.setExitValue(1);
          }
-      } else {
+      } else if (cmd == "processdata") {
+         String strType = TKTOCHAR(tkArgs, 1);
+         if (strType == "json" && tkArgs.count() > 3) {
+            if (!_mapProcessJsonDataItems.size()) {
+               // register processdata method with the first set data item
+               __console.setFuncProcessData([this](const char* data)->bool{
+                  
+                  // prints the received data to the console
+                  __console.printLog(LOGLEVEL_DEBUG_EXT, DEBUG_FLAG_USER, data);
+                  bool bSucccess = false;
+                  
+                  const char* jsonState = __console.getVariable("jsonstate");
+
+                  DynamicJsonDocument doc(1024);
+                  DeserializationError error = deserializeJson(doc, data);
+                  if (!error) {
+                     bool bValid = true;
+                     
+                     if (jsonState) {
+                        const char* pszJsonState = getJsonValueSz(doc, jsonState, "true");
+                        if (pszJsonState && strcmp(pszJsonState, "false") == 0) {
+                           bValid = false;
+                        }
+                     }
+                     
+                     if (bValid) {
+                        for (const auto& pair : _mapProcessJsonDataItems) {
+                           const char* szJsonValue = getJsonValueSz(doc, pair.first.c_str(), "");
+                           if (szJsonValue) {
+                              String strCmd = pair.second;
+                              _CONSOLE_DEBUG_EXT(DEBUG_FLAG_DATA_PROC, F("process json data %s = %s"), pair.first.c_str(), szJsonValue);
+                              strCmd.replace(F("$(VALUE)"), szJsonValue);
+                              __console.processCmd(strCmd.c_str());
+                           }
+                        }
+                        bSucccess = true;
+                     } else {
+                        _CONSOLE_DEBUG_EXT(DEBUG_FLAG_DATA_PROC, F("json state is false, stop processing the data"));
+                     }
+                  } else {
+                     __console.error(F("json data de-serialisation error!"));
+                  }
+                  return true;
+               });
+            }
+            _mapProcessJsonDataItems[TKTOCHAR(tkArgs, 2)] = TKTOCHAR(tkArgs, 3);
+            __console.setExitValue(0);
+         } else if (strType == "list") {
+            CxTablePrinter table(getIoStream());
+            table.printHeader({F("Json Path"), F("Command")}, {20, 40});
+            for (const auto& pair : _mapProcessJsonDataItems) {
+               table.printRow({pair.first, pair.second.c_str()});
+            }
+            __console.setExitValue(0);
+         } else {
+            __console.setExitValue(1);
+         }
+      }
+      else {
          return false;
       }
       g_Stack.update();
       return true;
    }
    
+   const char* getJsonValueSz(const JsonDocument& doc, const char* path, const char* defaultValue) {
+      JsonVariant var = const_cast<JsonDocument&>(doc);
+      char buf[64];
+      strncpy(buf, path, sizeof(buf));
+      buf[sizeof(buf) - 1] = '\0';
+      
+      char* token = strtok(buf, ".");
+      while (token && var.is<JsonObject>()) {
+         var = var[token];
+         token = strtok(nullptr, ".");
+      }
+      if (var.isNull()) return defaultValue;
+      
+      static char result[32];
+      if (var.is<const char*>()) {
+         return var.as<const char*>();
+      } else if (var.is<bool>()) {
+         snprintf(result, sizeof(result), "%s", var.as<bool>() ? "true" : "false");
+         return result;
+      } else if (var.is<int>()) {
+         snprintf(result, sizeof(result), "%d", var.as<int>());
+         return result;
+      } else if (var.is<float>()) {
+         snprintf(result, sizeof(result), "%g", var.as<float>());
+         return result;
+      }
+      return defaultValue;
+   }
+
    void printHW() {
       printf(F(ESC_ATTR_BOLD "    Chip Type:" ESC_ATTR_RESET " %s " ESC_ATTR_BOLD "Chip-ID: " ESC_ATTR_RESET "0x%X\n"), getChipType(), getChipId());
 #ifdef ARDUINO

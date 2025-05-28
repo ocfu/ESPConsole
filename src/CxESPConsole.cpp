@@ -22,6 +22,10 @@ CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
    if (!cmd) return false;
 
+   if (cmd && *cmd == '{') {
+      return processData(cmd);
+   }
+   
    // syntax:
    // <cmd><delimiter><cmd><delimiter>...
    const char* aszDelimiters[] = {";", "&&", "||"};
@@ -50,27 +54,23 @@ bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
       }
       
       if (pstrCmd) {
-         if (pstrCmd->startsWith("{")) {
-            processData(pstrCmd->c_str());
-         } else {
-            substituteVariables(*pstrCmd);
-            pstrCmd->replace("§", "$"); // § used in quotes for variables.
+         substituteVariables(*pstrCmd);
+         pstrCmd->replace("§", "$"); // § used in quotes for variables.
+         
+         for (auto& entry : _mapCapInstances) {
+            bool bResult = false;
             
-            for (auto& entry : _mapCapInstances) {
-               bool bResult = false;
-               
-               entry.second->setIoStream(*__ioStream);
-               bResult = entry.second->processCmd(pstrCmd->c_str(), nClient);
-               if (bResult && !pstrCmd->startsWith("?")) {
-                  overallResult = true;
-                  break; // Stop processing further instances for this command
-               }
+            entry.second->setIoStream(*__ioStream);
+            bResult = entry.second->processCmd(pstrCmd->c_str(), nClient);
+            if (bResult && !pstrCmd->startsWith("?")) {
+               overallResult = true;
+               break; // Stop processing further instances for this command
             }
-            
-            if (!overallResult && pstrCmd->length() > 0 && !pstrCmd->startsWith("?")) {
-               println("Unknown command: ");
-               println(pstrCmd->c_str());
-            }
+         }
+         
+         if (!overallResult && pstrCmd->length() > 0 && !pstrCmd->startsWith("?")) {
+            println("Unknown command: ");
+            println(pstrCmd->c_str());
          }
          delete pstrCmd;
       }

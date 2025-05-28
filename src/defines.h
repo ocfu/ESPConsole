@@ -155,6 +155,7 @@
 #define DEBUG_FLAG_MQTT_PUBLISH     0x40
 
 #define DEBUG_FLAG_SENSOR           0x80
+#define DEBUG_FLAG_DATA_PROC        0x100
 
 
 #define DEBUG_FLAG_USER             0x1000
