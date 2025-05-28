@@ -921,7 +921,7 @@ private:
             __console.substituteVariables(command, mapTempVariables, false);
             
             // Substitue command with global variables
-            __console.substituteVariables(command);
+            //__console.substituteVariables(command);
             
 
             if (command.endsWith(":")) {
