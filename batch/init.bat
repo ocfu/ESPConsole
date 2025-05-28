@@ -32,8 +32,8 @@ break on $(SAFEMODE)
 
 # final initialisations
 final:
-timer add 15s "wifi connect;prompt" tiRecon repeat
-timer add 1m "wifi check -q" tiWifi repeat
+timer add 15s "wifi connect;prompt" tiRecon
+timer add 1m "wifi check -q" tiWifi
 wifi connect
 stack off
 usr 0
