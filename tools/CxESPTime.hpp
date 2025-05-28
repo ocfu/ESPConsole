@@ -36,15 +36,13 @@
 class CxESPTime {
    char _buf[20];
    
-   static constexpr uint32_t _nTimerMax = 8;
-   
    std::vector<CxTimer*> _timers;
    
 public:
    CxESPTime() : _strNtpServer(F("pool.ntp.org")), _strTz(F("GMT0")) {__initTime();};
    
    bool addTimer(CxTimer* pTimer) {
-      if (pTimer && _timers.size() < _nTimerMax) {
+      if (pTimer) {
          // Check, if the timer has an id
          if (!pTimer->getId()[0]) {
             static uint8_t nId = 1;
