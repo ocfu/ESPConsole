@@ -96,7 +96,10 @@ private:
    
    std::vector<std::unique_ptr<CxMqttHAButton>> _vHAButton;
    std::vector<std::unique_ptr<CxMqttHASwitch>> _vHASwitch; // for relay devices
-   
+   std::vector<std::unique_ptr<CxMqttHASelect>> _vHASelect; // for select control
+   std::vector<std::unique_ptr<CxMqttHANumber>> _vHANumber; // for number input
+   std::vector<std::unique_ptr<CxMqttHAText>>   _vHAText;   // for text input
+
 
 public:
    /// Default constructor and default capabilities methods.
@@ -241,6 +244,26 @@ public:
                addSwitch(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOCHAR(tkArgs, 5));
             } else if (strSub2Cmd == "del") {
                deleteSwitch(TKTOCHAR(tkArgs, 3));
+            }
+         } else if (strSubCmd == "select") {
+            if (strSub2Cmd == "add") {
+               addSelect(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), {});
+            } else if (strSub2Cmd == "del") {
+               deleteSelect(TKTOCHAR(tkArgs, 3));
+            } else if (strSub2Cmd == "addopt") {
+               addOptSelect(TKTOCHAR(tkArgs, 3), TKTOCHARAFTER(tkArgs, 4));
+            }
+         } else if (strSubCmd == "number") {
+            if (strSub2Cmd == "add") {
+               addNumber(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), TKTOCHAR(tkArgs, 6));
+            } else if (strSub2Cmd == "del") {
+               deleteNumber(TKTOCHAR(tkArgs, 3));
+            }
+         } else if (strSubCmd == "text") {
+            if (strSub2Cmd == "add") {
+               addText(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), TKTOCHAR(tkArgs, 6));
+            } else if (strSub2Cmd == "del") {
+               deleteText(TKTOCHAR(tkArgs, 3));
             }
          } else if (strSubCmd == "state") {
             // ha state <name> <state>
@@ -439,6 +462,152 @@ public:
          }
       }
    }
+      
+   void addSelect(const char* szName, const char* fn, bool bAsConfig, const std::vector<String>& vOpt) {
+      if (!_mqttHAdev.findItem(szName)) {
+         auto ptr = std::make_unique<CxMqttHASelect>(szName, vOpt, nullptr);
+         CxMqttHASelect* rawPtr = ptr.get();
+         
+         if (ptr) {
+            ptr->setFn(fn);
+            if (bAsConfig) ptr->asConfig(); // this sets the retain flag on the /cmd topic and ensures to be set, afer restart
+            
+            // set the command callback for the topic subscription
+            ptr->setCmdCb([this, rawPtr](const char* topic, uint8_t* payload, unsigned int len) -> bool {
+               // callback
+               CxMqttHASelect* me = static_cast<CxMqttHASelect*>(_mqttHAdev.findItem(rawPtr->getName()));
+               if (me) {
+                  String strCmd;
+                  strCmd.reserve(40);
+                  strCmd = "exec $(userscript) ";
+                  strCmd += rawPtr->getName();
+                  strCmd += " ";
+                  strCmd += me->getOption(payload, len);
+                  __console.processCmd(strCmd.c_str());
+                  me->publishState(me->getOptionStr());
+               }
+               return true;
+            });
+            _vHASelect.push_back(std::move(ptr));
+         } else {
+            __console.error(F("error adding HA item (oom?)"));
+         }
+      }
+   }
+   
+   void addOptSelect(const char* szName, const char* szOpt) {
+      if (!szName || !*szName || !szOpt) return;
+      for (auto it = _vHASelect.begin(); it != _vHASelect.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->addOption(szOpt);
+            break;
+         }
+      }
+   }
+   
+   void deleteSelect(const char* szName) {
+      for (auto it = _vHASelect.begin(); it != _vHASelect.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->publishAvailability(false);
+            _vHASelect.erase(it);
+            break;
+         }
+      }
+   }
+
+   void addNumber(const char* szName, const char* fn, bool bAsConfig, const char* szParam) {
+      if (!_mqttHAdev.findItem(szName)) {
+         auto ptr = std::make_unique<CxMqttHANumber>(szName);
+         CxMqttHANumber* rawPtr = ptr.get();
+         
+         if (ptr) {
+            CxStrToken tkParam(szParam, ",");
+            ptr->setMin(TKTOINT(tkParam, 0, 0));
+            ptr->setMax(TKTOINT(tkParam, 1, 100));
+            ptr->setStep(TKTOINT(tkParam, 2, 10));
+            ptr->setUnit(TKTOCHAR(tkParam, 3));
+
+            ptr->setFn(fn);
+            if (bAsConfig) ptr->asConfig(); // this sets the retain flag on the /cmd topic and ensures to be set, afer restart
+            
+            // set the command callback for the topic subscription
+            ptr->setCmdCb([this, rawPtr](const char* topic, uint8_t* payload, unsigned int len) -> bool {
+               // callback
+               CxMqttHASelect* me = static_cast<CxMqttHASelect*>(_mqttHAdev.findItem(rawPtr->getName()));
+               if (me) {
+                  int32_t nValue = (int32_t)strtod((char*)payload, nullptr);
+                  String strCmd;
+                  strCmd.reserve(40);
+                  strCmd = "exec $(userscript) ";
+                  strCmd += rawPtr->getName();
+                  strCmd += " ";
+                  strCmd += nValue;
+                  __console.processCmd(strCmd.c_str());
+                  me->publishState(nValue, 0);
+               }
+               return true;
+            });
+            _vHANumber.push_back(std::move(ptr));
+         } else {
+            __console.error(F("error adding HA item (oom?)"));
+         }
+      }
+   }
+   
+   void deleteNumber(const char* szName) {
+      for (auto it = _vHANumber.begin(); it != _vHANumber.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->publishAvailability(false);
+            _vHANumber.erase(it);
+            break;
+         }
+      }
+   }
+
+   void addText(const char* szName, const char* fn, bool bAsConfig, const char* szParam) {
+      if (!_mqttHAdev.findItem(szName)) {
+         auto ptr = std::make_unique<CxMqttHAText>(szName);
+         CxMqttHAText* rawPtr = ptr.get();
+         
+         if (ptr) {
+            CxStrToken tkParam(szParam, ",");
+            ptr->setMax(TKTOINT(tkParam, 0, 64));
+            ptr->setFn(fn);
+            if (bAsConfig) ptr->asConfig(); // this sets the retain flag on the /cmd topic and ensures to be set, afer restart
+            
+            // set the command callback for the topic subscription
+            ptr->setCmdCb([this, rawPtr](const char* topic, uint8_t* payload, unsigned int len) -> bool {
+               // callback
+               CxMqttHASelect* me = static_cast<CxMqttHASelect*>(_mqttHAdev.findItem(rawPtr->getName()));
+               if (me) {
+                  String strCmd;
+                  strCmd.reserve(40);
+                  strCmd = "exec $(userscript) ";
+                  strCmd += rawPtr->getName();
+                  strCmd += " ";
+                  strCmd += (char*) payload;
+                  __console.processCmd(strCmd.c_str());
+                  me->publishState((char*) payload);
+               }
+               return true;
+            });
+            _vHAText.push_back(std::move(ptr));
+         } else {
+            __console.error(F("error adding HA item (oom?)"));
+         }
+      }
+   }
+   
+   void deleteText(const char* szName) {
+      for (auto it = _vHAText.begin(); it != _vHAText.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->publishAvailability(false);
+            _vHAText.erase(it);
+            break;
+         }
+      }
+   }
+
 
    static void loadCap() {
       CAPREG(CxCapabilityMqttHA);

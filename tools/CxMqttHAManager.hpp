@@ -1003,7 +1003,8 @@ class CxMqttHAText : public CxMqttHABase {
 // https://www.home-assistant.io/integrations/text.mqtt/
 private:
    uint32_t _nMax;
-   
+   String _strFriendlyName;
+
 public:
    
    CxMqttHAText(const char* fn, const char* name, uint32_t max, bool available = false, CxMqttManager::tCallback cb = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb, nullptr, retain), _nMax(max) {
@@ -1014,6 +1015,10 @@ public:
       setAvailable(available);
       
    }
+   CxMqttHAText(const char* szName) : CxMqttHAText(szName, szName, 64, true) {}
+   
+   void setFn(const char* fn) {_strFriendlyName = fn; setFriendlyName(_strFriendlyName.c_str());}
+   void setMax(uint32_t set) {_nMax = set;}
    
    void addJsonConfig(JsonDocument &doc) const {
       
@@ -1142,25 +1147,32 @@ private:
    int32_t _nStep;
    
    const char* _szDeviceClass;
-   const char* _szUnit;
-   
-   
+   String _strUnit;
+   String _strFriendlyName;
+      
 public:
    
-   CxMqttHANumber(const char* fn, const char* name, const char* dclass, bool available = false, CxMqttManager::tCallback cb = nullptr, int32_t min = 0, int32_t max = 100, int32_t step = 1, const char* unit = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb, nullptr, retain), _nMin(min), _nMax(max), _nStep(step), _szUnit(unit), _szDeviceClass(dclass) {
+   CxMqttHANumber(const char* fn, const char* name, const char* dclass = nullptr, bool available = false, CxMqttManager::tCallback cb = nullptr, int32_t min = 0, int32_t max = 100, int32_t step = 1, const char* unit = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb, nullptr, retain), _nMin(min), _nMax(max), _nStep(step), _strUnit(unit), _szDeviceClass(dclass) {
       
       __eCat = e_cat::none;
       __eType = e_type::HAnumber;
       __bCmd = true;
       setAvailable(available);
    }
+   CxMqttHANumber(const char* szName) : CxMqttHANumber(szName, szName, nullptr, true) {}
    
+   void setMin(int32_t set) {_nMin = set;}
+   void setMax(int32_t set) {_nMax = set;}
+   void setStep(int32_t set) {_nStep = set;}
+   void setUnit(const char* set) {_strUnit = set;}
+   void setFn(const char* fn) {_strFriendlyName = fn; setFriendlyName(_strFriendlyName.c_str());}
+
    void addJsonConfig(JsonDocument &doc) const {
       doc[F("min")] = _nMin;
       doc[F("max")] = _nMax;
       doc[F("step")] = _nStep;
       if (_szDeviceClass) doc[F("dev_cla")] = _szDeviceClass;
-      if (_szUnit) doc[F("unit_of_meas")] = _szUnit;
+      if (_strUnit.length()) doc[F("unit_of_meas")] = _strUnit.c_str();
 
    }
    
@@ -1265,76 +1277,59 @@ public:
 class CxMqttHASelect : public CxMqttHABase {
    //https://www.home-assistant.io/integrations/select.mqtt/
 private:
-   const char* _szOptionsJs;
+   std::vector<String> _vOptions;
    uint8_t _nOption;
+   String _strFriendlyName;
    
 public:
-   CxMqttHASelect(const char* fn, const char* name, bool available = false, CxMqttManager::tCallback cb = nullptr, const char* szOptionsJs = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb), _szOptionsJs(szOptionsJs), _nOption(0) {
+   CxMqttHASelect(const char* fn, const char* name, bool available = false, CxMqttManager::tCallback cb = nullptr, const std::vector<String>* pvOpt = nullptr, bool retain = false) : CxMqttHABase(fn, name, nullptr, cb), _nOption(0) {
+      if (pvOpt) _vOptions = *pvOpt;
       __eCat = e_cat::none;
       __eType = e_type::HAselect;
       __bCmd = true;
       setAvailable(available);
    }
+   CxMqttHASelect(const char* name, const std::vector<String>& vOpt, CxMqttManager::tCallback cb = nullptr) : CxMqttHASelect("", name, true, cb, &vOpt) {}
    
    uint8_t getOption(uint8_t* payload, unsigned int len) {
       _nOption = 0;
-      
-      StaticJsonDocument<512> docOptions;
-      DeserializationError error = deserializeJson(docOptions, _szOptionsJs); // as array: e.g. "[1,2,3]"
-      
-      if (!error) {
-         JsonArray arr = docOptions.as<JsonArray>();
-         uint8_t i = 0;
-         for (JsonVariant value : arr) {
-            i++;
-            if (strncmp ((char*) payload, value.as<const char*>(), len) == 0) {
-               setOption(i);
-               break;
-            };
-         }
-         return getOption(); // 0: option not found/set
-      } else {
-         return 0;
+      for (size_t i = 0; i < _vOptions.size(); ++i) {
+         if (std::strcmp(_vOptions[i].c_str(), (char*) payload) == 0)
+            return static_cast<int>(i+1); // 1-based return
       }
+      return getOption(); // 0: option not found/set
    }
+   
+   void addOption(const char* szOpt) {
+      if (!szOpt) return;
+      _vOptions.push_back(szOpt);
+   }
+   
+   void setFn(const char* fn) {_strFriendlyName = fn; setFriendlyName(_strFriendlyName.c_str());}
    
    uint8_t getOption() {return _nOption;}
    void setOption(uint8_t set) {_nOption = set;}
    
-   String getOptionStr(uint8_t nOpt = 0) {
-      String str;  // need to use (and "copy") String here, as json doc cannot return a const char* (becomes invalid at return)
-      
+   const char* getOptionStr(uint8_t nOpt = 0) {
       if (!nOpt) nOpt = _nOption;
       
-      if (nOpt) {
-         StaticJsonDocument<512> docOptions;
-
-         DeserializationError error = deserializeJson(docOptions, _szOptionsJs);
-         
-         if (!error) {
-            JsonArray arr = docOptions.as<JsonArray>();
-            str = arr[nOpt - 1].as<const char*>();
-         } else {
-            str = "";
-         }
+      if (nOpt && nOpt <= _vOptions.size()) {
+         return _vOptions[nOpt].c_str();
       }
-      return str;
+      return "";
    }
    
    //void publishState() {CxMqttHABase::publishState(getOptionStr().c_str());}
       
    void addJsonConfig(JsonDocument &doc) const override {
-      if (_szOptionsJs) {
-         StaticJsonDocument<256> docOptions;
-         DeserializationError error = deserializeJson(docOptions, _szOptionsJs); // as array: e.g. "[1,2,3]"
-         
-         if (!error) {
-            doc["options"] = docOptions.as<JsonArray>();
-         }
+      JsonArray arr = doc.createNestedArray("options");
+      for (const auto& option : _vOptions) {
+         arr.add(option.c_str());
       }
       //doc[F("icon")] = "mdi:palette";
+ 
    }
-   
+  
    void addJsonAction(JsonDocument& doc) const override {}
    
 };
