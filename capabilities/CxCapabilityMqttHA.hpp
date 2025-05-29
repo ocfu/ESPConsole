@@ -478,13 +478,17 @@ public:
                CxMqttHASelect* me = static_cast<CxMqttHASelect*>(_mqttHAdev.findItem(rawPtr->getName()));
                if (me) {
                   String strCmd;
-                  strCmd.reserve(40);
+                  uint8_t nOpt = me->getOption(payload, len); // 1-based
+                  strCmd.reserve(80);
                   strCmd = "exec $(userscript) ";
                   strCmd += rawPtr->getName();
                   strCmd += " ";
-                  strCmd += me->getOption(payload, len);
+                  strCmd += nOpt;  // arg 1 is index number
+                  strCmd += " ";
+                  strCmd += me->getOptionStr(nOpt); // arg 2 is the text string of the option
+                  strCmd += " TTT";
                   __console.processCmd(strCmd.c_str());
-                  me->publishState(me->getOptionStr());
+                  me->publishState(me->getOptionStr(nOpt));
                }
                return true;
             });

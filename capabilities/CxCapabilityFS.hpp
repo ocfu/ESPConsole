@@ -834,7 +834,7 @@ private:
       };
 
       _CONSOLE_INFO(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
-      if (arg) _CONSOLE_INFO(F("Argument: %s"), arg);
+      if (arg) _CONSOLE_INFO(F("Arguments: %s"), arg);
 
 #ifdef ARDUINO
       if (!LittleFS.exists(strBatchFile.c_str())) {

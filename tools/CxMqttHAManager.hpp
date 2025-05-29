@@ -1318,7 +1318,7 @@ public:
       if (!nOpt) nOpt = _nOption;
       
       if (nOpt && nOpt <= _vOptions.size()) {
-         return _vOptions[nOpt].c_str();
+         return _vOptions[nOpt-1].c_str();
       }
       return "";
    }
