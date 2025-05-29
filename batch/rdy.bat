@@ -24,7 +24,7 @@ ma:
 prompt "$(USER)@serial:/> "
 log info "System is ready!"
 rm .safemode   # system start was successful, no safemode needed at next boot
-test ! -f $(userscript).bak "cp $(userscript) $(userscript).bak"
+test ! -f $(userscript).bak && cp $(userscript) $(userscript).bak
 
 #
 # Client console setup
