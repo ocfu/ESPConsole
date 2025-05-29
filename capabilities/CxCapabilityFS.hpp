@@ -851,18 +851,27 @@ private:
       bool processCommands = true; // Start processing commands immediately
       _bBreakBatch = false;
       
-      char* buffer = new char[128];
-      
+      const size_t LINE_BUFFER_SIZE = 256;
+
+      char* buffer = new char[LINE_BUFFER_SIZE];
 
       if (buffer) {
          
          g_Stack.DEBUGPrint(getIoStream(), 0, "buffer");
 
          while (file.available()) {
-            size_t len = file.readBytesUntil('\n', buffer, 128 - 1);
+            size_t len = file.readBytesUntil('\n', buffer, LINE_BUFFER_SIZE - 1);
             buffer[len] = '\0'; // Null-terminate the string
             trim(buffer); // Remove any leading/trailing whitespace
             
+            // If the buffer filled up and no newline was found, discard the rest of the line
+            if (len == LINE_BUFFER_SIZE - 1 && buffer[len - 1] != '\n') {
+               char c;
+               while (file.available() && (c = file.read()) != '\n') {
+                  // Discard characters
+               }
+            }
+
             if (strlen(buffer) == 0 || buffer[0] == '#') {
                // Ignore empty lines and comments
                continue;
