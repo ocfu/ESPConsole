@@ -320,7 +320,12 @@ public:
          _timerUpdate.makeDue();
       } else {
          _timerUpdate.stop();
-      }      
+      }
+      String strCmd;
+      strCmd.reserve(40);
+      strCmd = "exec $(userscript) haenable ";
+      strCmd += enabled ? 1 : 0;
+      __console.processCmd(strCmd.c_str());
    }
    
    /// Adds a sensor to the MQTT Home Assistant device.
