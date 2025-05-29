@@ -1,113 +1,145 @@
 # This script is a template for user specific configurations.
 #
+
+###############################
+# local variables
+
+# MQTT settings
+name = "Project Name"
+root = esp/test/sensta
+port = 8883
+
+###############################
+# general and gpio setup is with fs
 #
 fs:
 
-# set system variables.
-set model xyz
-set feature i2c
-set hw ESP8266EX/80MHz/1M/64
-set name "Test ESP"
-set TZ CET-1CEST,M3.5.0,M10.5.0/3
+stack off # switch on to monitor stack usage
 
+set TZ CET-1CEST,M3.5.0,M10.5.0/3
+set url http://$(HOSTNAME)
+
+log server mac 8880
+log level 1
 led invert 1
 led off
 
-log server mac 8880
 
-#gpio add 16 button btn 1 "relay rly toggle"    # add a button, gpio 16 (no interupt)
-#gpio fn 16 Button # friendly name
+# gpio setup
+pinLed = 12
+pinCnt = 14
 
-# relay on gpio 0
-#gpio add 0 relay rly 0 "gpio let led1 = rly; rc let 0 = rly" # rc: follow relay on ch 0
-#gpio fn 0 Relay
+#        <pin>     <type>  <id>
+gpio add $(pinLed) led     ledbl
+gpio add $(pinCnt) counter c0 1 "exec §(userscript) cnt §(ADD)" 1 #as INPUT_PULLUP
+
+#additional settings
+gpio isr $(pinCnt) 0 10000     # <pin> <id> <dbounce us>
+gpio fn  $(pinLed) "Blue Led"  # <pin> <fiendly name>
+gpio fn  $(pinCnt) "Counter""
+
+# timer
+#         <period/cron>   <command>                        <id>           <mode>
+timer add "0 0 * * *"     "exec §(userscript) crMidnight"  crMidnight
+timer add 2m              "exec §(userscript) tiNanoCheck" tiValidateData
 
 
+# json processing of incoming data
+#                <json path> <command>
+processdata json "data.t"    "set t && test §(VALUE) -gt -40 && test §(VALUE) -lt 50   && set t/2 = §(VALUE)"
+processdata json "data.p"    "set p && test §(VALUE) -gt 850 && test §(VALUE) -lt 1100 && set p/2 = §(VALUE)"
+processdata json "data.h"    "set h && test §(VALUE) -ge 0   && test §(VALUE) -le 100  && set h/2 = §(VALUE) && exec §(userscript) data"
+
+set jsonstate "data.state"    # state path (if part of the json) for validation.
+
+# sensors
+#          <name>      <type>      <unit> <variable> <friendly name>
+sensor add cnt         volume      L      VT         Water
+sensor add temperature temperature °C     t          Temperature
+sensor add humidity    humidity    %      h          Humidity
+sensor add pressure    pressure    hPa    p          Pressure
+
+# events
 #
-# I2C
-#
-i2c:
-#i2c setpins 12 14
-#i2c init
-#i2c scan
-#i2c list
 
-#sensor name 0 temperature
-#sensor name 1 humidity
-#sensor name 2 pressure
+# on new data
+data:
+timer start tiValidateData
 
-#
+# on validate data: invalidate old sensor data
+tiValidateData:
+set .t
+set .p
+set .h
+
+# on counter:
+cnt:
+set VL/4 = $(VL) + $1 * $(LPP)   # fill the bucket
+
+
+################################
 # MQTT
 #
 mqtt:
-#mqtt server ocdk 8883
-#mqtt qos 0
-#mqtt root test
-#mqtt name $name
-#mqtt will 1
-#mqtt heartbeat 1000
+mqtt server ocdk $(port)
+mqtt qos 0
+mqtt root $(root)
+mqtt name $(name)
+mqtt will 1
+mqtt heartbeat 1000
 
 #
 # Home Assistant
 #
 ha:
-#ha sensor add temperature
-#ha sensor add humidity
-#ha sensor add pressure
-#ha button add btn
-#ha switch add rly
+ha sensor add cnt 10000
+ha sensor add temperature 60000
+ha sensor add humidity 60000
+ha sensor add pressure 60000
+
+ha text add txtinput "Eingabe" 0 64
+
+# HA events
+#
+haenable:
+test $1 -eq 0 && break
+ha state txtinput ""
+
+txtinput:
+test ! $# -gt 0 && break
+test $1 = V && test -n $2 && seg msg $($2) && break # show variable value on segment display
+$*  # take input as command
+ha state txtinput ""
 
 #
 # Segment Display
 #
 seg:
-#seg setpins 5 4
-#seg init
-#seg enable 1
-#seg br 10
-#seg screen add time time
-#seg screen add temp sensor temperature
-#seg screen add hum sensor humidity
-#seg screen add pres sensor pressure
-#seg slideshow add 0
-#seg slideshow add 1
-#seg slideshow add 2
-#seg slideshow add 3
-#seg slideshow on
+seg setpins 5 4
+seg init
+seg enable 1
+seg br 10
+seg screen add time time                      # screen 0
+seg screen add temperature sensor temperature # screen 1
+seg screen add watercnt    sensor watercnt    # screen 2
+seg screen add pumppres    sensor pumppres    # screen 3
 
-#
-# RC switch
-#
-rc:
-#rc setpins -1 -1 # rx, tx
-#rc ch 0 4198421 4198420 0   # channel, on-code, off-code, toggle
-#rc ch 1 4210709 4210708 0
-#rc fn S20 (Sonoff + RC) # friendly name
-#rc enable 1
-#rc init
-#rc on
+seg slideshow add 0
+seg slideshow add 1
+
+seg slideshow on
 
 #
 # Final init. Will not be called in safemode
 #
 final:
-wifi connect
-timer add 200 1m 1 "wifi check -q"
-
-#
-# Safemode
-#
-sm:
-wifi connect
-timer add 1m "wifi check -q" 200 repeat
 
 #
 # Wifi is up and connected
 #
 wifi-up:
 log on
-log info "wifi up"
-set NTP fritz.box
+set NTP = fritz.box
 mqtt connect
 ha enable 1
 
@@ -116,13 +148,13 @@ ha enable 1
 #
 wifi-down:
 echo "wifi down"
-mqtt stop
+#mqtt stop
 
 #
 # wifi is online
 #
 wifi-online:
-log info "wifi online"
+echo "wifi online"
 
 #
 # wifi is offline
@@ -130,15 +162,11 @@ log info "wifi online"
 wifi-offline:
 echo "wifi offline"
 log off
-timer del 201
-timer add 15s "wifi connect;prompt" 201 once
 
 #
 # Access Point is up
 #
 ap-up:
-timer stop 200
-timer del 201
 
 ap-down:
-timer start 200
+
