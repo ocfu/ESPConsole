@@ -406,6 +406,7 @@ public:
          setPin(pin);
          setPinMode(mode);
          setInverted(inverted);
+         if (isVirtual() && isInverted()) set(0); // set virtual gpio to low by default
       }
    }
    CxGPIO() : CxGPIO(-1) {}
