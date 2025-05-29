@@ -139,7 +139,7 @@ final:
 #
 wifi-up:
 log on
-set NTP = fritz.box
+set NTP fritz.box
 mqtt connect
 ha enable 1
 
