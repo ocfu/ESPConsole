@@ -277,3 +277,29 @@ echo "$(ESC_BOLD)Variables:$(ESC_RESET)"
 echo " jsonstate <path to json state>   set this variable, if the json data contains a valid state.
 
 
+#
+smooth:
+echo "$(USAGE) <reference> <value> <maxDiff> [<threshold> <minAlpha> <maxAlpha>]"
+echo "  Applies robust smoothing with absolute outlier rejection.
+echo "  Set the output variable $> to the smoothed value."
+echo "  Set the exit value to 0, if valid."
+echo
+echo $(PARAMETERS)
+echo "  reference   The previous known good value."
+echo "  value       The new input value."
+echo "  maxDiff     Maximum absolute difference allowed (outlier threshold)."
+echo "  threshold   (Optional) Difference scale for alpha ramp. 0 = fixed minAlpha. Use INVALID_FLOAT to skip smoothing."
+echo "  minAlpha    (Optional) Minimum smoothing factor (0.0–1.0). Required if threshold is set."
+echo "  maxAlpha    (Optional) Maximum smoothing factor (0.0–1.0). Required if threshold is set."
+echo
+echo $(EXAMPLES)
+echo "smooth 100   106   10   5   0.1   1.0 -> 106 (outlier rejected, diff=6 > maxDiff=1)"
+echo "smooth 100   101   10   5   0.1   1.0 -> 100.28 (small diff → smooth partial update)"
+echo "smooth  50    52    3   2   0.2   0.7 -> 51.4 partial smoothing"
+echo "smooth 200   195   10   5   0.05  0.5 -> 197.5 small diff, low alpha smoothing"
+echo "smooth 200   185   10   5   0.05  0.5 -> 200, outlier"
+echo "smooth 100   110   10   5   0.1   1.0 -> 110 (diff=10 == maxDiff, full update)"
+echo "smooth   0     0    1   0   0.1   0.4 -> 0 (no change)"
+echo "smooth   0     1    1   0   0.1   0.4 -> 0.1 (fixed alpha smoothing since threshold=0)"
+echo "smooth 100   105    5 ; echo $>       -> 105 (no smoothing, accepted value)"
+

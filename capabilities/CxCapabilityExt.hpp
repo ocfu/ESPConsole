@@ -177,7 +177,7 @@ public:
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -1065,6 +1065,35 @@ public:
             __console.setExitValue(0);
          } else {
             __console.setExitValue(1);
+         }
+      } else if (cmd == "smooth") {
+         // smooth <reference> <value> <maxDiff> [<threshold> <minAlpha> <maxAlpha>]
+         // set the output variable $> to the smoothed value
+         // sets the exit value to 0, if valid
+         // test data:
+         // smooth 100   106   10   5   0.1   1.0 ; echo $>   #106 (outlier rejected, diff=6 > maxDiff=1)
+         // smooth 100   101   10   5   0.1   1.0 ; echo $>   #100.28 (small diff → smooth partial update)
+         // smooth  50    52    3   2   0.2   0.7 ; echo $>   #51.4 partial smoothing
+         // smooth 200   195   10   5   0.05  0.5 ; echo $>   #197.5 small diff, low alpha smoothing
+         // smooth 200   185   10   5   0.05  0.5 ; echo $>   #200, outlier
+         // smooth 100   110   10   5   0.1   1.0 ; echo $>   #110 (diff=10 == maxDiff, full update)
+         // smooth   0     0    1   0   0.1   0.4 ; echo $>   #0 (no change)
+         // smooth   0     1    1   0   0.1   0.4 ; echo $>   #0.1 (fixed alpha smoothing since threshold=0)
+         // smooth 100   105    5 ; echo $>                   #105 (no smoothing, accepted value)
+         
+         float reference = TKTOFLOAT(tkArgs, 1, INVALID_FLOAT);
+         float value = TKTOFLOAT(tkArgs, 2, INVALID_FLOAT);
+         float maxDiff = TKTOFLOAT(tkArgs, 3, INVALID_FLOAT);
+         float threshold = TKTOFLOAT(tkArgs, 4, INVALID_FLOAT);
+         float minAlpha = TKTOFLOAT(tkArgs, 5, INVALID_FLOAT);
+         float maxAlpha = TKTOFLOAT(tkArgs, 6, INVALID_FLOAT);
+                  
+         if (std::isnan(value) || std::isnan(maxDiff)) {
+            __console.setExitValue(1);
+         } else {
+            float fValue = smoothRobust(reference, value, maxDiff, threshold, minAlpha, maxAlpha);
+            __console.setExitValue(std::isnan(fValue)?1:0); // consider as non success (exit code 1), if nan was returned.
+            __console.addVariable(">", fValue);
          }
       }
       else {
