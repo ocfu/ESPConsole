@@ -559,7 +559,7 @@ public:
    void addVariable(const char* szName, float fValue, uint8_t prec = 2) {
       if (fValue != INVALID_FLOAT) {
          char szValue[10];
-         snprintf(szValue, sizeof(szValue), "%.2f", fValue);
+         snprintf(szValue, sizeof(szValue), "%.4f", fValue); // TODO: use precision
          addVariable(szName, szValue);
       }
    }
