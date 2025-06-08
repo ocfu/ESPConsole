@@ -68,9 +68,9 @@
 #include "CxSensorManager.hpp"
 
 #ifdef ARDUINO
-//#include <Adafruit_Sensor.h>
 //#include <Adafruit_BME280.h>
 #include <Bme280.h>
+//#include <bme280.h>
 #endif
 
 // Over/underrun hysteresis checks
@@ -87,6 +87,8 @@ class CxSensorBme : public CxSensor {
 #ifdef ARDUINO
    //Adafruit_BME280 _bme; /// BME280 sensor object
    Bme280TwoWire _bme; /// BME280 sensor object
+   //bfs::Bme280 _bme;
+
 #endif
    CxI2CDevice* _pI2CDev = nullptr; /// Pointer to I2C device
    bool _bBme = false; /// Flag to indicate if BME sensor is initialized
@@ -115,8 +117,16 @@ public:
       if (!_bBme && _pI2CDev != nullptr) {
          _CONSOLE_INFO(F("SENS: start new BME sensor at addr %02X"), _pI2CDev->getAddr());
 #ifdef ARDUINO
+         //_bBme = _bme.begin(_pI2CDev->getAddr());  // Adafruit lib
+         
+         
          _bBme = _bme.begin((_pI2CDev->getAddr() == (uint8_t) Bme280TwoWireAddress::Primary) ? Bme280TwoWireAddress::Primary : Bme280TwoWireAddress::Secondary ); /// Initialize BME sensor
-         _bme.setSettings(Bme280Settings::indoor());
+         //_bme.setSettings(Bme280Settings::indoor());
+         
+         
+         //_bme.Config(&Wire, bfs::Bme280::I2C_ADDR_PRIM);
+         //_bBme = _bme.Begin();
+
 #endif
       }
       
@@ -140,7 +150,8 @@ public:
                }
                __strModel = F("BME280");
                __strUnit = F("°C");
-               __nId = _bme.getChipId();
+               
+               //__nId = _bme.getChipId();
 #endif
                break;
                
@@ -156,7 +167,8 @@ public:
                }
                __strModel = F("BME280");
                __strUnit = "%";
-               __nId = _bme.getChipId();
+               
+               //__nId = _bme.getChipId();
 #endif
                break;
                
@@ -172,7 +184,8 @@ public:
                }
                __strModel = F("BME280");
                __strUnit = "hPa";
-               __nId = _bme.getChipId();
+               
+               //__nId = _bme.getChipId();
 #endif
                break;
                
@@ -198,41 +211,50 @@ public:
       if (isValid()) {
          float fValue = 0.0;
          
-         /// Read value based on sensor type
-         switch (getType()) {
-            case ECSensorType::temperature:
 #ifdef ARDUINO
-               fValue = _bme.getTemperature();
+        // if (_bme.Read()) {
+            /// Read value based on sensor type
+            switch (getType()) {
+               case ECSensorType::temperature:
+                  //fValue = _bme.readTemperature();
+                  fValue = _bme.getTemperature();
+                  //fValue = _bme.die_temp_c();
+
+                  break;
+               case ECSensorType::humidity:
+                  //fValue = _bme.readHumidity();
+                  fValue = _bme.getHumidity();
+                  //fValue = _bme.humidity_rh();
+                  
+                  break;
+               case ECSensorType::pressure:
+                  //fValue = _bme.readPressure() / 100.0;
+                  fValue = _bme.getPressure() / 100.0;
+                  //fValue = _bme.pres_pa() / 100.0;
+                  break;
+               default:
+                  return false;
+                  break;
+            }
+            
+            /// Validate and store the sensor value
+            if (fValue >= __fMinValue && fValue < __fMaxValue) {
+               __fValue = fValue;
+               __nValue = round(fValue);
+               return true;
+            }
+        // }
 #endif
-               break;
-            case ECSensorType::humidity:
-#ifdef ARDUINO
-               fValue = _bme.getHumidity();
-#endif
-               break;
-            case ECSensorType::pressure:
-#ifdef ARDUINO
-               fValue = _bme.getPressure() / 100.0;
-#endif
-               break;
-            default:
-               return false;
-               break;
-         }
-         
-         /// Validate and store the sensor value
-         if (fValue >= __fMinValue && fValue < __fMaxValue) {
-            __fValue = fValue;
-            __nValue = round(fValue);
-            return true;
-         }
-         
+
          /// Restart sensor if reading fails
          static CxTimer60s timer60s;
          if (timer60s.isDue() && _pI2CDev != nullptr) {
             _CONSOLE_INFO(F("SENS: restart BME sensor at addr %02X"), _pI2CDev->getAddr());
 #ifdef ARDUINO
+            //_bBme = _bme.begin(_pI2CDev->getAddr());
             _bBme = _bme.begin((_pI2CDev->getAddr() == (uint8_t) Bme280TwoWireAddress::Primary) ? Bme280TwoWireAddress::Primary : Bme280TwoWireAddress::Secondary ); /// Initialize BME sensor
+            //_bme.Config(&Wire, bfs::Bme280::I2C_ADDR_PRIM);
+            //_bBme = _bme.Begin();
 #endif
             delay(100);
          }
