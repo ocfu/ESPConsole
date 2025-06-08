@@ -1,84 +1,111 @@
-# This script is a template for user specific configurations.
+#
+# init.user.bat [<label> [<arguments>]]
+#
+# Template for user-specific configurations. This file is copied by default
+# if no init.<hostname>.bat exists. For custom settings, use init.<hostname>.bat.
+#
+# Arguments:
+#   <label>     Specifies the starting point for batch execution. Execution begins
+#               after the specified label (<label>:), ending at the next label or EOF.
+#               Note: Commands before the first label always execute, regardless of the label.
+#               The reserved label 'all:' should be placed at the end of the file.
+#   <arguments> Additional arguments for command execution, accessible via:
+#               $<ARG>    ARG: 0..n (n <= 8)
+#               $@        All arguments ($0..$n)
+#               $*        All arguments except the caller ($1..$n) (not POSIX compliant)
+#               $#        Number of arguments
 #
 
 ###############################
-# local variables
+# Local Variables
+# These variables are set each time the batch file runs and are deleted after execution.
+# Syntax: <variable name> = <value or string>
+# Note: Spaces are required before and after the equal sign!
+#
 
-# MQTT settings
-name = "Project Name"
-root = esp/test/sensta
+# MQTT configuration
+name = "Application Name"
+root = esp/myapp
 port = 8883
 
 ###############################
-# general and gpio setup is with fs
+# General Setup at Start
+#
+# Batch execution begins with the 'fs' label, which is called during initialization.
 #
 fs:
 
-stack off # switch on to monitor stack usage
-
+#
+# Environment Variables
+#
+#   TZ   - Timezone
+#   url  - Device URL, used for Home Assistant (HA) setup
+#
 set TZ CET-1CEST,M3.5.0,M10.5.0/3
 set url http://$(HOSTNAME)
 
+#
+# Logging Configuration
+#
 log server mac 8880
 log level 1
+
+#
+# Built-in LED Setup
+#
+# The 'led' command controls the built-in LED by default.
+#
 led invert 1
 led off
 
-
-# gpio setup
-pinLed = 12
-pinCnt = 14
-
-#        <pin>     <type>  <id>
-gpio add $(pinLed) led     ledbl
-gpio add $(pinCnt) counter c0 1 "exec §(userscript) cnt §(ADD)" 1 #as INPUT_PULLUP
-
-#additional settings
-gpio isr $(pinCnt) 0 10000     # <pin> <id> <dbounce us>
-gpio fn  $(pinLed) "Blue Led"  # <pin> <fiendly name>
-gpio fn  $(pinCnt) "Counter""
-
-# timer
-#         <period/cron>   <command>                        <id>           <mode>
-timer add "0 0 * * *"     "exec §(userscript) crMidnight"  crMidnight
-timer add 2m              "exec §(userscript) tiNanoCheck" tiValidateData
-
-
-# json processing of incoming data
-#                <json path> <command>
-processdata json "data.t"    "set t && test §(VALUE) -gt -40 && test §(VALUE) -lt 50   && set t/2 = §(VALUE)"
-processdata json "data.p"    "set p && test §(VALUE) -gt 850 && test §(VALUE) -lt 1100 && set p/2 = §(VALUE)"
-processdata json "data.h"    "set h && test §(VALUE) -ge 0   && test §(VALUE) -le 100  && set h/2 = §(VALUE) && exec §(userscript) data"
-
-set jsonstate "data.state"    # state path (if part of the json) for validation.
-
-# sensors
-#          <name>      <type>      <unit> <variable> <friendly name>
-sensor add cnt         volume      L      VT         Water
-sensor add temperature temperature °C     t          Temperature
-sensor add humidity    humidity    %      h          Humidity
-sensor add pressure    pressure    hPa    p          Pressure
-
-# events
+#
+# GPIO Setup
+#
+# Syntax: (see 'man gpio')
+#   gpio set <pin> <mode>
+#   gpio add <pin> <type> <name> <inverted> [<cmd> [<param>]]
 #
 
-# on new data
-data:
-timer start tiValidateData
+#
+# Timer Setup
+#
+# Syntax: <period/cron> <command> <id> <mode> (see 'man timer')
+#
+timer add "0 0 * * *" "exec §(userscript) crMidnight" crMidnight  # Cron timer triggers 'crMidnight' event at midnight
 
-# on validate data: invalidate old sensor data
-tiValidateData:
-set .t
-set .p
-set .h
+#
+# Variable-based Sensor Setup
+#
+# Variable-based sensors represent global variables (not physical sensors).
+# Useful for displaying values or exposing them as sensor entities in HA.
+# Syntax: sensor add <name> <unit> <variable> [<friendly name>] (see 'man sensor')
+#
 
-# on counter:
-cnt:
-set VL/4 = $(VL) + $1 * $(LPP)   # fill the bucket
-
+#
+# Events
+#
+# User-defined labels (<label>:) that can be triggered with:
+#   exec §(userscript) <label> [<arguments>]
+# Events can be defined anywhere in this file.
+#
+crMidnight:
+#timer add 1m "reboot -f"   # Reboot 1 minute after midnight (prevents multiple reboots at midnight)
 
 ################################
-# MQTT
+# I2C Configuration
+#
+i2c:
+i2c setpins 4 5
+i2c init
+#
+# If CxSensorBme.hpp is included, detected BME sensors are auto-added with generic names.
+# Rename them here for use in HA or elsewhere.
+sensor name 0 temperature
+sensor name 1 humidity
+sensor name 2 pressure
+
+################################
+# MQTT Configuration
 #
 mqtt:
 mqtt server ocdk $(port)
@@ -88,18 +115,25 @@ mqtt name $(name)
 mqtt will 1
 mqtt heartbeat 1000
 
+################################
+# Home Assistant (HA) Integration
 #
-# Home Assistant
+# Syntax: See 'man ha'
 #
 ha:
-ha sensor add cnt 10000
-ha sensor add temperature 60000
-ha sensor add humidity 60000
-ha sensor add pressure 60000
-
 ha text add txtinput "Eingabe" 0 64
+ha sensor add temperature
+ha sensor add humidity
+ha sensor add pressure
 
-# HA events
+ha select add selsegopt "Display" 1 # as config
+ha select addopt selsegopt "Time"
+ha select addopt selsegopt "Temperature"
+ha select addopt selsegopt "Humidity"
+ha select addopt selsegopt "Pressure"
+ha select addopt selsegopt "Loop"
+
+# HA Event Handlers
 #
 haenable:
 test $1 -eq 0 && break
@@ -107,35 +141,45 @@ ha state txtinput ""
 
 txtinput:
 test ! $# -gt 0 && break
-test $1 = V && test -n $2 && seg msg $($2) && break # show variable value on segment display
-$*  # take input as command
+test $1 = V && test -n $2 && seg msg $($2) && break # Show variable value on segment display
+$*  # Execute input as command
 ha state txtinput ""
 
+selsegopt:
+seg slideshow off
+set screen = $1 - 1
+test $(screen) -lt 4 && seg show $(screen) && break
+test $(screen) -eq 4 && seg slideshow on && break
+
+################################
+# Segment Display Configuration
 #
-# Segment Display
+# Syntax: See 'man seg'
 #
 seg:
-seg setpins 5 4
+seg setpins 14 12
 seg init
 seg enable 1
 seg br 10
 seg screen add time time                      # screen 0
-seg screen add temperature sensor temperature # screen 1
-seg screen add watercnt    sensor watercnt    # screen 2
-seg screen add pumppres    sensor pumppres    # screen 3
+seg screen add temp sensor temperature
+seg screen add hum sensor humidity
+seg screen add pres sensor pressure
 
 seg slideshow add 0
 seg slideshow add 1
 
 seg slideshow on
 
+################################
+# Final Initialization Phase
 #
-# Final init. Will not be called in safemode
+# Note: Not called if system starts in safemode.
 #
 final:
 
-#
-# Wifi is up and connected
+################################
+# WiFi Connected
 #
 wifi-up:
 log on
@@ -143,30 +187,29 @@ set NTP fritz.box
 mqtt connect
 ha enable 1
 
-#
-# wifi is shut down
+################################
+# WiFi Shutdown
 #
 wifi-down:
 echo "wifi down"
 #mqtt stop
 
-#
-# wifi is online
+################################
+# WiFi Online
 #
 wifi-online:
 echo "wifi online"
 
-#
-# wifi is offline
+################################
+# WiFi Offline
 #
 wifi-offline:
 echo "wifi offline"
 log off
 
-#
-# Access Point is up
+################################
+# Access Point Status
 #
 ap-up:
 
 ap-down:
-
