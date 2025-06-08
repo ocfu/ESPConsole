@@ -656,7 +656,7 @@ public:
          mapVariables[F("@")] = mapVariables[F("0")] + " ";    // adds the calling name to $0, 0 should be set by the caller
          mapVariables[F("@")] = mapVariables[F("@")] + szArgs; // complete the $@, add the the whole original arguments string
          mapVariables[F("#")] = String(tkArgs.count());        // store the number of arguments
-         mapVariables[F("*")] = szArgs;                        // store only the arguments (not posic compliant!)
+         mapVariables[F("*")] = szArgs;                        // store only the arguments (not posix compliant!)
 
          const char* szArg = tkArgs.get().as<const char*>();
          

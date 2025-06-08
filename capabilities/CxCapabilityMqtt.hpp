@@ -248,9 +248,7 @@ public:
          _bMqttServerOnline = __mqttManager.begin();
          if (!_bMqttServerOnline) {
             __console.error(F("connecting mqtt server failed!"));
-         }
-         // still needed?
-         else {
+         } else {
             _CONSOLE_INFO(F("mqtt server is online!"));
             __mqttManager.publishWill("online");
          }
