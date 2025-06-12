@@ -4,7 +4,7 @@ ESC_BRED=\033[91m
 ESC_RESET=\033[0m
 ESC_BLINK=\033[5m
 
-USAGE=$(ESC_BOLD)Usage:$(ESC_RESET)
+USAGE=$(ESC_BOLD)Usage:$(ESC_RESET) $0
 COMMANDS=$(ESC_BOLD)Commands:$(ESC_RESET)
 PARAMETERS=$(ESC_BOLD)Parameters:$(ESC_RESET)
 EXAMPLES=$(ESC_BOLD)Examples:$(ESC_RESET)
@@ -14,14 +14,14 @@ NOTE=$(ESC_BOLD)Note:$(ESC_RESET)
 # basic
 #
 cap:
-echo "usage: cap <cmd> [<param> <...>]"
+echo "$(USAGE) <command> [<parameters>]"
 echo "commands:"
 echo " load <cap. name>"
 echo " unload <cap. name>"
 echo " list"
 
 usr:
-echo "usage: usr <cmd> [<flag/value> [<0|1>]]"
+echo "$(USAGE) <command> [<parameters>]"
 echo " 0           be quiet, switch all log messages off on the console."
 echo " 1  <1..5>   set the log level to show log messages on the console."
 echo " 2  <flag>   set the extended debug flag(s) to the value."
@@ -29,7 +29,7 @@ echo " 2  <flag> 0 clear an extended debug flag."
 echo " 2  <flag> 1 add an extended debug flag."
 
 echo:
-echo "usage: echo [-n] [<string>]"
+echo "$(USAGE) [-n] [<string>]"
 echo "  -n   suppress the trailing newline character."
 echo "The echo utility exits 0 on success."
 
@@ -37,7 +37,7 @@ echo "The echo utility exits 0 on success."
 # ext
 #
 gpio:
-echo "gpio commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  state [<pin>]"
 echo "  set <pin> <mode> (in, out, pwm, inverted, non-inverted)"
 echo "  set <pin> 0...1023 (set pin state to value)"
@@ -52,8 +52,9 @@ echo "  deb <pin> <debounce time>"
 echo "  isr <pin> <id> [<debounce time>]"
 
 set:
-echo "$(USAGE) set <name>[[/<prec>] [<value>] | [ = <expr>]"
+echo "$(USAGE) <name>[[/<prec>] [<value>] | [ = <expr>]"
 echo "  Set a variable."
+echo "  Use of the equal sign expects a numeric expression. Strings are set without the equal sign."
 echo
 echo $(PARAMETERS)
 echo "  <name>    Name of the variable"
@@ -74,10 +75,12 @@ echo "  If not set in quotes, the expression shall not contain blanks!"
 echo "  Don't use the equal sign, if setting a string."
 
 eeprom:
-echo "usage: eeprom [<start address>] [<length>]"
+echo "$(USAGE) [<start address>] [<length>]"
+echo "  Prints the content of the eeprom from start to start + lenght.
+echo "  The output format is in hexadecimal format.
 
 wifi:
-echo "wifi commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  ssid [<ssid>]"
 echo "  password [<password>]"
 echo "  hostname [<hostname>]"
@@ -89,7 +92,9 @@ echo "  otapw [<password>]"
 echo "  ap"
 
 led:
-echo "led commands:"
+echo "$(USAGE) [<command>]|[<name> <command>] [<parameters>]"
+echo "  Controls a led. If no name is given, the build-in led is addressed."
+echo
 echo "  on|off"
 echo "  toggle"
 echo "  blink [period] [duty]"
@@ -98,7 +103,7 @@ echo "  flash [period] [duty] [number]"
 echo "  invert [0|1]"
 
 sensor:
-echo "sensor commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  list"
 echo "  name <id> <name>"
 echo "  get <id>"
@@ -106,7 +111,7 @@ echo "  add <name> <unit> <variable> [<friendly name>]"
 echo "  del <name>"
 
 relay:
-echo "relay commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  list"
 echo "  <name> on"
 echo "  <name> off"
@@ -115,13 +120,13 @@ echo "  <name> offtimer <ms>"
 echo "  <name> default <0|1>"
 
 exec:
-echo "usage: exec <batchfile> [<label> [<args>]]"
+echo "$(USAGE) <batchfile> [<label> [<args>]]"
 
 #
 # fs
 #
 log:
-echo "log commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  server <server> <port>"
 echo "  level <level>"
 
@@ -129,7 +134,7 @@ echo "  level <level>"
 # mqtt
 #
 mqtt:
-echo "mqtt commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  server <server> <port>"
 echo "  qos <qos>"
 echo "  root <root path>"
@@ -146,7 +151,7 @@ echo "  subscribe <topic> <variable> [<command>]"
 # ha
 #
 ha:
-echo "ha commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  enable 0|1"
 echo "  list"
 echo "  sensor add <name> [<period>]"
@@ -161,7 +166,7 @@ echo "  state <name> <state>"
 # seg
 #
 seg:
-echo "seg commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  enable 0|1"
 echo "  setpins <clk> <data>"
 echo "  list"
@@ -181,7 +186,7 @@ echo "  test"
 echo "  init"
 
 slideshow:
-echo "seg slideshow commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  add <screen>"
 echo "  del <screen>"
 echo "  list"
@@ -193,7 +198,7 @@ echo "  off"
 # i2c
 #
 i2c:
-echo "i2c commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  enable 0|1"
 echo "  setpins <sda> <scl> [<vu>]"
 echo "  list"
@@ -204,7 +209,7 @@ echo "  init"
 # rc
 #
 rc:
-echo "rc commands:"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  enable 0|1"
 echo "  setpins <rx> <tx>"
 echo "  list"
@@ -221,10 +226,10 @@ echo
 # timer
 #
 timer:
-echo "$(USAGE) timer <command> [<parameters>]"
+echo "$(USAGE) <command> [<parameters>]"
 echo "  Sets the exit value $? to 0 (true) or 1 (false) if the command fails."
 echo
-echo "$COMMANDS"
+echo "$(COMMANDS)"
 echo "  add <period>|<cron> <cmd> [<id> [<mode>]]  | max. 8 timers, max. 7 days, mode: once, repeat, replace"
 echo "  del <id>"
 echo "  start <id>"
@@ -237,7 +242,7 @@ echo "  list"
 # condition evaluation utility
 #
 test:
-echo "$(USAGE) test <expression>"
+echo "$(USAGE) <expression>"
 echo "  Condition evaluation utility"
 echo "  The test utility evaluates the expression and, if it evaluates to true, returns a zero (true) exit value; otherwise it"
 echo "  returns 1 (false).  If there is no expression, test also returns 1 (false)."
@@ -258,12 +263,12 @@ echo "  ! <expression> True if expression is false"
 
 #
 ping:
-echo "$(USAGE) ping <host> <port>"
+echo "$(USAGE) <host> <port>"
 echo "   Sets the exit value $? to 0 (true) or 1 (false) if the host:port is reachable."
 
 #
 processdata:
-echo "$(USAGE) processdata <type>"
+echo "$(USAGE) <type>"
 echo   Processing of received data and converting into system variables.
 echo
 echo "$(ESC_BOLD)Types:$(ESC_RESET)"
@@ -302,4 +307,14 @@ echo "smooth 100   110   10   5   0.1   1.0 -> 110 (diff=10 == maxDiff, full upd
 echo "smooth   0     0    1   0   0.1   0.4 -> 0 (no change)"
 echo "smooth   0     1    1   0   0.1   0.4 -> 0.1 (fixed alpha smoothing since threshold=0)"
 echo "smooth 100   105    5 ; echo $>       -> 105 (no smoothing, accepted value)"
+
+#
+ntp:
+echo "$(USAGE) <command> [<parameters>]"
+echo "  Uses the 'NTP' and 'TZ' environment variables.'
+echo
+echo "$(COMMANDS)"
+echo "  server   Sets the NTP server and try to sync with."
+echo "  sync     Try to sync with NTP server."
+echo
 
