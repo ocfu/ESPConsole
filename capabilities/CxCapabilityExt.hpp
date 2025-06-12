@@ -177,7 +177,7 @@ public:
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth", "id", "app" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -299,11 +299,29 @@ public:
        if (cmd == "?") {
           nExitValue = printCommands();
        } else if (cmd == "hw") {
-         printHW();
-      } else if (cmd == "sw") {
-         printSW();
-      } else if (cmd == "esp") {
-         printESP();
+          printHW();
+          nExitValue = EXIT_SUCCESS;
+          __console.setOutputVariable(getChipType());
+       } else if (cmd == "id") {
+          __console.setOutputVariable(getChipId());
+          nExitValue = EXIT_SUCCESS;
+       } else if (cmd == "sw") {
+          printSW();
+          __console.setOutputVariable(__console.getAppVer());
+          nExitValue = EXIT_SUCCESS;
+       } else if (cmd == "app") {
+          __console.setOutputVariable(__console.getAppName());
+          nExitValue = EXIT_SUCCESS;
+       } else if (cmd == "esp") {
+          printESP();
+#ifdef ARDUINO
+#ifdef ESP32
+         //TODO: implement esp core version for esp32
+#else
+         __console.setOutputVariable(ESP.getCoreVersion().c_str());
+#endif
+#endif /* ARDUINO */
+          nExitValue = EXIT_SUCCESS;
       } else if (cmd == "flash") {
          printFlashMap();
 #ifdef ARDUINO
@@ -314,15 +332,16 @@ public:
          String strVar = TKTOCHAR(tkArgs, 1);
          uint8_t prec = 0;
          String strOp1 = TKTOCHAR(tkArgs, 2);
-         String strExpr;
+         bool bIsExpr = false;
          
          String strValue;
          strValue.reserve(128);  // 128 is an estimate. The worst case is a concat of two strings, while both could be a variable with a max lenght of ?
 
          if (strOp1 != "=") {
-            strValue = strOp1;            
+            strValue = TKTOCHARAFTER(tkArgs, 2);
          } else {
-            strExpr = TKTOCHARAFTER(tkArgs, 3);
+            strValue = TKTOCHARAFTER(tkArgs, 3);
+            bIsExpr = true;
          }
          int32_t nPrecIndex = strVar.indexOf("/");
          if ( nPrecIndex > 0) {
@@ -330,11 +349,7 @@ public:
             strVar = strVar.substring(0, nPrecIndex);
          }
          
-         if (strVar == "NTP" && strValue.length()) {
-            __console.setNtpServer(strValue.c_str());
-            __console.addVariable(strVar.c_str(), strValue.c_str());
-            __console.setExitValue(0);
-         } else if (strVar == "TZ") {
+         if (strVar == "TZ") {
             __console.setTimeZone(strValue.c_str());
             __console.addVariable(strVar.c_str(), strValue.c_str());
             __console.setExitValue(0);
@@ -449,6 +464,11 @@ public:
                   nExitValue = EXIT_FAILURE;
                }
             }               
+         } else if (strCmd == "rssi") {
+#ifdef ARDUINO
+            print(WiFi.RSSI()); println(F("dBm"));
+            __console.setOutputVariable(WiFi.RSSI());
+#endif
          }
          else {
             nExitValue = EXIT_FAILURE;
