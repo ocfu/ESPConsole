@@ -68,7 +68,7 @@ public:
    : CxCapability("basic", getCmds()) {}
    static constexpr const char* getName() { return "basic"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo", "wlcm", "prompt", "loopdelay", "timer" };
+      static std::vector<const char*> commands = { "?", "reboot", "cls", "info", "uptime", "time", "date", "heap", "hostname", "ip", "ssid", "exit", "users", "usr", "cap", "net", "ps", "stack", "delay", "echo", "wlcm", "prompt", "loopdelay", "timer", "ntp" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -252,6 +252,33 @@ public:
          nExitValue = EXIT_SUCCESS;
       } else if (cmd == "delay") {
          delay(TKTOINT(tkArgs, 1, 1));
+         nExitValue = EXIT_SUCCESS;
+      } else if (cmd == "ntp") {
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
+         bool bSync = false;
+
+         if (strSubCmd == "server" && tkArgs.count() > 2) {
+            __console.addVariable("NTP", TKTOCHAR(tkArgs, 2));
+            bSync = true;
+         } else if (strSubCmd == "sync") {
+            bSync = true;
+         } else {
+            print(F(ESC_ATTR_BOLD "NTP Server: " ESC_ATTR_RESET));print(__console.getNtpServer());
+            if (__console.isSynced()) {
+               print(F(ESC_TEXT_GREEN " (synced)"));
+            } else {
+               print(F(ESC_BG_BRIGHT_RED "(not snynced)"));
+            }
+            println(ESC_ATTR_RESET);
+         }
+         
+         if (bSync) {
+            if (__console.setNtpServer(__console.getVariable("NTP"))) {
+               nExitValue = EXIT_SUCCESS;
+               __console.setTimeZone(__console.getVariable("TZ"));
+            }
+         }
+         
       } else if (cmd == "time") {
          if(__console.getStream()) __console.setOutputVariable(__console.printTime(*__console.getStream(), true));
          println();
