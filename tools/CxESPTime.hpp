@@ -34,12 +34,26 @@
  *      It also includes methods for printing file timestamps and system boot time.
  */
 class CxESPTime {
-   char _buf[20];
+   char _buf[32];
+   bool _bSynced = false;
    
    std::vector<CxTimer*> _timers;
+   std::function<void()> _cbSynced = nullptr;
    
 public:
-   CxESPTime() : _strNtpServer(F("pool.ntp.org")), _strTz(F("GMT0")) {__initTime();};
+   CxESPTime() : _strNtpServer(F("")), _strTz(F("UTC")) {
+      _cbSynced = [this]() {
+         if (!_tStart) {
+            time(&_tNow);
+            _nTimeToBoot = (uint32_t) millis();
+            _tStart = _tNow - (_nTimeToBoot / 1000);   // set the start time one time, deduct the time system is running
+         }
+         _bSynced = true;
+      };
+      __initTime();
+   };
+   
+   bool isSynced() {return _bSynced;}
    
    bool addTimer(CxTimer* pTimer) {
       if (pTimer) {
@@ -166,16 +180,16 @@ public:
       delete[] szRemain;
    }
       
-   void printTime(Stream& stream, bool withTZ = true) {
+   const char* printTime(Stream& stream, bool withTZ = true) {
       __updateTime();
       
-      char buf[80];
       if (withTZ) {
-         strftime (buf, sizeof(buf), "%H:%M:%S (%Z)", &_tmLocal);
+         strftime (_buf, sizeof(_buf), "%H:%M:%S (%Z)", &_tmLocal);
       } else {
-         strftime (buf, sizeof(buf), "%H:%M:%S", &_tmLocal);
+         strftime (_buf, sizeof(_buf), "%H:%M:%S", &_tmLocal);
       }
-      stream.print(buf);
+      stream.print(_buf);
+      return _buf;
    }
    
    /**
@@ -212,12 +226,12 @@ public:
       return _buf;
    }
    
-   void printDate(Stream& stream) {
+   const char* printDate(Stream& stream) {
       __updateTime();
       
-      char buf[80];
-      strftime (buf, sizeof(buf), "%d.%m.%Y", &_tmLocal);
-      stream.print(buf);
+      strftime (_buf, sizeof(_buf), "%d.%m.%Y", &_tmLocal);
+      stream.print(_buf);
+      return _buf;
    }
    
    void printDateTime(Stream& stream) {
@@ -226,56 +240,56 @@ public:
       printTime(stream);
    }
    
-   void printStartTime(Stream& stream) {
+   const char* printStartTime(Stream& stream) {
       struct tm *tmstart = localtime(&_tStart);
       
-      char buf[80];
-      strftime (buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", tmstart);
-      stream.print(buf);
+      strftime (_buf, sizeof(_buf), "%d.%m.%Y %H:%M:%S", tmstart);
+      stream.print(_buf);
+      return _buf;
    }
    
    const char* getStartTime() {
       struct tm *tmstart = localtime(&_tStart);
       
-      static char buf[80];
-      strftime (buf, sizeof(buf), "%d.%m.%Y %H:%M:%S", tmstart);
-      return buf;
+      strftime (_buf, sizeof(_buf), "%Y-%m-%dT%H:%M:%S%z", tmstart);
+      return _buf;
    }
    
-   void printFileTime(Stream& stream, time_t cr, time_t lw) {
+   const char* printFileTime(Stream& stream, time_t cr, time_t lw) {
       //struct tm *tmcr = localtime(&cr);
       struct tm *tmlw = localtime(&lw);
       
-      char buf[80];
-      strftime (buf, sizeof(buf), "%H:%M:%S", tmlw);
-      stream.print(buf);
+            strftime (_buf, sizeof(_buf), "%H:%M:%S", tmlw);
+      stream.print(_buf);
+      return _buf;
    }
    
-   void printFileDate(Stream& stream, time_t cr, time_t lw) {
+   const char* printFileDate(Stream& stream, time_t cr, time_t lw) {
       //struct tm *tmcr = localtime(&cr);
       struct tm *tmlw = localtime(&lw);
       
-      char buf[80];
-      strftime (buf, sizeof(buf), "%d.%m.%Y", tmlw);
-      stream.print(buf);
+      strftime (_buf, sizeof(_buf), "%d.%m.%Y", tmlw);
+      stream.print(_buf);
+      return _buf;
    }
    
-   void printFileDateTime(Stream& stream, time_t cr, time_t lw) {
+   const char* printFileDateTime(Stream& stream, time_t cr, time_t lw) {
       // Dec  4 08:04
       //struct tm *tmcr = localtime(&cr);
       struct tm *tmlw = localtime(&lw);
       
-      char buf[80];
-      if (_tmLocal.tm_year != tmlw->tm_year) {
-         strftime (buf, sizeof(buf), "%b %e  %Y", tmlw);
+            if (_tmLocal.tm_year != tmlw->tm_year) {
+         strftime (_buf, sizeof(_buf), "%b %e  %Y", tmlw);
       } else {
-         strftime (buf, sizeof(buf), "%b %e %H:%M", tmlw);
+         strftime (_buf, sizeof(_buf), "%b %e %H:%M", tmlw);
       }
-      stream.print(buf);
+      stream.print(_buf);
+      return _buf;
    }
    
-   void printUpTimeISO(Stream& stream, bool sec = true) {
+   const char* printUpTimeISO(Stream& stream, bool sec = true) {
       stream.print(getUpTimeISO(sec));
+      return _buf;
    }
    
    time_t getUpTimeSeconds() {
@@ -288,7 +302,6 @@ public:
 
    
    const char* getUpTimeISO(bool sec = true) {
-      static char buf[32];
       uint32_t seconds = uint32_t (millis() / 1000);
       uint32_t days = seconds / 86400;
       seconds %= 86400;
@@ -297,11 +310,11 @@ public:
       uint32_t minutes = seconds / 60;
       seconds %= 60;
       if (sec) {
-         snprintf(buf, sizeof(buf), "%dT:%02d:%02d:%02d", days, hours, minutes, seconds);
+         snprintf(_buf, sizeof(_buf), "%dT:%02d:%02d:%02d", days, hours, minutes, seconds);
       } else {
-         snprintf(buf, sizeof(buf), "%dT:%02d:%02d", days, hours, minutes);
+         snprintf(_buf, sizeof(_buf), "%dT:%02d:%02d", days, hours, minutes);
       }
-      return buf;
+      return _buf;
    }
    
    void printTimeToBoot(Stream& stream) {
@@ -311,8 +324,14 @@ public:
    const char* getNtpServer() {return _strNtpServer.c_str();}
    const char* getTimeZone() {return _strTz.c_str();}
 
-   void setNtpServer(const char* sz) {_strNtpServer = sz; __initTime();}
-   void setTimeZone(const char* sz) {_strTz = sz; __initTime();}
+   bool setNtpServer(const char* sz) {
+      if (sz) {
+         _strNtpServer = sz;
+         return __initTime();
+      }
+      return false;
+   }
+   bool setTimeZone(const char* sz) {_strTz = sz?sz:""; return __initTime();}
    
    bool isValid() {return _bValid;}
    
@@ -341,10 +360,6 @@ protected:
    void __updateTime() {
       time(&_tNow);                    // read the current time
       _bValid = localtime_r(&_tNow, &_tmLocal);  // make it the local time
-      if (!_tStart && _bValid) {
-         _nTimeToBoot = (uint32_t) millis();
-         _tStart = _tNow - (_nTimeToBoot / 1000);   // set the start time one time, deduct the time system is running
-      }
    }
    
 
@@ -364,8 +379,9 @@ private:
     * @details Configures the NTP server and time zone settings.
     * @note The method is called by the constructor to initialize the time and date settings.
    */
-   void __initTime() {
-      if (_strNtpServer.length() != 0 && _strTz.length() != 0) {
+   bool __initTime() {
+      if (_strNtpServer.length() != 0) {
+         if (!_strTz.length()) _strTz = "UTC";
 #ifdef ARDUINO
 #ifdef ESP32
          // ESP32 seems to be a little more complex:
@@ -375,10 +391,13 @@ private:
 #else
          // ESP8266
          configTime(_strTz.c_str(), _strNtpServer.c_str());    // --> for the ESP8266 only
+         if (_cbSynced) settimeofday_cb(_cbSynced);
 #endif
 #endif
+         return true;
       }
-   };
+      return false;
+   }
    
 };
 
