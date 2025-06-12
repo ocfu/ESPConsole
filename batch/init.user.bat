@@ -158,7 +158,8 @@ mqtt heartbeat 1000
 # Syntax: See 'man ha'
 #
 ha:
-ha text add txtinput "Eingabe" 0 64
+ha text add txtinput "Command" 0 64
+
 ha sensor add temperature
 ha sensor add humidity
 ha sensor add pressure
@@ -234,7 +235,7 @@ final:
 #
 wifi-up:
 log on
-set NTP fritz.box
+ntp sync
 mqtt connect
 ha enable 1
 timer add 3s "exec §(userscript) tiDiag"
