@@ -280,15 +280,12 @@ public:
     * @param szCmd The command to execute.
     * @return True if the command is executed successfully, otherwise false.
     */
-   bool execute(const char *szCmd, uint8_t nClient) override {
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the command and arguments into the token buffer
       CxStrToken tkCmd(szCmd, " ");
-      
-      // validate again
-      if (!tkCmd.count()) return false;
       
       // we have a command, find the action to take
       String strCmd = TKTOCHAR(tkCmd, 0);
@@ -296,6 +293,8 @@ public:
       // removes heading and trailing white spaces
       strCmd.trim();
       
+      uint8_t nExitValue = EXIT_FAILURE;
+
       if ((strCmd == "?")) {
          printCommands();
       } else if (strCmd == "i2c") {
@@ -303,15 +302,16 @@ public:
          String strEnv = ".i2c";
          if (strSubCmd == "enable") {
             _bEnabled = (bool)TKTOINT(tkCmd, 2, 0);
-            if (_bEnabled) init();
+            if (_bEnabled) nExitValue = init();
          } else if (strSubCmd == "list") {
             printDevices();
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "scan") {
-            if (_bEnabled) scan();
+            if (_bEnabled) nExitValue = scan();
          } else if (strSubCmd == "setpins" && (tkCmd.count() >= 4)) {
-            setPins(TKTOINT(tkCmd, 2, -1), TKTOINT(tkCmd, 3, -1), TKTOINT(tkCmd, 4, -1));
+            nExitValue = setPins(TKTOINT(tkCmd, 2, -1), TKTOINT(tkCmd, 3, -1), TKTOINT(tkCmd, 4, -1));
          } else if (strSubCmd == "init") {
-            init();
+            nExitValue = init();
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
             printf(F(ESC_ATTR_BOLD " SDA Pin:      " ESC_ATTR_RESET "%d\n"), _gpioSda.getPin());
@@ -321,16 +321,16 @@ public:
          }
       } else {
          // command not handled here
-         return false;
+         return EXIT_NOT_HANDLED;
       }
       g_Stack.update();
-      return true;
+      return nExitValue;
    }
    
    /**
     * @brief Initializes the I2C capability.
     */
-   void init() {
+   uint8_t init() {
       if (_bEnabled) {
          // both pins must be ok and different, otherwise disable the service
          if (hasValidPins()) {
@@ -352,8 +352,10 @@ public:
                   pInit->init();
                }
             }
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
    }
 
 
@@ -470,7 +472,7 @@ public:
     * @param scl The SCL pin.
     * @param vu The VU pin.
     */
-   void setPins(int sda, int scl, int vu) {
+   uint8_t setPins(int sda, int scl, int vu) {
       _CONSOLE_DEBUG(F("CI2C: setPins(sda=%d, scl=%d, vu=%d)"), sda, scl, vu);
       _gpioSda.setPin(sda);
       _gpioSda.setGpioName("sda");
@@ -479,19 +481,22 @@ public:
       _gpioVu.setPin(vu);
       _gpioVu.setGpioName("vu"); // this pin powers the BME280 to be able to restart the sensor, if data fails
       _gpioVu.setHigh(); // power on
+      return hasValidPins() ? EXIT_SUCCESS : EXIT_FAILURE;
       
    }
    /**
     * @brief Scans for I2C devices with a specified frequency.
     * @param lFreq The frequency to scan.
     */
-   void scan(unsigned long lFreq) {
+   uint8_t scan(unsigned long lFreq) {
       _CONSOLE_INFO(F("I2C: start scan with freq = %d kHz..."), lFreq/1000);
       
       int  nError = -1;
       _bError = false;
       _bChanged = false;
       _bOnline = true;
+      
+      uint8_t nExitValue = EXIT_FAILURE;
       
       /// scan all I2C addresses
       for (int i=1; i<128; i++) {
@@ -527,7 +532,8 @@ public:
                if (pDev->getType() == CxI2CDevice::EI2CDeviceType::oled) {
                   _bOled = true;
                }
-               if (pDev) pDev->setError(false);
+               pDev->setError(false);
+               nExitValue = EXIT_SUCCESS;
             }
          } else if (nError == 4) {
             _bError = true;
@@ -544,18 +550,19 @@ public:
             _bError = true;
             _bChanged = true;
             __console.error(F("I2C: ### lost Device at 0x%02X (error %d)"), i, nError);
-            if (pDev) pDev->setError(true);
+            pDev->setError(true);
          }
       }
 #ifdef ARDUINO
       Wire.setClock(getClock()); // reset to configured clock speed
 #endif
+      return EXIT_SUCCESS;
    }
    
    /**
     * @brief Scans for I2C devices with both frequencies.
     */
-   void scan() {scan(100000);scan(400000);}
+   uint8_t scan() {scan(100000);return scan(400000);}
    
    /**
     * @brief Gets the map of I2C devices.

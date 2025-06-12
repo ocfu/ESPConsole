@@ -95,12 +95,10 @@ public:
    }
    
    /// Execute a command
-   bool execute(const char *szCmd, uint8_t nClient) override {
-      
-      bool bQuiet = false;
-      
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
+            
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the arguments into the token buffer
       CxStrToken tkArgs(szCmd, " ");
@@ -111,20 +109,23 @@ public:
       // removes heading and trailing white spaces
       cmd.trim();
       
+      uint32_t nExitValue = EXIT_FAILURE; // default exit value is 1 (error)
+      
       if (cmd == "?") {
-         printCommands();
+         nExitValue = printCommands();
       } else if (cmd == "cap") {
          if (tkArgs.count() > 1) {
             String strSubCmd = TKTOCHAR(tkArgs, 1);
             if (strSubCmd == "load" && tkArgs.count() > 2) {
                __console.createCapInstance(TKTOCHAR(tkArgs, 2), "");
+               nExitValue = EXIT_SUCCESS;
             } else if (strSubCmd == "unload" && tkArgs.count() > 2) {
                __console.deleteCapInstance(TKTOCHAR(tkArgs, 2));
+               nExitValue = EXIT_SUCCESS;
             } else if (strSubCmd == "list") {
                __console.listCap();
             }
          } else {
-            __console.setExitValue(1);
             if (__console.hasFS()) {
                __console.man("cap");
             } else {
@@ -137,12 +138,12 @@ public:
 #endif
             }
          }
-         return true;  // MARK: why not fallding down as the other commands?
+         return nExitValue;  // MARK: why not fallding down as the other commands?
       } else if (cmd == "reboot") {
          String opt = TKTOCHAR(tkArgs, 1);
          
          // force reboot
-         if (opt == "-f" || bQuiet) {
+         if (opt == "-f") {
             reboot();
          } else {
             // TODO: prompt user to be improved
@@ -151,9 +152,11 @@ public:
             //               __console.reboot();
             //            }
             //         });
+            nExitValue = EXIT_SUCCESS;
          }
       } else if (cmd == "cls") {
          __console.cls();
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "prompt") {
          // prompt [-CL] [<prompt string>]
          // prompt [-OFF/ON]
@@ -205,34 +208,67 @@ public:
             }
          }
          __console.prompt(bClient);
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "wlcm") {
          __console.wlcm();
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "info") {
-         printInfo();
-         println();
+         if (tkArgs.count() > 1) {
+            String strSubCmd = TKTOCHAR(tkArgs, 1);
+            if (strSubCmd == "reason") {
+               println(::getResetInfo());
+               __console.setOutputVariable(::getResetInfo());
+            } else if (strSubCmd == "last") {
+               if (!isQuiet()) {  // FIXME: workaroung as the print function ignores @echo off
+                  __console.setOutputVariable(__console.printStartTime(getIoStream()));
+                  println();
+               }
+               __console.setOutputVariable(__console.getStartTime());
+            } else if (strSubCmd == "up") {
+               println((int32_t)__console.getUpTimeSeconds());
+               __console.setOutputVariable((int32_t)__console.getUpTimeSeconds());
+            }
+         } else {
+            printInfo();
+            println();
+         }
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "uptime") {
-         __console.printUptimeExt();
+         __console.printUptimeExt(); // FIXME: @echo off does not work on this print
          println();
+         __console.setOutputVariable(__console.getUpTimeISO());
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "ps") {
          __console.printPs();
          println();
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "loopdelay") {
          if (tkArgs.count() > 1) {
             __console.setLoopDelay(TKTOINT(tkArgs, 1, 0));
          } else {
             print(F("loopdelay = ")); println(__console.getLoopDelay());
+            __console.setOutputVariable(__console.getLoopDelay());
          }
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "delay") {
          delay(TKTOINT(tkArgs, 1, 1));
       } else if (cmd == "time") {
-         if(__console.getStream()) __console.printTime(*__console.getStream());
+         if(__console.getStream()) __console.setOutputVariable(__console.printTime(*__console.getStream(), true));
          println();
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "date") {
-         if(__console.getStream()) __console.printDate(*__console.getStream());
+         if(__console.getStream()) __console.setOutputVariable(__console.printDate(*__console.getStream()));
          println();
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "heap") {
          printHeap();
          println();
+         nExitValue = EXIT_SUCCESS;
+      } else if (cmd == "frag") {
+         printHeapFragmentation();
+         println();
+         __console.setOutputVariable((uint32_t)g_Heap.fragmentation());
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "stack" ) {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
          strSubCmd.toLowerCase();
@@ -241,24 +277,36 @@ public:
             g_Stack.enableDebugPrint(true);
          } else if (strSubCmd == "off") {
             g_Stack.enableDebugPrint(false);
-         } else {
-            g_Stack.print(getIoStream());
+         } else if (strSubCmd == "low") {
+            __console.setOutputVariable((uint32_t)g_Stack.getLow());
+         } else if (strSubCmd == "high") {
+            __console.setOutputVariable((uint32_t)g_Stack.getHigh());
          }
+         else {
+            if (!isQuiet()) {  // FIXME: workaround, as the print function ignores @echo off
+               g_Stack.print(getIoStream());
+            }
+            __console.setOutputVariable((uint32_t)g_Stack.getSize());
+         }
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "hostname") {
 #ifndef ESP_CONSOLE_NOWIFI
          printHostName();
          println();
 #endif
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "ip") {
 #ifndef ESP_CONSOLE_NOWIFI
          printIp();
          println();
 #endif
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "ssid") {
 #ifndef ESP_CONSOLE_NOWIFI
          printSSID();
          println();
 #endif
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "exit") {
 #ifndef ESP_CONSOLE_NOWIFI
          _CONSOLE_INFO(F("exit wifi client"));
@@ -266,12 +314,16 @@ public:
 #else
          printf(F("exit has no function!"));
 #endif
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "net") {
 #ifndef ESP_CONSOLE_NOWIFI
          printNetworkInfo();
 #endif
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "users") {
          printf(F("%d users\n"), __console.users());
+         __console.setOutputVariable(__console.users());
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "usr") {
          // set user specific commands here. The first parameter is the command number, the second the flag
          // and the optional third how to set/clear. (0: clear flag, 1: set flag, default (-1): set the flag as value.)
@@ -312,7 +364,6 @@ public:
                break;
                
             default:
-               __console.setExitValue(1);
                if (__console.hasFS()) {
                   __console.man("usr");
                } else {
@@ -327,7 +378,7 @@ public:
                }
                break;
          }
-         __console.setExitValue(0);
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "echo") {
          String strValue;
          bool bSuppressNewLine = false;
@@ -358,13 +409,14 @@ public:
             i++;
          }
          if (! bSuppressNewLine) println();
-         __console.setExitValue(0);
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "@echo") {
          if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
-            //__console.setEchoOn();
+            __console.setEcho(false);
          } else if (strncmp(TKTOCHAR(tkArgs, 1), "on", 2) == 0) {
-            //__console.setEchoOff();
+            __console.setEcho(true);
          }
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "timer") {
          // timer add <period>|<cron> <cmd> [<id> [<mode>]]
          // timer del [id]
@@ -420,43 +472,41 @@ public:
                               __console.delTimer(pTimer->getId());
                            }
                         }, (nMode == 0));
+                        nExitValue = 0;
                      } else {
-                        __console.setExitValue(1);
                         __console.error(F("could not add timer %s! (existing or too many timers)"), pTimer->getId());
                         delete pTimer;
                      }
                   }
-                  
                } else {
-                  __console.setExitValue(1);
                   __console.printf(F("invalid time for timer"), nPeriod);
                }
-               __console.setExitValue(0);
             } else {
                __console.man(cmd.c_str());
-               __console.setExitValue(1);
             }// count
          } else if (strSubCmd == "del") {
             __console.delTimer(TKTOCHAR(tkArgs, 2));
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "stop") {
             __console.stopTimer(TKTOCHAR(tkArgs, 2));
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "start") {
             __console.startTimer(TKTOCHAR(tkArgs, 2));
+            nExitValue = EXIT_SUCCESS;
          }
          else if (strSubCmd == "list") {
             // list all timers
             __console.printTimers(getIoStream());
-            __console.setExitValue(0);
+            nExitValue = EXIT_SUCCESS;
          } else {
             __console.man(cmd.c_str());
-            __console.setExitValue(1);
          }
       }
       else {
-         return false;
+         return EXIT_NOT_HANDLED;
       }
       g_Stack.update();
-      return true;
+      return nExitValue;
    }
       
    void reboot() {
@@ -473,11 +523,13 @@ public:
 #ifndef ESP_CONSOLE_NOWIFI
    void printHostName() {
       print(__console.getHostName());
+      __console.setOutputVariable(__console.getHostName());
    }
    
    void printIp() {
 #ifdef ARDUINO
       print(WiFi.localIP().toString().c_str());
+      __console.setOutputVariable(WiFi.localIP().toString().c_str());
 #endif
    }
    
@@ -485,6 +537,7 @@ public:
 #ifdef ARDUINO
       if (WiFi.status() == WL_CONNECTED) {
          printf(F("%s (%d dBm)"), WiFi.SSID().c_str(), WiFi.RSSI());
+         __console.setOutputVariable(WiFi.SSID().c_str());
       }
 #endif
    }
@@ -531,6 +584,7 @@ public:
       print(F(ESC_ATTR_BOLD " Free: " ESC_ATTR_RESET));printHeapAvailable();print(F(" bytes"));
       print(F(ESC_ATTR_BOLD " Low: " ESC_ATTR_RESET));printHeapLow();print(F(" bytes"));
       print(F(ESC_ATTR_BOLD " Fragm.: " ESC_ATTR_RESET));printHeapFragmentation();print(F(" % (peak: ")); printHeapFragmentationPeak();print(F(("%)")));
+      __console.setOutputVariable((uint32_t)g_Heap.available());
    }
    
    void printHeapAvailable(bool fmt = false) {
@@ -601,6 +655,7 @@ public:
       printf(F(ESC_ATTR_BOLD " TZ: " ESC_ATTR_RESET "%s"), __console.getTimeZone());println();
 #endif
 #endif
+      __console.setOutputVariable(__console.isConnected() ? "online" : "offline");
    }
 
  

@@ -190,38 +190,38 @@ public:
     * @return True if the initialization is successful, otherwise false.
     *
     */
-   bool execute(const char *szCmd, uint8_t nClient) override {
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the command and arguments into the token buffer
       CxStrToken tkCmd(szCmd, " ");
-      
-      // validate again
-      if (!tkCmd.count()) return false;
-      
+            
       // we have a command, find the action to take
       String strCmd = TKTOCHAR(tkCmd, 0);
       
       // removes heading and trailing white spaces
       strCmd.trim();
       
+      uint8_t nExitValue = EXIT_FAILURE;
+      
       if ((strCmd == "?")) {
-         printCommands();
+         nExitValue = printCommands();
       } else if (strCmd == "rc") {
          String strSubCmd = TKTOCHAR(tkCmd, 1);
          strSubCmd.toLowerCase();
+         nExitValue = EXIT_SUCCESS;
          if (strSubCmd == "enable") {
             _bEnabled = (bool)TKTOINT(tkCmd, 2, 0);
-            if (_bEnabled) init();
+            if (_bEnabled) nExitValue = init();
          } else if (strSubCmd == "list") {
-            listStates();
+            nExitValue = listStates();
          } else if (strSubCmd == "on") {
-            on(TKTOINT(tkCmd, 2, 0));
+            nExitValue = on(TKTOINT(tkCmd, 2, 0));
          } else if (strSubCmd == "off") {
-            off(TKTOINT(tkCmd, 2, 0));
+            nExitValue = off(TKTOINT(tkCmd, 2, 0));
          } else if (strSubCmd == "setpins" && (tkCmd.count() >= 3)) {
-            setPins(TKTOINT(tkCmd, 2, -1), TKTOINT(tkCmd, 3, -1));
+            nExitValue = setPins(TKTOINT(tkCmd, 2, -1), TKTOINT(tkCmd, 3, -1));
          } else if (strSubCmd == "fn") {
             _strFriendlyName = TKTOCHAR(tkCmd, 2);
          } else if (strSubCmd == "ch") {
@@ -230,7 +230,7 @@ public:
             setOffCode(ch, TKTOINT(tkCmd, 4, 0));
             setToggle(ch, TKTOINT(tkCmd, 5, 0));
          } else if (strSubCmd == "init") {
-            init();
+            nExitValue = init();
          } else if (strSubCmd == "let") {
             // rc let <ch> = <dev name>
             uint8_t ch = TKTOINT(tkCmd, 2, INVALID_UINT8);
@@ -245,6 +245,7 @@ public:
             }
             else {
                println(F("device not found!"));
+               nExitValue = EXIT_FAILURE;
             }
          } else if (strSubCmd == "repeat") {
             _nRepeatTransmit = TKTOINT(tkCmd, 2, _nRepeatTransmit);
@@ -255,20 +256,20 @@ public:
          }
       } else {
          // command not handled here
-         return false;
+         return EXIT_NOT_HANDLED;
       }
       g_Stack.update(); ///< Update the stack status after executing the command
-      return true;
+      return nExitValue;
    }
    
    /**
     * @brief Initializes the segment display capability.
     * @details Sets up the segment display capability and initializes the display object.
     * The method also loads the segment display screens and sets the default brightness level.
-    * @return True if the initialization is successful, otherwise false.
+    * @return EXIT_SUCCESS if the initialization is successful, otherwise false.
     *
     */
-   bool init() {
+   uint8_t init() {
       if (_bEnabled) {
          end();
 
@@ -301,13 +302,13 @@ public:
                   m_pRCSwitch->enableReceive(m_gpioRx.getPin());
                }
 #endif
+               return EXIT_SUCCESS;
             } else {
                __console.error(F("RC: ### cannot initialize RCSwitch"));
-               return false;
             }
          }
       }
-      return false;
+      return EXIT_FAILURE;
    }
    
    bool init(int nPinRx, int nPinTx) {
@@ -323,13 +324,14 @@ public:
    void setEnabled(bool set) {_bEnabled = set;}
    bool isEnabled() {return _bEnabled;}
    
-   void setPins(int nPinRx, int nPinTx) { ///< Set the rx and tx pins for the segment display
+   uint8_t setPins(int nPinRx, int nPinTx) { ///< Set the rx and tx pins for the segment display
       m_gpioRx.setPin(nPinRx);
       m_gpioRx.setPinMode(INPUT);
       m_gpioRx.setGpioName("rx");
       m_gpioTx.setPin(nPinTx);
       m_gpioTx.setPinMode(OUTPUT);
       m_gpioTx.setGpioName("tx");
+      return (m_gpioRx.isValid() && m_gpioTx.isValid()) ? EXIT_SUCCESS : EXIT_FAILURE;
    }
    
    CxGPIO& getGPIOTx() {return m_gpioTx;}
@@ -374,28 +376,28 @@ public:
       return false;
    }
 
-   bool on(int iCh) {
+   uint8_t on(int iCh) {
       if (iCh >= 0 && iCh < RCCHANNELS && (m_pRCSwitch != NULL) && getOnCode(iCh) > 0) {
          _CONSOLE_INFO(F("RC: switch (%d) on (code = %lu)"), iCh, getOnCode(iCh));
 #ifdef ARDUINO
          m_pRCSwitch->send(getOnCode(iCh), 24);
 #endif
          setOnState(iCh, true);
-         return true;
+         return EXIT_SUCCESS;
       }
-      return false;
+      return EXIT_FAILURE;
    }
 
-   bool off(int iCh) {
+   uint8_t off(int iCh) {
       if (iCh >= 0 && iCh < RCCHANNELS && (m_pRCSwitch != NULL) && getOffCode(iCh) > 0) {
          _CONSOLE_INFO(F("RC: switch (%d) off (code = %lu)"), iCh, getOffCode(iCh));
 #ifdef ARDUINO
          m_pRCSwitch->send(getOffCode(iCh), 24);
 #endif
          setOnState(iCh, false);
-         return true;
+         return EXIT_SUCCESS;
       }
-      return false;
+      return EXIT_FAILURE;
    }
    
    void set(uint8_t ch, bool set) {
@@ -437,7 +439,7 @@ public:
       return false;
    }
 
-   void listStates() {
+   uint8_t listStates() {
       // list states
       CxTablePrinter table(*__console.getStream());
       
@@ -446,6 +448,7 @@ public:
       for (int i = 0; i < RCCHANNELS; i++) {
          table.printRow({String(i).c_str(), isOn(i) ? "on" : "off", isToggle(i) ? "on" : "off", String(getOnCode(i)).c_str(), String(getOffCode(i)).c_str()});
       }
+      return EXIT_SUCCESS;
    }
 
      

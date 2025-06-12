@@ -82,7 +82,7 @@ public:
    
    virtual void setup() {}
    virtual void loop() {}
-   virtual bool execute(const char* cmd, uint8_t nClient) {return false;}
+   virtual uint8_t execute(const char* cmd, uint8_t nClient) {return false;}
    
    virtual size_t write(uint8_t c) override;
    virtual size_t write(const uint8_t *buffer, size_t size) override;
@@ -107,10 +107,10 @@ public:
       print(buffer);  // Use Print's built-in print()
    }
    
-   bool processCmd(const char* cmd, uint8_t nClient);
+   uint8_t processCmd(const char* cmd, uint8_t nClient);
    
    // Function to print all commands ordered by setName
-   void printCommands() {
+   uint8_t printCommands() {
       // Sort the commands alphabetically
       std::sort(commands.begin(), commands.end(), [](const char* a, const char* b) {
          return strcmp(a, b) < 0;
@@ -126,6 +126,7 @@ public:
          print(cmd);
       }
       println(ESC_ATTR_RESET);
+      return EXIT_SUCCESS;
    }
 };
 

@@ -380,12 +380,12 @@ public:
    }
 
       
-   bool processCmd(const char* cmd, uint8_t nClient = 0);
+   uint8_t processCmd(const char* cmd, uint8_t nClient = 0);
    
-   bool processCmd(Stream& stream, const char* cmd, uint8_t nClient) {
+   uint8_t processCmd(Stream& stream, const char* cmd, uint8_t nClient) {
       Stream* pStream = __ioStream;
       __ioStream = &stream;
-      bool ret = processCmd(cmd, nClient);
+      uint8_t ret = processCmd(cmd, nClient);
       __ioStream = pStream;
       return ret;
    }
@@ -576,18 +576,34 @@ public:
       _mapSetVariables[szName] = szValue;
    }
    
-   void setExitValue(int32_t set) {
+   void setExitValue(uint8_t set) {
       addVariable("?", set);
    }
    
-   int32_t getExitValue() {
+   uint32_t getExitValue() {
       auto it = _mapSetVariables.find("?");
       if (it != _mapSetVariables.end()) {
-         return (int32_t)it->second.toInt();
+         return (uint32_t)it->second.toInt();
       }
-      return -1; // Default exit value
+      return 99; // Default exit value
    }
    
+   void setOutputVariable(const char* set) {
+      addVariable(">", set);
+   }
+   
+   void setOutputVariable(float set) {
+      addVariable(">", set);
+   }
+   
+   void setOutputVariable(int32_t set) {
+      addVariable(">", set);
+   }
+   
+   void setOutputVariable(uint32_t set) {
+      addVariable(">", set);
+   }
+
    const char* getVariable(const char* szName) {
       auto it = _mapSetVariables.find(szName);
       if (it != _mapSetVariables.end()) {
@@ -862,7 +878,8 @@ public:
       printf("%1.2f ", __totalCPU.load());
       printf("%1.2f", __totalCPU.avgload());
       println(ESC_ATTR_RESET);
-
+      
+      setOutputVariable(__totalCPU.looptime());
    }
 
    

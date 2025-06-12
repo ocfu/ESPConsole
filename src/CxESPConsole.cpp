@@ -19,8 +19,8 @@ std::map<String, String> _mapSetVariables; // Map to store environment variables
 
 CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
 
-bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
-   if (!cmd) return false;
+uint8_t CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
+   if (!cmd) return EXIT_FAILURE;
 
    if (cmd && *cmd == '{') {
       return processData(cmd);
@@ -33,7 +33,7 @@ bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
    CxMultiStrToken* ptkCmd = new CxMultiStrToken(cmd, aszDelimiters, 3);
    
    if (!ptkCmd) {
-      return false;
+      return EXIT_FAILURE;
    }
    
    bool overallResult = false;
@@ -58,7 +58,7 @@ bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
          pstrCmd->replace("§", "$"); // § used in quotes for variables.
          
          for (auto& entry : _mapCapInstances) {
-            bool bResult = false;
+            uint8_t nExitValue;
             
             entry.second->setIoStream(*__ioStream);
             bResult = entry.second->processCmd(pstrCmd->c_str(), nClient);
@@ -80,17 +80,17 @@ bool CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
       // since the first expression fails, the later command echo world is not processed (same with ";").
       // this is not compatible with the POSIX
       
-      if (nLogic == 1 && getExitValue()) { // AND logic, break, if the command was not successful (exit value is > 0)
+      if (nLogic == 1 && getExitValue() == EXIT_FAILURE) { // AND logic, break, if the command was not successful
          overallResult = true; // consider it as done, the next command will not be processed
          break; // Stop processing further commands
-      } else if (nLogic == 2 && getExitValue() == 0) { // OR logic, break, if the command was successful
+      } else if (nLogic == 2 && getExitValue() == EXIT_SUCCESS) { // OR logic, break, if the command was successful
          overallResult = true; // consider it as done, the next command will not be processed
          break; // Stop processing further commands
       }
 
    }
    delete ptkCmd;
-   return overallResult;
+   return overallResult ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 void CxESPConsoleMaster::begin() {
@@ -338,12 +338,10 @@ uint32_t CxESPConsole::_addPrefix(char c, char* buf, uint32_t lenmax) {
 }
 
 void CxESPConsole::debug(const char *fmt, ...) {
-   if (!fmt) return;
 
    va_list args;
    va_start(args, fmt);
 
-   char buf[100];
    uint32_t len = _addPrefix('D', buf, sizeof(buf));
    vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
 
@@ -351,14 +349,6 @@ void CxESPConsole::debug(const char *fmt, ...) {
 
    va_end(args);
 }
-
-void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
-   if (!fmt) return;
-
-   va_list args;
-   va_start(args, fmt);
-   
-   char buf[100];
    uint32_t len = _addPrefix('D', buf, sizeof(buf));
    vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
    
@@ -368,7 +358,6 @@ void CxESPConsole::debug(const FLASHSTRINGHELPER * fmt...) {
 }
 
 void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
-   if (!fmt) return;
 
    va_list args;
    va_start(args, fmt);

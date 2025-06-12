@@ -23,15 +23,9 @@ size_t CxCapability::write(const uint8_t *buffer, size_t size) {
    return 0;
 }
 
-bool CxCapability::processCmd(const char* szCmdLine, uint8_t nClient) {
-   if (!szCmdLine) return false;  // No command found
-   
-   if (*szCmdLine == '$' || *szCmdLine == '.') { // hidden command
-      return execute(szCmdLine, nClient);
-   } else {
-      if (execute(szCmdLine, nClient)) return true;
-   }
-   return false;
+uint8_t CxCapability::processCmd(const char* szCmdLine, uint8_t nClient) {
+   if (!szCmdLine) return EXIT_FAILURE;  // No command found
+   return execute(szCmdLine, nClient);
 }
 
 

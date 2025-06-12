@@ -276,10 +276,10 @@ public:
    }
    
    /// Execute method to process the given command and return the result.
-   bool execute(const char *szCmd, uint8_t nClient) override {
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
        
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the command and arguments into the token buffer
       CxStrToken tkArgs(szCmd, " ");
@@ -294,8 +294,10 @@ public:
       const char* a = TKTOCHAR(tkArgs, 1);
       const char* b = TKTOCHAR(tkArgs, 2);
       
+      uint32_t nExitValue = EXIT_FAILURE; // default exit value is 1 (error)
+      
        if (cmd == "?") {
-          printCommands();
+          nExitValue = printCommands();
        } else if (cmd == "hw") {
          printHW();
       } else if (cmd == "sw") {
@@ -304,12 +306,11 @@ public:
          printESP();
       } else if (cmd == "flash") {
          printFlashMap();
+#ifdef ARDUINO
+         __console.setOutputVariable(ESP.getFlashChipSize()/1024);
+#endif
+         nExitValue = EXIT_SUCCESS;
       } else if (cmd == "set") {
-         ///
-         /// fix env variables:
-         /// - NTP = <server>
-         /// - TZ  = <timezone>
-         ///
          String strVar = TKTOCHAR(tkArgs, 1);
          uint8_t prec = 0;
          String strOp1 = TKTOCHAR(tkArgs, 2);
@@ -342,18 +343,16 @@ public:
             if (nBufLen >= 64) {
                __console.setCmdBufferLen(nBufLen);
                __console.addVariable(strVar.c_str(), String(__console.getCmdBufferLen()).c_str());
-               __console.setExitValue(0);
-            } else {
-               __console.setExitValue(1);
+               nExitValue = EXIT_SUCCESS;
             }
          } else if (strVar.length() > 0) {
             bool bValid = true;
             
-            if (strExpr.length()) {
+            if (bIsExpr) {
                ExprParser parser;
                float fValue = 0.0F;
 
-               fValue = parser.eval(strExpr.c_str(), bValid);
+               fValue = parser.eval(strValue.c_str(), bValid);
                
                if (bValid) {
                   strValue = String(fValue, prec);
@@ -370,15 +369,17 @@ public:
                __console.removeVariable(strVar.c_str());
             }
             if (strVar != "?") {
-               __console.setExitValue(!bValid); // don't set exit value, if variable is exit value
+               nExitValue = bValid ? 0 : 1;
             }
          } else {
             /// print all variables
             __console.printVariables(getIoStream());
+            nExitValue = EXIT_SUCCESS;
          }
       } else if (cmd == "eeprom") {
          if (a) {
             ::printEEPROM(getIoStream(), TKTOINT(tkArgs, 1, 0), TKTOINT(tkArgs, 2, 128));
+            nExitValue = EXIT_SUCCESS;
          } else {
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
@@ -388,10 +389,10 @@ public:
                println(F("usage: eeprom [<start address>] [<length>]"));
 #endif
             }
-            __console.setExitValue(1);
          }
       } else if (cmd == "wifi") {
          String strCmd = TKTOCHAR(tkArgs, 1);
+         nExitValue = EXIT_SUCCESS;
          if (strCmd == "ssid") {
             if (b) {
                ::writeSSID(TKTOCHAR(tkArgs, 2));
@@ -399,6 +400,7 @@ public:
                char buf[20];
                ::readSSID(buf, sizeof(buf));
                print(F(ESC_ATTR_BOLD "SSID: " ESC_ATTR_RESET)); print(buf); println();
+               __console.setOutputVariable(buf);
             }
          } else if (strCmd == "password") {
             if (b) {
@@ -416,6 +418,7 @@ public:
                char buf[80];
                ::readHostName(buf, sizeof(buf));
                print(F(ESC_ATTR_BOLD "Hostname: " ESC_ATTR_RESET)); print(buf); println();
+               __console.setOutputVariable(buf);
             }
          } else if (strCmd == "connect") {
             startWiFi(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3));
@@ -440,15 +443,15 @@ public:
             if (!b) {
                print(F("WiFi is "));
                if (bStatus) {
-                  __console.setExitValue(0);
                   println(F("connected"));
                } else {
-                  __console.setExitValue(1);
                   println(F("not connected"));
+                  nExitValue = EXIT_FAILURE;
                }
             }               
          }
          else {
+            nExitValue = EXIT_FAILURE;
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
             } else {
@@ -467,10 +470,8 @@ public:
                println(F("  check [-q]"));
 #endif
             }
-            __console.setExitValue(1);
          }
       } else if (cmd == "ping") {
-         __console.setExitValue(0);
          if (!a && !b) {
             if (__console.hasFS()) {
                __console.man(cmd.c_str());
@@ -480,10 +481,9 @@ public:
          } else {
             if (isHostAvailble(TKTOCHAR(tkArgs, 1), TKTOINT(tkArgs, 2, 0))) {
                println(F("ok"));
-               __console.setExitValue(0);
+               nExitValue = EXIT_SUCCESS;
             } else {
                println(F("host not available on this port!"));
-               __console.setExitValue(1);
             };
          }
       } else if (cmd == "gpio") {
@@ -502,15 +502,23 @@ public:
 #endif
             
             for (const auto& pin : _gpioTracker.getPins()) {
+               if (nPin != INVALID_PIN && nPin != pin) continue; // skip if pin does not match
+
                CxGPIO gpio(pin);
                gpio.get();
                if (gpio.isAnalog()) {
+                  if (nPin != INVALID_PIN) {
+                     __console.setOutputVariable(gpio.getAnalogValue());
+                  }
 #ifndef MINIMAL_COMMAND_SET
                   table.printRow({String(pin).c_str(), gpio.getPinModeSz(), gpio.isInverted() ? "yes" : "no", "n/a", "n/a", gpio.isAnalog() ? String(gpio.getAnalogValue()):""});
 #else
                   table.printRow({String(pin).c_str(), gpio.getPinModeSz(), gpio.isInverted() ? "yes" : "no", "n/a"});
 #endif
                } else {
+                  if (nPin != INVALID_PIN) {
+                     __console.setOutputVariable(gpio.getDigitalState() ? "HIGH" : "LOW");
+                  }
 #ifndef MINIMAL_COMMAND_SET
                   table.printRow({String(pin).c_str(), gpio.getPinModeSz(), gpio.isInverted() ? "yes" : "no", gpio.getDigitalState() ? "HIGH" : "LOW", gpio.isPWM() ? "Endabled" : "Disabled", gpio.isAnalog() ? String(gpio.getAnalogValue()):""});
 #else
@@ -518,9 +526,11 @@ public:
 #endif
                }
             }
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "set") {
             if (__gpioTracker.isValidPin(nPin)) {
                CxGPIO gpio(nPin);
+               nExitValue = EXIT_SUCCESS;
                if (nValue < 0) { // setting the pin mode
                   if (strValue == "in") {
                      gpio.setPinMode(INPUT);
@@ -539,15 +549,17 @@ public:
                      
                   } else {
                      printf(F("invalid pin mode!"));
+                     nExitValue = EXIT_FAILURE;
                   }
                } else if (nValue < 1024) {
                   CxGPIODevice* pDev = _gpioDeviceManager.getDeviceByPin(nPin);
                   if (pDev) pDev->set(nValue);
                } else {
                   printf(F("invalid value!"));
+                  nExitValue = EXIT_FAILURE;
                }
             } else {
-               __console.setExitValue(1);
+               nExitValue = EXIT_FAILURE;
                println("invalid");
                __gpioTracker.printInvalidReason(getIoStream(), nPin);
             }
@@ -555,12 +567,13 @@ public:
             if (__gpioTracker.isValidPin(nPin)) {
                CxGPIO gpio(nPin);
                gpio.printState(getIoStream());
+               nExitValue = EXIT_SUCCESS;
             } else {
-               __console.setExitValue(1);
                __gpioTracker.printInvalidReason(getIoStream(), nPin);
             }
          } else if (strSubCmd == "list") {
             _gpioDeviceManager.printList();
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "add") {
             if (nPin != INVALID_PIN) {
                String strType = TKTOCHAR(tkArgs, 3);
@@ -577,16 +590,19 @@ public:
                      pButton->setInverted(bInverted);
                      pButton->setCmd(strGpioCmd.c_str());
                      pButton->begin();
+                     nExitValue = EXIT_SUCCESS;
                   } else {
                      if (strGpioCmd == "reset") {
                         CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted, bPullup);
                         if (p) {
                            p->begin();
+                           nExitValue = EXIT_SUCCESS;
                         }
                      } else {
                         CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
                         if (p) {
                            p->begin();
+                           nExitValue = EXIT_SUCCESS;
                         }
                      }
                   }
@@ -598,6 +614,7 @@ public:
                      Led1.setInverted(bInverted);
                      Led1.setCmd(strGpioCmd.c_str());
                      Led1.off();
+                     nExitValue = EXIT_SUCCESS;
                   } else {
                      CxLed* p = static_cast<CxLed*>(_gpioDeviceManager.getDeviceByPin(nPin));
                      if (p) {
@@ -606,11 +623,13 @@ public:
                         p->setCmd(strGpioCmd.c_str());
                         p->begin();
                         p->off();
+                        nExitValue = EXIT_SUCCESS;
                      } else {
                         CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);
                         if (p) {
                            //p->setFriendlyName();
                            p->begin();
+                           nExitValue = EXIT_SUCCESS;
                         }
                      }
                   }
@@ -622,10 +641,12 @@ public:
                      pRelay->setInverted(bInverted);
                      pRelay->setCmd(strGpioCmd.c_str());
                      pRelay->begin();
+                     nExitValue = EXIT_SUCCESS;
                   }  else {
                      CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
+                        nExitValue = EXIT_SUCCESS;
                      }
                   }
                } else if (strType == "contact") {
@@ -635,10 +656,12 @@ public:
                      pContact->setInverted(bInverted);
                      pContact->setCmd(strGpioCmd.c_str());
                      pContact->begin();
+                     nExitValue = EXIT_SUCCESS;
                   } else {
                      CxContact* p = new CxContact(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
+                        nExitValue = EXIT_SUCCESS;
                      }
                   }
                } else if (strType == "counter") {
@@ -648,10 +671,12 @@ public:
                      pCounter->setInverted(bInverted);
                      pCounter->setCmd(strGpioCmd.c_str());
                      pCounter->begin();
+                     nExitValue = EXIT_SUCCESS;
                   } else {
                      CxCounter* p = new CxCounter(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
+                        nExitValue = EXIT_SUCCESS;
                      }
                   }
                } else if (strType == "analog") {
@@ -662,10 +687,12 @@ public:
                      pAnalog->setCmd(strGpioCmd.c_str());
                      pAnalog->setTimer(TKTOINT(tkArgs, 7, 1000)); // default update rate 1s
                      pAnalog->begin();
+                     nExitValue = EXIT_SUCCESS;
                   } else {
                      CxAnalog* p = new CxAnalog(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
+                        nExitValue = EXIT_SUCCESS;
                      }
                   }
                } else if (strType == "virtual") {
@@ -675,19 +702,19 @@ public:
                      pVirtual->setInverted(bInverted);
                      pVirtual->setCmd(strGpioCmd.c_str());
                      pVirtual->begin();
+                     nExitValue = EXIT_SUCCESS;
                   } else {
                      CxGPIOVirtual* p = new CxGPIOVirtual(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
                      if (p) {
                         p->begin();
+                        nExitValue = EXIT_SUCCESS;
                      }
                   }
                }
                else {
-                  __console.setExitValue(1);
                   println(F("invalid device type!"));
                }
             } else {
-               __console.setExitValue(1);
                println(F("invalid pin!"));
             }
          } else if (strSubCmd == "del") {
@@ -696,13 +723,15 @@ public:
             if (strName == "led1") {
                Led1.setPin(INVALID_PIN);
                Led1.setName("");
+               nExitValue = EXIT_SUCCESS;
             } else {
                CxGPIODevice* p = _gpioDeviceManager.getDevice(strName.c_str());
+               nExitValue = EXIT_SUCCESS;
                if (p) {
                   delete p;
                } else {
-                  __console.setExitValue(1);
                   println(F("device not found!"));
+                  nExitValue = EXIT_FAILURE;
                }
                _gpioDeviceManager.removeDevice(strName.c_str());
             }
@@ -712,12 +741,11 @@ public:
                if (p) {
                   p->setFriendlyName(strValue.c_str());
                   p->setName(strValue.c_str());
+                  nExitValue = EXIT_SUCCESS;
                } else {
-                  __console.setExitValue(1);
                   println(F("device not found!"));
                }
             } else {
-               __console.setExitValue(1);
                println(F("invalid pin!"));
             }
          } else if (strSubCmd == "fn") {
@@ -725,8 +753,8 @@ public:
             
             if (p) {
                p->setFriendlyName(TKTOCHAR(tkArgs, 3));
+               nExitValue = EXIT_SUCCESS;
             } else {
-               __console.setExitValue(1);
                println(F("device not found!"));
             }
             
@@ -735,8 +763,8 @@ public:
             
             if (p) {
                p->setDebounce(TKTOINT(tkArgs, 3, p->getDebounce()));
+               nExitValue = EXIT_SUCCESS;
             } else {
-               __console.setExitValue(1);
                println(F("device not found!"));
             }
          } else if (strSubCmd == "isr") {
@@ -746,12 +774,14 @@ public:
                p->setDebounce(TKTOINT(tkArgs, 4, p->getDebounce()));
                p->setISR(TKTOINT(tkArgs, 3, INVALID_UINT8));
                p->enableISR();
+               nExitValue = EXIT_SUCCESS;
             } else {
                CxTablePrinter table(getIoStream());
                table.printHeader({F("ID"), F("Counter"), F("Debounce")}, {3, 10, 8});
                for (int i = 0; i < 3; i++) {
                   table.printRow({String(i).c_str(), String(g_anEdgeCounter[i]).c_str(), String(g_anDebounceDelay[i]).c_str()});
                }
+               nExitValue = EXIT_SUCCESS;
             }
          }
          else if (strSubCmd == "let" && tkArgs.count() > 4) {
@@ -762,6 +792,7 @@ public:
             if (strOperator == "=") {
                if (dev1 && dev2) {
                   dev1->set(dev2->get());
+                  nExitValue = EXIT_SUCCESS;
                } else if (dev1) {
                   String strValue = TKTOCHAR(tkArgs, 4);
                   uint32_t nValue = INVALID_UINT32;
@@ -778,9 +809,9 @@ public:
                      __console.error(F("cannot assign the value %s to %s (not a number)"), strValue.c_str(), dev1->getName());
                   } else {
                      dev1->set((bool)nValue); // MARK: currently only bool is supported
+                     nExitValue = EXIT_SUCCESS;
                   }
                } else {
-                  __console.setExitValue(1);
                   println(F("device not found!"));
                }
             }
@@ -804,7 +835,6 @@ public:
                println(F("  isr <pin> <id> [<debounce time>]"));
 #endif
             }
-            __console.setExitValue(1);
          }
       } else if (cmd == "led") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -824,8 +854,10 @@ public:
 
          if (strSubCmd == "on") {
             led->on();
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "off") {
             led->off();
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "blink") {
             String strPattern = TKTOCHAR(tkArgs, 2+nIndexOffset);
             if (strPattern == "ok") {
@@ -845,6 +877,7 @@ public:
             }  else {
                led->setBlink(TKTOINT(tkArgs, 2+nIndexOffset, 1000), TKTOINT(tkArgs, 3+nIndexOffset, 128));
             }
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "flash") {
             String strPattern = TKTOCHAR(tkArgs, 2+nIndexOffset);
             if (strPattern == "ok") {
@@ -864,6 +897,7 @@ public:
             } else {
                led->setFlash(TKTOINT(tkArgs, 2+nIndexOffset, 250), TKTOINT(tkArgs, 3+nIndexOffset, 128), TKTOINT(tkArgs, 4+nIndexOffset, 1));
             }
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "invert") {
             if (b) {
                led->setInverted(TKTOINT(tkArgs, 2+nIndexOffset, false));
@@ -871,8 +905,10 @@ public:
                led->setInverted(!led->isInverted());
                led->toggle();
             }
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "toggle") {
             led->toggle();
+            nExitValue = EXIT_SUCCESS;
          }
          else {
             printf(F("LED on pin %02d%s\n"), led->getPin(), led->isInverted() ? ",inverted":"");
@@ -890,26 +926,27 @@ public:
                println(F("  invert [0|1]"));
 #endif
             }
-            __console.setExitValue(1);
          }
       } else if (cmd == "sensor") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
          if (strSubCmd == "list") {
             _sensorManager.printList();
+            nExitValue = EXIT_SUCCESS;
          } else if (strSubCmd == "name") {
             uint8_t nId = TKTOINT(tkArgs, 2, INVALID_UINT8);
             if (nId != INVALID_UINT8) {
                _sensorManager.setSensorName(nId, TKTOCHAR(tkArgs, 3));
+               nExitValue = EXIT_SUCCESS;
             } else {
-               __console.setExitValue(1);
                println(F("usage: sensor name <id> <name>"));
             }
          } else if (strSubCmd == "get") {
             float f = _sensorManager.getSensorValueFloat(TKTOINT(tkArgs, 2, INVALID_FLOAT));
             if (!std::isnan(f)) {
                println(f);
+               nExitValue = EXIT_SUCCESS;
+               __console.setOutputVariable(f);
             } else {
-               __console.setExitValue(1);
                println(F("invalid sensor id!"));
             }
          } else if (strSubCmd == "add" && tkArgs.count() > 5) {
@@ -918,7 +955,7 @@ public:
             CxSensor* pSensor = _sensorManager.getSensor(TKTOCHAR(tkArgs, 2));
             
             if (pSensor) {
-               
+               nExitValue = EXIT_SUCCESS;
             } else {
                String strType =TKTOCHAR(tkArgs, 3);
                pSensor = new CxSensorGeneric(TKTOCHAR(tkArgs, 2), ECSensorType::other, TKTOCHAR(tkArgs, 4), [this, strVar]()->float {
@@ -940,11 +977,12 @@ public:
                if (pSensor) {
                   pSensor->setTypeSz(strType.c_str());
                   pSensor->setFriendlyName(TKTOCHAR(tkArgs, 6));
+                  nExitValue = EXIT_SUCCESS;
                }
             }
-            
          } else if (strSubCmd == "del") {
             _sensorManager.removeSensor(TKTOCHAR(tkArgs, 2));
+            nExitValue = EXIT_SUCCESS;
          }
          else {
             if (__console.hasFS()) {
@@ -958,7 +996,6 @@ public:
                println(F("  add <name> <unit> <variable> [<friendly name>]"));
 #endif
             }
-            __console.setExitValue(1);
          }
       } else if (cmd == "relay") {
          String strName = TKTOCHAR(tkArgs, 1);
@@ -974,9 +1011,11 @@ public:
             
             if (strType != "relay") {
                __console.println(F("device is not a relay!"));
+               nExitValue = EXIT_SUCCESS;
             } else {
                CxRelay* p = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(strName.c_str()));
-               
+               nExitValue = EXIT_SUCCESS;
+
                if (strSubCmd == "on") {
                   p->on();
                } else if (strSubCmd == "off") {
@@ -989,7 +1028,7 @@ public:
                   p->setDefaultOn(TKTOINT(tkArgs, 3, 0));
                }
                else {
-                  __console.setExitValue(1);
+                  nExitValue = EXIT_FAILURE;
                   __console.println(F("invalid relay command"));
                }
             }
@@ -1007,7 +1046,6 @@ public:
                println(F("  <name> default <0|1>"));
 #endif
             }
-            __console.setExitValue(1);
          }
       } else if (cmd == "processdata") {
          String strType = TKTOCHAR(tkArgs, 1);
@@ -1055,16 +1093,14 @@ public:
                });
             }
             _mapProcessJsonDataItems[TKTOCHAR(tkArgs, 2)] = TKTOCHAR(tkArgs, 3);
-            __console.setExitValue(0);
+            nExitValue = EXIT_SUCCESS;
          } else if (strType == "list") {
             CxTablePrinter table(getIoStream());
             table.printHeader({F("Json Path"), F("Command")}, {20, 40});
             for (const auto& pair : _mapProcessJsonDataItems) {
                table.printRow({pair.first, pair.second.c_str()});
             }
-            __console.setExitValue(0);
-         } else {
-            __console.setExitValue(1);
+            nExitValue = EXIT_SUCCESS;
          }
       } else if (cmd == "smooth") {
          // smooth <reference> <value> <maxDiff> [<threshold> <minAlpha> <maxAlpha>]
@@ -1089,18 +1125,19 @@ public:
          float maxAlpha = TKTOFLOAT(tkArgs, 6, INVALID_FLOAT);
                   
          if (std::isnan(value) || std::isnan(maxDiff)) {
-            __console.setExitValue(1);
+            
          } else {
             float fValue = smoothRobust(reference, value, maxDiff, threshold, minAlpha, maxAlpha);
-            __console.setExitValue(std::isnan(fValue)?1:0); // consider as non success (exit code 1), if nan was returned.
-            __console.addVariable(">", fValue);
+            nExitValue = (std::isnan(fValue)?1:0); // consider as non success (exit code 1), if nan was returned.
+            __console.setOutputVariable(fValue);
          }
+         nExitValue = EXIT_SUCCESS;
       }
       else {
-         return false;
+         return EXIT_NOT_HANDLED;
       }
       g_Stack.update();
-      return true;
+      return nExitValue;
    }
    
    const char* getJsonValueSz(const JsonDocument& doc, const char* path, const char* defaultValue) {

@@ -53,6 +53,7 @@ class CxCapabilityFS : public CxCapability {
    bool _bLogEnabled = false;
    
    bool _bBreakBatch = false;
+   uint8_t _nBatchDepth = 0;
    
    CxTimer60s _timer60sLogServer;
 
@@ -97,7 +98,7 @@ public:
       // implement specific fs functions
       ESPConsole.setFuncPrintLog2Server([this](const char *sz) { this->_print2logServer(sz); });
       ESPConsole.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
-      ESPConsole.setFuncMan([this](const char *sz) { this->man(sz); });
+      ESPConsole.setFuncMan([this](const char *sz, const char* param) { this->man(sz, param); });
  
       CxPersistentImpl::getInstance().setImplementation(ESPConsole);
  
@@ -108,10 +109,10 @@ public:
    void loop() override {
    }
    
-   bool execute(const char *szCmd, uint8_t nClient) override {
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
        
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the command and arguments into the token buffer
       CxStrToken tkArgs(szCmd, " ");
@@ -126,42 +127,48 @@ public:
       const char* a = TKTOCHAR(tkArgs, 1);
       const char* b = TKTOCHAR(tkArgs, 2);
       
+      uint8_t nExitValue = EXIT_FAILURE;
+      
        if (cmd == "?") {
-          printCommands();
-       } else if (cmd == "du") {printDu(a);a ? println() : println(" .");
-       } else if (cmd == "df") {printDf();println(F(" bytes"));
-       } else if (cmd == "size") {printSize();println(F(" bytes"));
+          nExitValue = printCommands();
+       } else if (cmd == "du") {nExitValue = printDu(a);a ? println() : println(" .");
+       } else if (cmd == "df") {nExitValue = printDf();println(F(" bytes"));
+       } else if (cmd == "size") {nExitValue = printSize();println(F(" bytes"));
        } else if (cmd == "ls") {
           String strOpt = TKTOCHAR(tkArgs, 1);
-          ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la");
+          nExitValue = ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la");
        } else if (cmd == "la") {
-          ls (true, true);
-       } else if (cmd == "cat") {cat(a);
-       } else if (cmd == "cp") {cp(a, b);
-       } else if (cmd == "rm") {rm(a);
-       } else if (cmd == "mv") {mv(a, b);
+          nExitValue = ls (true, true);
+       } else if (cmd == "cat") {nExitValue = cat(a);
+       } else if (cmd == "cp") {nExitValue = cp(a, b);
+       } else if (cmd == "rm") {nExitValue = rm(a);
+       } else if (cmd == "mv") {nExitValue = mv(a, b);
        } else if (cmd == "touch") {
-          touch(a);
+          nExitValue = touch(a);
        } else if (cmd == "mount") {
-          mount();
+          nExitValue = mount();
        } else if (cmd == "umount") {
-          umount();
+          nExitValue = umount();
        } else if (cmd == "format") {
-          format();
+          nExitValue = format();
        } else if (cmd == "hasfs") {
-          return hasFS();
+          bool bHasFS = hasFS();
+          __console.setOutputVariable(bHasFS? "true" : "false");
+          nExitValue = bHasFS ? 0 : 1;
+          return nExitValue; // MARK: ??? return, why?
        }
        else if (cmd == "fs") {
-          printFsInfo();
+          nExitValue = printFsInfo();
           println();
        } else if (cmd == "$UPLOAD$") {
-          _handleFile();
+          nExitValue = _handleFile();
        } else if (cmd == "$DOWNLOAD$") {
-          _handleFile();
+          nExitValue = _handleFile();
        } else if (cmd == "log") {
           String strSubCmd = TKTOCHAR(tkArgs, 1);
           strSubCmd.toLowerCase();
           String strEnv = ".log";
+          nExitValue = EXIT_SUCCESS; // assume success
           if (strSubCmd == "server") {
              _strLogServer = TKTOCHAR(tkArgs, 2);
              _nLogPort = TKTOINT(tkArgs, 3, 1880);
@@ -180,7 +187,7 @@ public:
           } else if (strSubCmd == "on") {
              enableLog(true);
              _bLogServerAvailable = __console.isHostAvailable(_strLogServer.c_str(), _nLogPort);
-             if (!_bLogServerAvailable) println(F("server not available!"));
+             if (!_bLogServerAvailable) {println(F("log server not available!"));nExitValue = EXIT_FAILURE;}
           } else if (strSubCmd == "off") {
              enableLog(false);
           } else {
@@ -191,12 +198,12 @@ public:
              printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
              man("log");
              _CONSOLE_INFO(F("test log message"));
+             nExitValue = EXIT_FAILURE;
           }
        } else if (cmd == "exec") {
           if (a) {
-             executeBatch(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2), TKTOCHARAFTER(tkArgs, 3));
+             nExitValue = executeBatch(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2), TKTOCHARAFTER(tkArgs, 3));
           } else {
-             __console.setExitValue(1);
              println(F("usage: exec <batchfile> [<label> [<args>]]"));
           }
        } else if (cmd == "break" ) {
@@ -206,13 +213,12 @@ public:
           uint8_t nValue = TKTOINT(tkArgs, 2, 0);
           
           if (strCond == "on" && nValue) {
-             __console.setExitValue(0);
              _bBreakBatch = true;
+             nExitValue = EXIT_SUCCESS;
           } else if (strCond.length() == 0) {  // simple break
-             __console.setExitValue(0);
              _bBreakBatch = true;
+             nExitValue = EXIT_SUCCESS;
           } else {
-             __console.setExitValue(1);
              _bBreakBatch = false;
           }
        } else if (cmd == "man") {
@@ -226,16 +232,14 @@ public:
           }
           
           if (test(vExpr)) {
-             __console.setExitValue(0); // 0: means true, command executed successfully
-          } else {
-             __console.setExitValue(1); // 1: means false, command failed or expression evaluated to false
+             nExitValue = EXIT_SUCCESS;
           }
        }
        else {
-          return false;
+          return EXIT_NOT_HANDLED;
        }
       g_Stack.update();
-      return true;
+      return nExitValue;
    }
    
    void enableLog(bool set) { _bLogEnabled = set;}
@@ -259,59 +263,56 @@ public:
       if (hasFS()) {
          FSInfo fsinfo;
          _getFSInfo(fsinfo);
-         __console.setExitValue(0);
         return (uint32_t) (fsinfo.totalBytes - fsinfo.usedBytes);
       } else {
-         __console.setExitValue(1);
          return 0;
       }
    }
    
-   void printFsInfo() {
+   uint8_t printFsInfo() {
       if (hasFS()) {
          print(F(ESC_ATTR_BOLD   "Filesystem: " ESC_ATTR_RESET "Little FS"));
          print(F(ESC_ATTR_BOLD " Size: " ESC_ATTR_RESET));printSize();print(F(" bytes"));
          print(F(ESC_ATTR_BOLD " Used: " ESC_ATTR_RESET));printDu();print(F(" bytes"));
          print(F(ESC_ATTR_BOLD " Free: " ESC_ATTR_RESET));printDf();print(F(" bytes"));
+         __console.setOutputVariable("Little FS");
+         return EXIT_SUCCESS;
       } else {
          print(F(ESC_ATTR_BOLD "Filesystem: " ESC_ATTR_RESET "not mounted"));
       }
+      return EXIT_FAILURE;
    }
    
-   void printDu(bool fmt = false, const char* szFn = nullptr) {
+   uint8_t printDu(const char* szFn = nullptr) {
       if (hasFS()) {
          if (szFn) {
 #ifdef ARDUINO
             if (LittleFS.exists(szFn)) {
                File file = LittleFS.open(szFn, "r");
                if (file) {
-                  if (fmt) {
-                     printf(F("%07d %s"), file.size(), file.name());
-                  } else {
-                     printf(F("%d %s"), file.size(), file.name());
-                  }
+                  printf(F("%d %s"), file.size(), file.name());
+                  __console.setOutputVariable((uint32_t)file.size());
+                  file.close();
+                  return EXIT_SUCCESS;
                }
-               __console.setExitValue(0);
             } else {
                _printNoSuchFileOrDir("du", szFn);
             }
 #endif
-            
          } else {
             FSInfo fsinfo;
             _getFSInfo(fsinfo);
-            if (fmt) {
-               printf(F("%7ld"), fsinfo.usedBytes);
-            } else {
-               printf(F("%ld"), fsinfo.usedBytes);
-            }
+            printf(F("%ld"), fsinfo.usedBytes);
+            __console.setOutputVariable((uint32_t)fsinfo.usedBytes);
+            return EXIT_SUCCESS;
          }
       } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
    
-   void printSize(bool fmt = false) {
+   uint8_t printSize(bool fmt = false) {
       if (hasFS()) {
          FSInfo fsinfo;
          _getFSInfo(fsinfo);
@@ -320,26 +321,30 @@ public:
          } else {
             printf(F("%ld"), fsinfo.totalBytes);
          }
-         __console.setExitValue(0);
+         __console.setOutputVariable((uint32_t)fsinfo.totalBytes);
+         return EXIT_SUCCESS;
       } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
 
-   void printDf(bool fmt = false)  {
+   uint8_t printDf(bool fmt = false)  {
       if (hasFS()) {
          if (fmt) {
             printf(F("%7ld"), getDf());
          } else {
             printf(F("%ld"), getDf());
          }
-         __console.setExitValue(0);
+         __console.setOutputVariable(getDf());
+         return EXIT_SUCCESS;
      } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
 
-   void ls(bool bAll = false, bool bLong = false) {
+   uint8_t ls(bool bAll = false, bool bLong = false) {
       if (hasFS()) {
          uint32_t totalBytes;
          uint32_t usedBytes;
@@ -397,18 +402,18 @@ public:
          if (bLong) {
             printf(F("%7d (%d bytes free)\n"), total, totalBytes - usedBytes);
          }
-         __console.setExitValue(0);
+         return 0;
 #endif // end ARDUINO
       } else {
          _printNoFS();
       }
+      return 1;
    }
    
-   void cat(const char* szFn) {
+   uint8_t cat(const char* szFn) {
       if (! szFn) {
-         __console.setExitValue(1);
          println(F("usage: cat <file>"));
-         return;
+         return EXIT_FAILURE;
       }
       if (hasFS()) {
 #ifdef ARDUINO
@@ -421,9 +426,8 @@ public:
             println();
          } else {
             _printNoSuchFileOrDir("cat", szFn);
-            return;
+            return EXIT_FAILURE;
          }
-         __console.setExitValue(0);
 #else
          std::ifstream file;
          file.open(szFn);
@@ -434,40 +438,41 @@ public:
             }
             println();
          } else {
-            return;
+            return EXIT_FAILURE;
          }
 #endif
          file.close();
+         return EXIT_SUCCESS;
       } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
    
-   void rm(const char* szFn) {
+   uint8_t rm(const char* szFn) {
       if (! szFn) {
-         __console.setExitValue(1);
          println(F("usage: rm <file>"));
-         return;
+         return EXIT_FAILURE;
       }
       if (hasFS()) {
 #ifdef ARDUINO
          if (!LittleFS.remove(szFn)) {
             _printNoSuchFileOrDir("rm", szFn);
          } else {
-            __console.setExitValue(0);
+            return EXIT_SUCCESS;
          }
 #else
 #endif
       } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
    
-   void cp(const char *szSrc, const char *szDst) {
+   uint8_t cp(const char *szSrc, const char *szDst) {
       if (! szSrc || ! szDst) {
-         __console.setExitValue(1);
          println(F("usage: cp <src_file> <tgt_file>"));
-         return;
+         return EXIT_FAILURE;
       }
       if (hasFS()) {
 #ifdef ARDUINO
@@ -489,9 +494,7 @@ public:
                   fileDst.close();
                }
                fileSrc.close();
-               __console.setExitValue(0);
-            } else {
-               __console.setExitValue(1);
+               return EXIT_SUCCESS;
             }
          } else {
             _printNoSuchFileOrDir("cp", szSrc);
@@ -501,13 +504,13 @@ public:
       } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
    
-   void mv(const char *szSrc, const char *szDst) {
+   uint8_t mv(const char *szSrc, const char *szDst) {
       if (! szSrc || ! szDst) {
-         __console.setExitValue(1);
          println(F("usage: mv <src_file> <tgt_file>"));
-         return;
+         return EXIT_FAILURE;
       }
       if (hasFS()) {
 #ifdef ARDUINO
@@ -517,10 +520,9 @@ public:
             // FIXME: cp need y/n query if dst exist, unless -f is given as parameter
             if (LittleFS.exists(szDst)) LittleFS.remove(szDst);
             if (!LittleFS.rename(szSrc, szDst)) {
-               __console.setExitValue(1);
                println(F("Failed to rename file"));
             } else {
-               __console.setExitValue(0);
+               return EXIT_SUCCESS;
             }
          } else {
             _printNoSuchFileOrDir("mv", szSrc);
@@ -530,13 +532,13 @@ public:
       } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
 
-   void touch(const char* szFn) {
+   uint8_t touch(const char* szFn) {
       if (! szFn) {
-         __console.setExitValue(1);
          println(F("usage: touch <file>"));
-         return;
+         return EXIT_FAILURE;
       }
       if (hasFS()) {
 #ifdef ARDUINO
@@ -546,65 +548,63 @@ public:
          }
          File file = LittleFS.open(szFn, mode);
          if (file) {
-            __console.setExitValue(0);
             file.close();
-         } else {
-            __console.setExitValue(1);
+            return EXIT_SUCCESS;
          }
 #else
 #endif
       } else {
          _printNoFS();
       }
+      return EXIT_FAILURE;
    }
    
-   void mount() {
+   uint8_t mount() {
       if (!hasFS()) {
 #ifdef ARDUINO
          if (!LittleFS.begin()) {
-            __console.setExitValue(1);
             __console.error("LittleFS mount failed");
-            return;
+            return EXIT_FAILURE;
          } else {
-            __console.setExitValue(0);
+            return EXIT_SUCCESS;
          }
 #else
 #endif
       } else {
          //println(F("LittleFS already mounted!"));
-         __console.setExitValue(0);
+         return EXIT_SUCCESS;
       }
+      return EXIT_FAILURE;
    }
    
-   void umount() {
+   uint8_t umount() {
       if (hasFS()) {
 #ifdef ARDUINO
          LittleFS.end();
-         __console.setExitValue(0);
 #else
 #endif
-      } else {
-         __console.setExitValue(1);
+         return EXIT_SUCCESS;
       }
+      return EXIT_FAILURE;
    }
    
-   void format() {
+   uint8_t format() {
       if (hasFS()) {
-         __console.setExitValue(1);
          println(F("LittleFS still mounted! -> 'umount' first"));
+         return EXIT_FAILURE;
       } else {
 //         __console.promptUserYN("Are you sure you want to format?", [](bool confirmed) {
 //            if (confirmed) {
 #ifdef ARDUINO
          LittleFS.format();
-         __console.setExitValue(0);
-
+         return EXIT_SUCCESS;
 #endif
 //            }
 //         });
 //#else
 //#endif
       }
+      return EXIT_FAILURE;
    }
       
    bool fileExists(const char* szFn) {
@@ -628,7 +628,7 @@ private:
 #endif
    }
    
-   bool _handleFile() {
+   uint8_t _handleFile() {
 #ifdef ARDUINO
       static char buffer[64];
       String header = "";
@@ -666,9 +666,8 @@ private:
          expectedSize = header.substring(sizeStart, sizeEnd).toInt();
          
          if (expectedSize > getDf() * 0.9) {
-            println(F("not enough space available for the file!"));
             __console.error(F("not enough space available for the file!"));
-            return false;
+            return EXIT_FAILURE;
          }
          
          _CONSOLE_INFO(F("receive file: %s (size: %d Bytes)"), filename.c_str(), expectedSize);
@@ -676,14 +675,12 @@ private:
          // file open
          file = LittleFS.open(filename, "w");
          if (!file) {
-            println(F("error: create file"));
             __console.error(F("error: create file %s"), filename.c_str());
-            return false;
+            return EXIT_FAILURE;
          }
       } else {
-         println(F("error: invalid header"));
          __console.error(F("error: invalid header received during file transfer"));
-         return false;
+         return EXIT_FAILURE;
       }
       
       // receive file data
@@ -705,21 +702,20 @@ private:
          }
          delay(1);
       }
-      println(" done!");
       file.close();
       
       // Empfang überprüfen
       if (receivedSize == expectedSize) {
          _CONSOLE_INFO(F("file transfer finished."));
+         return EXIT_SUCCESS;
       } else {
-         printf(F(ESC_ATTR_BOLD ESC_TEXT_BRIGHT_RED "Warning: received size of data (%d bytes) not same as expected file size (%d bytes) !\n" ESC_ATTR_RESET), receivedSize, expectedSize);
          __console.error(F("received size of data (%d bytes) not same as expected file size (%d bytes)!"), receivedSize, expectedSize);
       }
 #endif
-      return true;
+      return EXIT_FAILURE;
    }
    
-   bool _sendFile(WiFiClient* client, const char* filename) {
+   uint8_t _sendFile(WiFiClient* client, const char* filename) {
 #ifdef ARDUINO
       // without the log capability, it would print to __ioStream, which is the client stream for the file transfer!
       //_CONSOLE_DEBUG(F("download file: %s"), filename);
@@ -728,7 +724,7 @@ private:
       if (!file) {
          client->println("ERROR: File not found");
          //console.warn("File not found: %s", filename);
-         return false;
+         return EXIT_FAILURE;
       }
       
       size_t fileSize = file.size();
@@ -747,20 +743,17 @@ private:
       
       file.close();
       //_CONSOLE_INFO("File transfer complete.");
-      
 #endif
-      return true;
+      return EXIT_SUCCESS;
    }
    
    
    
    void _printNoFS() {
-      __console.setExitValue(1);
       println(F("file system not mounted!"));
    }
    
    void _printNoSuchFileOrDir(const char* szCmd, const char* szFn = nullptr) {
-      __console.setExitValue(1);
       if (szCmd && szFn) printf(F("%s: %s: No such file or directory\n"), szCmd, szFn);
       if (szCmd && !szFn) printf(F("%s: null : No such file or directory\n"), szCmd);
    };
@@ -797,8 +790,8 @@ private:
       }
    }
    
-   void executeBatch(const char* path, const char* label, const char* arg = nullptr) {
-      if (!path) return;
+   uint8_t executeBatch(const char* path, const char* label, const char* arg = nullptr) {
+      if (!path) return EXIT_FAILURE;
       
       g_Stack.DEBUGPrint(getIoStream(), 0, label);
       
@@ -826,7 +819,7 @@ private:
          strBatchFile += ".bat";
       } else {
          __console.error(F("Invalid batch/man file name '%s'. Must end with .bat or .man"), path);
-         return;
+         return EXIT_FAILURE;
       }
       
       if (label == nullptr) {
@@ -835,21 +828,24 @@ private:
 
       _CONSOLE_INFO(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
       if (arg) _CONSOLE_INFO(F("Arguments: %s"), arg);
+      
+      uint8_t nExitValue = EXIT_FAILURE;
 
 #ifdef ARDUINO
       if (!LittleFS.exists(strBatchFile.c_str())) {
          __console.error(F("Batch file '%s' not found"), strBatchFile.c_str());
-         return;
+         return EXIT_FAILURE;
       }
       
       File file = LittleFS.open(strBatchFile.c_str(), "r");
       if (!file) {
          __console.error(F("Failed to open batch file '%s"), strBatchFile.c_str());
-         return;
+         return EXIT_FAILURE;
       }
       
       bool processCommands = true; // Start processing commands immediately
       _bBreakBatch = false;
+      _nBatchDepth++;  // executeBatch will be called recursively, note the depth
       
       const size_t LINE_BUFFER_SIZE = 256;
 
@@ -947,10 +943,10 @@ private:
                   CxStrToken tkExecCmd(command.c_str(), " ");
                   _CONSOLE_DEBUG(F("exec command found: %s"), command.c_str());
                   // recursively call executeBatch and not go deeper by calling processCmd, this shall safe stack usage
-                  executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
+                  nExitValue = executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
                } else {
                   g_Stack.DEBUGPrint(getIoStream(), +1, "processCmd-A");
-                  __console.processCmd(*__console.getStream(), command.c_str(), 0); // MARK: getStream needed here?
+                  nExitValue = __console.processCmd(*__console.getStream(), command.c_str(), 0); // MARK: getStream needed here?
                   g_Stack.DEBUGPrint(getIoStream(), -1, "processCmd-B");
                }
 
@@ -969,6 +965,13 @@ private:
       mapTempVariables.clear();
             
       g_Stack.DEBUGPrint(getIoStream(), 0, "end");
+      
+      // by default, switch echo on again, after processing a batch file at lowest recursive depth
+      if (_nBatchDepth <= 1) __console.setEcho(true);
+      
+      if (_nBatchDepth > 0) _nBatchDepth--;
+      
+      return nExitValue;
    }
    
    void man(const char* szCap) {

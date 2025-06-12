@@ -65,7 +65,7 @@ public:
       
       _pmqttTopicCmd = new CxMqttTopic("cmd", [this](const char* topic, uint8_t* payload, unsigned int len) {
          _CONSOLE_INFO(("command is %s"), (char*)payload);
-         __console.processCmd((char*)payload, true);
+         __console.processCmd((char*)payload);
       });
 
       
@@ -95,10 +95,10 @@ public:
       }
    }
    
-   bool execute(const char *szCmd, uint8_t nClient) override {
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
       
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the arguments into the token buffer
       CxStrToken tkArgs(szCmd, " ");
@@ -109,19 +109,24 @@ public:
       // removes heading and trailing white spaces
       cmd.trim();
       
+      uint8_t nExitValue = EXIT_FAILURE;
+
       // expect sz parameter, invalid is nullptr
       const char* b = TKTOCHAR(tkArgs, 2);
       
       if (cmd == "?") {
-         printCommands();
+         nExitValue = printCommands();
       } else if (cmd == "mqtt") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
          String strEnv = ".mqtt";
+         nExitValue = EXIT_SUCCESS;
          if (strSubCmd == "connect") {
-            startMqtt(TKTOCHAR(tkArgs, 2), TKTOINT(tkArgs, 3, 0));
+            if (!startMqtt(TKTOCHAR(tkArgs, 2), TKTOINT(tkArgs, 3, 0))) {
+               nExitValue = EXIT_FAILURE;
+            };
          } else if (strSubCmd == "stop") {
             _CONSOLE_INFO(F("stop mqtt server"));
-            stopMqtt();
+            nExitValue = stopMqtt();
          } else if (strSubCmd == "server") {
             __mqttManager.setServer(TKTOCHAR(tkArgs, 2));
             __mqttManager.setPort(TKTOINT(tkArgs, 3, 8880));
@@ -141,11 +146,17 @@ public:
                __mqttManager.setWill(nWill > 0);
                // set topic. If no topic was set, the root path is used as will topic
                __mqttManager.setWillTopic(TKTOCHAR(tkArgs, 3));
+            } else {
+               nExitValue = EXIT_FAILURE;
             }
          } else if (strSubCmd == "list") {
             __mqttManager.printSubscribtion(getIoStream());
+         } else if (strSubCmd == "counter") {
+            __console.setOutputVariable(__mqttManager.getConnectCntr());
          } else if (strSubCmd == "publish") {
             publish(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3), (bool) TKTOINT(tkArgs, 4, 0));
+         } else if (strSubCmd == "pubvar") {
+            publishVariables(TKTOCHAR(tkArgs, 2));
          }
          else if (strSubCmd == "subscribe") {
             // subscribe <topic> <variable> [<command>]
@@ -186,6 +197,8 @@ public:
                pMqttTopic->setVariable(TKTOCHAR(tkArgs, 3));
                pMqttTopic->setCmd(TKTOCHAR(tkArgs, 4));
                pMqttTopic->subscribe();
+            } else {
+               nExitValue = EXIT_FAILURE;
             }
          }
          else {
@@ -204,10 +217,10 @@ public:
             __console.man(getName());
          }
       } else {
-         return false;
+         return EXIT_NOT_HANDLED;
       }
       g_Stack.update();
-      return true;
+      return nExitValue;
    }
       
    bool subscribe(const char* topic, CxMqttManager::tCallback callback) {
@@ -259,7 +272,7 @@ public:
       return _bMqttServerOnline;
    }
    
-   void stopMqtt() {
+   uint8_t stopMqtt() {
       _CONSOLE_INFO(F("stop mqtt service"));
       
       // stop timer to regular server check.
@@ -267,6 +280,7 @@ public:
       
       __mqttManager.end();
       _bMqttServerOnline = false;
+      return EXIT_SUCCESS;
    }
    
    bool isConnectedMqtt() {

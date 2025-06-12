@@ -168,4 +168,6 @@
 #define INVALID_UINT32 0xFFFFFFFF
 #define INVALID_INT32 0x80000000
 
+#define EXIT_NOT_HANDLED 2
+
 #endif /* defines_h */

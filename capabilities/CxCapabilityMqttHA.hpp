@@ -202,10 +202,10 @@ public:
       }
    }
    
-   bool execute(const char *szCmd, uint8_t nClient) override {
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
             
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the arguments into the token buffer
       CxStrToken tkArgs(szCmd, " ");
@@ -215,49 +215,52 @@ public:
       
       // removes heading and trailing white spaces
       cmd.trim();
-            
+      
+      uint8_t nExitValue = EXIT_FAILURE;
+
       if (cmd == "?") {
-         printCommands();
+         nExitValue = printCommands();
       }    if (cmd == "ha") {
          String strSubCmd = TKTOCHAR(tkArgs, 1);
          String strSub2Cmd = TKTOCHAR(tkArgs, 2);
          String strEnv = ".ha";
+         nExitValue = EXIT_SUCCESS;
          if (strSubCmd == "enable") {
             _bHAEnabled = (bool)TKTOINT(tkArgs, 2, 0);
-            enableHA(_bHAEnabled);
+            nExitValue = enableHA(_bHAEnabled);
          } else if (strSubCmd == "list") {
             _mqttHAdev.printList(getIoStream());
          } else if (strSubCmd == "sensor") {
             if (strSub2Cmd == "add") {
-               addSensor(TKTOCHAR(tkArgs, 3), TKTOINT(tkArgs, 4, 60000));
+               nExitValue = addSensor(TKTOCHAR(tkArgs, 3), TKTOINT(tkArgs, 4, 60000));
             } else if (strSub2Cmd == "del") {
-               deleteSensor(TKTOCHAR(tkArgs, 3));
+               nExitValue = deleteSensor(TKTOCHAR(tkArgs, 3));
             }
          } else if (strSubCmd == "button") {
             if (strSub2Cmd == "add") {
-               addButton(TKTOCHAR(tkArgs, 3));
+               nExitValue = addButton(TKTOCHAR(tkArgs, 3));
             } else if (strSub2Cmd == "del") {
-               deleteButton(TKTOCHAR(tkArgs, 3));
+               nExitValue = deleteButton(TKTOCHAR(tkArgs, 3));
             }
          } else if (strSubCmd == "switch") {
             if (strSub2Cmd == "add") {
-               addSwitch(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOCHAR(tkArgs, 5));
+               nExitValue = addSwitch(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOCHAR(tkArgs, 5));
             } else if (strSub2Cmd == "del") {
-               deleteSwitch(TKTOCHAR(tkArgs, 3));
+               nExitValue = deleteSwitch(TKTOCHAR(tkArgs, 3));
             }
          } else if (strSubCmd == "select") {
             if (strSub2Cmd == "add") {
-               addSelect(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), {});
+               nExitValue = addSelect(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), {});
             } else if (strSub2Cmd == "del") {
-               deleteSelect(TKTOCHAR(tkArgs, 3));
+               nExitValue = deleteSelect(TKTOCHAR(tkArgs, 3));
             } else if (strSub2Cmd == "addopt") {
-               addOptSelect(TKTOCHAR(tkArgs, 3), TKTOCHARAFTER(tkArgs, 4));
+               nExitValue = addOptSelect(TKTOCHAR(tkArgs, 3), TKTOCHARAFTER(tkArgs, 4));
             }
          } else if (strSubCmd == "number") {
             if (strSub2Cmd == "add") {
-               addNumber(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), TKTOCHAR(tkArgs, 6));
+               nExitValue = addNumber(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), TKTOCHAR(tkArgs, 6));
             } else if (strSub2Cmd == "del") {
-               deleteNumber(TKTOCHAR(tkArgs, 3));
+               nExitValue = deleteNumber(TKTOCHAR(tkArgs, 3));
             }
          } else if (strSubCmd == "text") {
             if (strSub2Cmd == "add") {
@@ -277,10 +280,10 @@ public:
             __console.man(getName());
          }
       } else {
-         return false;
+         return EXIT_NOT_HANDLED;
       }
       g_Stack.update();
-      return true;
+      return nExitValue;
    }
       
    bool isEnabled() {return _bHAEnabled;}
@@ -290,7 +293,7 @@ public:
     * @brief Enables or disables the MQTT Home Assistant support.
     * @param enabled - true to enable, false to disable.
    */
-   void enableHA(bool enabled) {
+   uint8_t enableHA(bool enabled) {
       if (__mqttManager.getName()[0]) {
          _mqttHAdev.setFriendlyName(__mqttManager.getName());
       } else {
@@ -326,31 +329,35 @@ public:
       strCmd = "exec $(userscript) haenable ";
       strCmd += enabled ? 1 : 0;
       __console.processCmd(strCmd.c_str());
+      return EXIT_SUCCESS;
    }
    
    /// Adds a sensor to the MQTT Home Assistant device.
    /// _vHASensor is a vector of unique pointers to CxMqttHASensor objects
-   void addSensor(const char* szName, uint32_t nPeriod = 60000) {
+   uint8_t addSensor(const char* szName, uint32_t nPeriod = 60000) {
       CxSensor* pSensor = _sensorManager.getSensor(szName);
       if (pSensor) {
          if (!_mqttHAdev.findItem(szName)) _vHASensor.push_back(std::make_unique<CxMqttHASensor>(pSensor, nPeriod)); /// implicitly registers the new item in the device.
       } else {
          __console.printf(F("Sensor '%s' not found."), szName);
+         return EXIT_FAILURE;
       }
+      return EXIT_SUCCESS;
    }
    
    /// Deletes a sensor from the MQTT Home Assistant device
-   void deleteSensor(const char* szName) {
+   uint8_t deleteSensor(const char* szName) {
       for (auto it = _vHASensor.begin(); it != _vHASensor.end(); ++it) {
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->publishAvailability(false);
             _vHASensor.erase(it);
-            break;
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
    }
    
-   void addButton(const char* szName) {
+   uint8_t addButton(const char* szName) {
       CxButton* pDevice = static_cast<CxButton*>(_gpioDeviceManager.getDevice(szName, "button"));
       if (pDevice) {
          if (!_mqttHAdev.findItem(szName)) {
@@ -368,23 +375,26 @@ public:
                   }
                }
             });
+            return EXIT_SUCCESS;
          }
       } else {
          __console.printf(F("Button '%s' not found."), szName);
       }
+      return EXIT_FAILURE;
    }
    
-   void deleteButton(const char* szName) {
+   uint8_t deleteButton(const char* szName) {
       for (auto it = _vHAButton.begin(); it != _vHAButton.end(); ++it) {
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->publishAvailability(false);
             _vHAButton.erase(it);
-            break;
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
    }
    
-   void addSwitch(const char* szName, const char* fn = nullptr, const char* cmd = nullptr) {
+   uint8_t addSwitch(const char* szName, const char* fn = nullptr, const char* cmd = nullptr) {
       CxRelay* pRelay = static_cast<CxRelay*>(_gpioDeviceManager.getDevice(szName, "relay"));
       if (pRelay) {
          // set call back to publish the state of the relay on change
@@ -417,6 +427,7 @@ public:
             }
             return false;
          }));
+         return EXIT_SUCCESS;
       } else {
          CxGPIOVirtual* pVirtual = static_cast<CxGPIOVirtual*>(_gpioDeviceManager.getDevice(szName, "virtual"));
          if (pVirtual) {
@@ -451,30 +462,33 @@ public:
                   }
                   return false;
                }));
+               return EXIT_SUCCESS;
             }
          } else {
             __console.printf(F("Device '%s' is not a ok."), szName);
          }
       }
+      return EXIT_FAILURE;
    }
    
-   void deleteSwitch(const char* szName) {
+   uint8_t deleteSwitch(const char* szName) {
       for (auto it = _vHASwitch.begin(); it != _vHASwitch.end(); ++it) {
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->publishAvailability(false);
             _vHASwitch.erase(it);
-            break;
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
    }
       
-   void addSelect(const char* szName, const char* fn, bool bAsConfig, const std::vector<String>& vOpt) {
+   uint8_t addSelect(const char* szName, const char* fn, bool bAsConfig, const std::vector<String>& vOpt) {
       if (!_mqttHAdev.findItem(szName)) {
          auto ptr = std::make_unique<CxMqttHASelect>(szName, vOpt, nullptr);
          CxMqttHASelect* rawPtr = ptr.get();
          
          if (ptr) {
-            ptr->setFn(fn);
+            ptr->setFriendlyName(fn);
             if (bAsConfig) ptr->asConfig(); // this sets the retain flag on the /cmd topic and ensures to be set, afer restart
             
             // set the command callback for the topic subscription
@@ -498,33 +512,37 @@ public:
                return true;
             });
             _vHASelect.push_back(std::move(ptr));
+            return EXIT_SUCCESS;
          } else {
             __console.error(F("error adding HA item (oom?)"));
          }
       }
+      return EXIT_FAILURE;
    }
    
-   void addOptSelect(const char* szName, const char* szOpt) {
-      if (!szName || !*szName || !szOpt) return;
+   uint8_t addOptSelect(const char* szName, const char* szOpt) {
+      if (!szName || !*szName || !szOpt) return EXIT_FAILURE;
       for (auto it = _vHASelect.begin(); it != _vHASelect.end(); ++it) {
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->addOption(szOpt);
-            break;
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
    }
    
-   void deleteSelect(const char* szName) {
+   uint8_t deleteSelect(const char* szName) {
       for (auto it = _vHASelect.begin(); it != _vHASelect.end(); ++it) {
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->publishAvailability(false);
             _vHASelect.erase(it);
-            break;
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
    }
 
-   void addNumber(const char* szName, const char* fn, bool bAsConfig, const char* szParam) {
+   uint8_t addNumber(const char* szName, const char* fn, bool bAsConfig, const char* szParam) {
       if (!_mqttHAdev.findItem(szName)) {
          auto ptr = std::make_unique<CxMqttHANumber>(szName);
          CxMqttHANumber* rawPtr = ptr.get();
@@ -557,23 +575,26 @@ public:
                return true;
             });
             _vHANumber.push_back(std::move(ptr));
+            return EXIT_SUCCESS;
          } else {
             __console.error(F("error adding HA item (oom?)"));
          }
       }
+      return EXIT_FAILURE;
    }
    
-   void deleteNumber(const char* szName) {
+   uint8_t deleteNumber(const char* szName) {
       for (auto it = _vHANumber.begin(); it != _vHANumber.end(); ++it) {
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->publishAvailability(false);
             _vHANumber.erase(it);
-            break;
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
    }
 
-   void addText(const char* szName, const char* fn, bool bAsConfig, const char* szParam) {
+   uint8_t addText(const char* szName, const char* fn, bool bAsConfig, const char* szParam) {
       if (!_mqttHAdev.findItem(szName)) {
          auto ptr = std::make_unique<CxMqttHAText>(szName);
          CxMqttHAText* rawPtr = ptr.get();
@@ -601,13 +622,15 @@ public:
                return true;
             });
             _vHAText.push_back(std::move(ptr));
+            return EXIT_SUCCESS;
          } else {
             __console.error(F("error adding HA item (oom?)"));
          }
       }
+      return EXIT_FAILURE;
    }
    
-   void deleteText(const char* szName) {
+   uint8_t deleteText(const char* szName) {
       for (auto it = _vHAText.begin(); it != _vHAText.end(); ++it) {
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->publishAvailability(false);

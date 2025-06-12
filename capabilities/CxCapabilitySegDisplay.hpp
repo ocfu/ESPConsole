@@ -415,31 +415,31 @@ public:
     * @return True if the initialization is successful, otherwise false.
     *
     */
-   bool execute(const char *szCmd, uint8_t nClient) override {
+   uint8_t execute(const char *szCmd, uint8_t nClient) override {
       // validate the call
-      if (!szCmd) return false;
+      if (!szCmd) return EXIT_FAILURE;
       
       // get the command and arguments into the token buffer
       CxStrToken tkCmd(szCmd, " ");
-      
-      // validate again
-      if (!tkCmd.count()) return false;
       
       // we have a command, find the action to take
       String strCmd = TKTOCHAR(tkCmd, 0);
       
       // removes heading and trailing white spaces
       strCmd.trim();
+      
+      uint8_t nExitValue = EXIT_FAILURE;
             
       if ((strCmd == "?")) {
-         printCommands();
+         nExitValue = printCommands();
       } else if (strCmd == "seg") {
          String strSubCmd = TKTOCHAR(tkCmd, 1);
          strSubCmd.toLowerCase();
          String strEnv = ".seg";
+         nExitValue = EXIT_SUCCESS;
          if (strSubCmd == "enable") {
             _bEnabled = (bool)TKTOINT(tkCmd, 2, 0);
-            if (_bEnabled) init();
+            if (_bEnabled) nExitValue = init();
          } else if (strSubCmd == "list") {
             printScreens();
          } else if (strSubCmd == "test") {
@@ -463,7 +463,7 @@ public:
          } else if (strSubCmd == "level") {
             showLevel(TKTOINT(tkCmd, 2, 0), TKTOINT(tkCmd, 3, true));
          } else if (strSubCmd == "setpins" && (tkCmd.count() >= 3)) {
-            setPins(TKTOINT(tkCmd, 2, -1), TKTOINT(tkCmd, 3, -1));
+            nExitValue = setPins(TKTOINT(tkCmd, 2, -1), TKTOINT(tkCmd, 3, -1));
          } else if (strSubCmd == "screen") {
             String strFunc = TKTOCHAR(tkCmd, 2);
             if (strFunc == "add" && tkCmd.count() > 4) {
@@ -486,6 +486,7 @@ public:
                __console.println(F("  add <name> <type> [<id>]"));
                __console.println(F("  del <name>"));
                __console.println(F("  add sensors"));
+               nExitValue = EXIT_FAILURE;
             }
          } else if (strSubCmd == "show") {
             setActiveScreenIndex(TKTOINT(tkCmd, 2, INVALID_UINT8));
@@ -496,6 +497,8 @@ public:
                uint8_t n = TKTOINT(tkCmd, 3, INVALID_UINT8);
                if (n != INVALID_UINT8) {
                   _vScreenSlideShow.push_back(n);
+               } else {
+                  nExitValue = EXIT_FAILURE;
                }
             } else if (strFunc == "del") {
                uint8_t n = TKTOINT(tkCmd, 3, INVALID_UINT8);
@@ -506,6 +509,8 @@ public:
                         break;
                      }
                   }
+               } else {
+                  nExitValue = EXIT_FAILURE;
                }
             } else if (strFunc == "list") {
                __console.println(F("Slide show:"));
@@ -521,22 +526,24 @@ public:
                _bSlideShowOn = false;
             } else {
                __console.man(strSubCmd.c_str());
+               nExitValue = EXIT_FAILURE;
             }
          } else if (strSubCmd == "init") {
-            init();
+            nExitValue = init();
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
             printf(F(ESC_ATTR_BOLD " Brightness:   " ESC_ATTR_RESET "%d\n"), _nBrigthness);
             printf(F(ESC_ATTR_BOLD " Slide show:   " ESC_ATTR_RESET "%s\n"), (_bSlideShowOn ? "on" : "off"));
             printf(F(ESC_ATTR_BOLD " Screens:      " ESC_ATTR_RESET "%d\n"), _mapScreens.size());
             __console.man(getName());
+            nExitValue = EXIT_FAILURE;
          }
       } else {
          // command not handled here
-         return false;
+         return EXIT_NOT_HANDLED;
       }
       g_Stack.update(); ///< Update the stack status after executing the command
-      return true;
+      return nExitValue;
    }
    
    /**
@@ -546,7 +553,7 @@ public:
     * @return True if the initialization is successful, otherwise false.
     *
     */
-   bool init() {
+   uint8_t init() {
       if (_bEnabled) {
          end();
          _CONSOLE_INFO(F("7SEG: start segment display..."));
@@ -587,37 +594,41 @@ public:
             return true;
          } else {
             __console.error(F("7SEG: ### start failed!"));
-            return false;
+            return EXIT_FAILURE;
          }
+         return EXIT_SUCCESS;
       }
-      return false;
+      return EXIT_FAILURE;
    }
 
-   bool init(int nClkPin, int nIOPin) {
-      setPins(nClkPin, nIOPin);
-      return init();
+   uint8_t init(int nClkPin, int nIOPin) {
+      if (setPins(nClkPin, nIOPin) == EXIT_SUCCESS) {
+         return init();
+      }
+      return EXIT_FAILURE;
    };
 
-   void end() {
+   uint8_t end() {
       if (_ptm1637 != NULL) {
 #ifdef ARDUINO
          _ptm1637->clear();
          delete _ptm1637;
 #endif
+         return EXIT_SUCCESS;
       }
+      return EXIT_FAILURE;
    }
 
    // Function to list all screens in the map
-   void printScreens() {
-      if (_mapScreens.empty()) {
-         println(F("No screens registered."));
-         return;
-      }
+   uint8_t printScreens() {
+      CxTablePrinter table(getIoStream());
+      table.printHeader({F("ID"), F("Screen Name"), F("Type"), F("Parameter")}, {3, 12, 8, 15});
       
-      println(F(ESC_ATTR_BOLD "Seg screens: " ESC_ATTR_RESET));
       for (const auto& [name, screen] : _mapScreens) {
-         printf(ESC_TEXT_WHITE " %02d %s %s\n" ESC_ATTR_RESET, screen->getId(), name.c_str(), screen->getType());
+         table.printRow({String(screen->getId()).c_str(), name.c_str(), screen->getType(), screen->getParam()});
       }
+      table.printFooter();
+      return EXIT_SUCCESS;
    }
    
    bool hasValidPins() {return (_gpioClk.isValid() && _gpioData.isValid() && _gpioClk.getPin() != _gpioData.getPin());}
@@ -625,19 +636,20 @@ public:
    void setEnabled(bool set) {_bEnabled = set;}
    bool isEnabled() {return _bEnabled;}
    
-   void setPins(int nClkPin, int nDataPin) { ///< Set the clock and data pins for the segment display
+   uint8_t setPins(int nClkPin, int nDataPin) { ///< Set the clock and data pins for the segment display
       _gpioClk.setPin(nClkPin);
       _gpioClk.setPinMode(OUTPUT);
       _gpioClk.setGpioName("clk");
       _gpioData.setPin(nDataPin);
       _gpioData.setPinMode(OUTPUT);
       _gpioData.setGpioName("data");
+      return (hasValidPins()) ? EXIT_SUCCESS : EXIT_FAILURE;
    }
    
    CxGPIO& getGPIOData() {return _gpioData;}
    CxGPIO& getGPIOClk() {return _gpioClk;}
 
-   void setBrightness(int nBr) { ///< Set the brightness level for the segment display (0-100) and update the display
+   uint8_t setBrightness(int nBr) { ///< Set the brightness level for the segment display (0-100) and update the display
       if (nBr > 100) nBr = 100;
       if (nBr < 0) nBr = 0;
       _nBrigthness = nBr;
@@ -647,6 +659,7 @@ public:
       } else {
          on();
       }
+      return EXIT_SUCCESS;
    }
    
    int getBrightness() {return _nBrigthness;}
@@ -654,34 +667,40 @@ public:
    void setBrightnessDefault(int set = 30) {_nBrightnessDefault = set;_nBrigthnessPrev = set; setBrightness(set);}
    int getBrightnessDefault() {return _nBrightnessDefault;}
    
-   void clear() {
+   uint8_t clear() {
       if (_ptm1637 != NULL) {
 #ifdef ARDUINO
          _ptm1637->clear();
 #else
          std::cout << "7SEG: (clear)" << "\n";
 #endif
+         return EXIT_SUCCESS;
       }
+      return EXIT_FAILURE;
    }
    
-   void on() {
+   uint8_t on() {
       if (_ptm1637 != NULL) {
 #ifdef ARDUINO
          _ptm1637->setBrightness(7 * _nBrigthness/100, true);
 #else
          std::cout << "7SEG: on" << "\n";
 #endif
+         return EXIT_SUCCESS;
       }
+      return EXIT_FAILURE;
    }
    
-   void off() {
+   uint8_t off() {
       if (_ptm1637 != NULL) {
 #ifdef ARDUINO
          _ptm1637->setBrightness(7 * _nBrigthness/100, false);
 #else
          std::cout << "7SEG: brightness=" << (7*_nBrigthness/100) << "\n";
 #endif
+         return EXIT_SUCCESS;
       }
+      return EXIT_FAILURE;
    }
    
    void segprint(int16_t n) {
@@ -932,13 +951,13 @@ public:
     * @param szType The type of the screen to add.
     * @param szParam The parameters for the screen to add.
     */
-   void addScreen(const char* szName, const char* szType, const char* szParam = nullptr);
+   uint8_t addScreen(const char* szName, const char* szType, const char* szParam = nullptr);
    void delScreen(const char* szName) {
       _CONSOLE_DEBUG(F("7SEG: delete screen '%s'"), szName);
       _mapScreens.erase(szName);
    };
 
-   void addScreen(const char* szName, std::unique_ptr<CxSegScreen> pScreen, const char* szParam = nullptr) {
+   uint8_t addScreen(const char* szName, std::unique_ptr<CxSegScreen> pScreen, const char* szParam = nullptr) {
       if (pScreen != nullptr) {
          _CONSOLE_DEBUG(F("7SEG: add screen '%s' with screen id %d."), szName, _mapScreens.size());
          pScreen->setDisplay(this);
@@ -946,7 +965,9 @@ public:
          pScreen->setParam(szParam);
          pScreen->setName(szName);
          _mapScreens[szName] = std::move(pScreen);
+         return EXIT_SUCCESS;
       }
+      return EXIT_FAILURE;
    }
 
    /**
@@ -1247,15 +1268,15 @@ public:
  * @param szType The type of the screen to add.
  * @param szParam The parameters for the screen to add.
  */
-void CxCapabilitySegDisplay::addScreen(const char* szName, const char* szType, const char* szParam) {
+uint8_t CxCapabilitySegDisplay::addScreen(const char* szName, const char* szType, const char* szParam) {
    if (szName && szType) {
       String strType = szType;
       if (strType == "time") {
-         addScreen(szName, std::make_unique<CxSegScreenTime>());
+         return addScreen(szName, std::make_unique<CxSegScreenTime>());
       } else if (strType == "static") {
-         addScreen(szName, std::make_unique<CxSegScreenStatic>());
+         return addScreen(szName, std::make_unique<CxSegScreenStatic>());
       } else if (strType == "one") {
-         addScreen(szName, std::make_unique<CxSegScreenOneValue>());
+         return addScreen(szName, std::make_unique<CxSegScreenOneValue>());
       }  else if (strType == "sensor") {
          if (szParam) {
             CxSensor* pSensor = _sensors.getSensor(szParam); // get sensor by name
@@ -1263,13 +1284,14 @@ void CxCapabilitySegDisplay::addScreen(const char* szName, const char* szType, c
                __console.error(F("7SEG: sensor '%s' was not found."), szParam);
             } else {
                _CONSOLE_INFO(F("7SEG: add sensor '%s' to screen '%s'"), szParam, szName);
-               addScreen(szName, std::make_unique<CxSegScreenOneSensor>(pSensor), szParam);
+               return addScreen(szName, std::make_unique<CxSegScreenOneSensor>(pSensor), szParam);
             }
          } else {
             __console.error(F("7SEG: sensor screen needs a sensor name."));
          }
       }
    }
+   return EXIT_FAILURE;
 }
 
 
