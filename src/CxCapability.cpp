@@ -10,14 +10,14 @@
 #include "CxESPConsole.hpp"
 
 size_t CxCapability::write(uint8_t c) {
-   if (_ioStream) {
+   if (_ioStream && !isQuiet()) {
       return _ioStream->write(c);
    }
    return 0;
 }
 
 size_t CxCapability::write(const uint8_t *buffer, size_t size) {
-   if (_ioStream) {
+   if (_ioStream && !isQuiet()) {
       return _ioStream->write(buffer, size);
    }
    return 0;

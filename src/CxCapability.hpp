@@ -48,6 +48,7 @@ public: \
 
 class CxCapability : public Print, public CxProcessStatistic {
    Stream* _ioStream = nullptr;
+   bool _bQuiet = false;
 
 protected:
    bool __bLocked;
@@ -78,6 +79,9 @@ public:
       }
    }
    
+   bool isQuiet() {return _bQuiet;}
+   void setQuiet(bool set) {_bQuiet = set;}
+
    const char* getName() { return name;}
    
    virtual void setup() {}
