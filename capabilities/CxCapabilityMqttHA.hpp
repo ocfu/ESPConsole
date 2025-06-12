@@ -55,19 +55,6 @@
 
 #include "../tools/CxMqttHAManager.hpp"
 
-/// defines for the index of the diagnostics objects
-#define DIAG_STATUS 0
-#define DIAG_RECONNECTS 1
-#define DIAG_LINKQUALITY 2
-#define DIAG_FREE_MEM 3
-#define DIAG_LAST_RESTART 4
-#define DIAG_UPTIME 5
-#define DIAG_RESTART_REASON 6
-#define DIAG_STACK 7
-#define DIAG_STACK_LOW 8
-
-#define DIAGNOTICS_COUNT 9
-
 /**
  * @class CxCapabilityMqttHA
  * @brief Provides MQTT Home Assistant capabilities for an ESP-based project.
@@ -87,11 +74,7 @@ private:
 
    bool _bHAEnabled = false;
 
-   /// timer for updating sensor data
-   CxTimer60s _timerUpdate;
-   
    /// maps of Home Assistant diagnostics and sensors
-   std::map<uint8_t, std::unique_ptr<CxMqttHADiagnostic>> _mapHADiag;
    std::vector<std::unique_ptr<CxMqttHASensor>> _vHASensor;
    
    std::vector<std::unique_ptr<CxMqttHAButton>> _vHAButton;
@@ -99,6 +82,7 @@ private:
    std::vector<std::unique_ptr<CxMqttHASelect>> _vHASelect; // for select control
    std::vector<std::unique_ptr<CxMqttHANumber>> _vHANumber; // for number input
    std::vector<std::unique_ptr<CxMqttHAText>>   _vHAText;   // for text input
+   std::vector<std::unique_ptr<CxMqttHADiagnostic>>   _vHADiag;   // for diagnostics
 
 
 public:
@@ -117,7 +101,6 @@ public:
    /// Destructor to end the capability and clear the sensor objects.
    ~CxCapabilityMqttHA() {
       enableHA(false);
-      _mapHADiag.clear();
       _vHASensor.clear();
       _vHAButton.clear();
       _vHASwitch.clear();
@@ -136,19 +119,7 @@ public:
       // increase the PubSubClient buffer size as for HA the payload could be pretty long, especially for discovery topics.
       __mqttManager.setBufferSize(1024);
       
-      /// load diagnostics items for the HA device for debugging purposes.
-      _mapHADiag[DIAG_STATUS] = std::make_unique<CxMqttHADiagnostic>("Status", "diagstatus", true, __mqttManager.getRootPath());
-      _mapHADiag[DIAG_RECONNECTS] = std::make_unique<CxMqttHADiagnostic>("Reconnects/h", "diagreconnects", nullptr, "1/h");
-      _mapHADiag[DIAG_LINKQUALITY] = std::make_unique<CxMqttHADiagnostic>("Linkquality", "diaglink", nullptr, "rssi");
-      _mapHADiag[DIAG_FREE_MEM] = std::make_unique<CxMqttHADiagnostic>("Free mem", "diagmem", nullptr, "bytes");
-      _mapHADiag[DIAG_LAST_RESTART] = std::make_unique<CxMqttHADiagnostic>("Last Restart", "diagrestart", "timestamp", "");
-      _mapHADiag[DIAG_UPTIME] = std::make_unique<CxMqttHADiagnostic>("Up Time", "diaguptime", "duration", "s");
-      _mapHADiag[DIAG_RESTART_REASON] = std::make_unique<CxMqttHADiagnostic>("Restart Reason", "diagreason", nullptr, nullptr);
-      _mapHADiag[DIAG_STACK] = std::make_unique<CxMqttHADiagnostic>("Stack", "diagstack", nullptr, "bytes");
-      _mapHADiag[DIAG_STACK_LOW] = std::make_unique<CxMqttHADiagnostic>("Stack Low", "diagstacklow", nullptr, "bytes");
-
       __console.executeBatch("init", getName());
-
       
       /// enable MQTT HA
       if (isEnabled()) enableHA(true);
@@ -157,43 +128,6 @@ public:
    
    /// Loop method to update sensor data and diagnostics
    void loop() override {
-      if (_timerUpdate.isDue()) {
-         if (_mapHADiag[DIAG_STATUS]) {
-            StaticJsonDocument<256> doc;
-            doc[F("heartbeat")] = millis();
-            doc[F("uptime")] = __console.getUpTimeISO();
-            doc[F("connects")] = __mqttManager.getConnectCntr();
-#ifdef ARDUINO
-            doc[F("RSSI")] = WiFi.RSSI();
-#endif
-            _mapHADiag[DIAG_STATUS]->publishAttributes(doc);
-         }
-         
-         if (_mapHADiag[DIAG_RECONNECTS]) {
-            static uint32_t n1hBucket = 0;
-            static uint32_t nLastCounter = 0;
-            static unsigned long nTimer1h = 0;
-            
-            n1hBucket = (uint32_t)fmax(n1hBucket, __mqttManager.getConnectCntr() - nLastCounter);
-            
-            _mapHADiag[1]->publishAvailability(true);
-            
-            if ((millis() - nTimer1h) > (3600000)) {
-               _mapHADiag[DIAG_RECONNECTS]->publishState(n1hBucket, 0);
-               nTimer1h = millis();
-               n1hBucket = 0;
-               nLastCounter = __mqttManager.getConnectCntr();
-            }
-         }
-#ifdef ARDUINO
-         if (_mapHADiag[DIAG_LINKQUALITY]) _mapHADiag[DIAG_LINKQUALITY]->publishState(WiFi.RSSI(), 0);
-         if (_mapHADiag[DIAG_FREE_MEM]) _mapHADiag[DIAG_FREE_MEM]->publishState(ESP.getFreeHeap(), 0);
-#endif
-         if (_mapHADiag[DIAG_UPTIME]) _mapHADiag[DIAG_UPTIME]->publishState(__console.getUpTimeSeconds(), 0);
-         if (_mapHADiag[DIAG_STACK]) _mapHADiag[DIAG_STACK]->publishState(g_Stack.getSize(), 0);
-         if (_mapHADiag[DIAG_STACK_LOW]) _mapHADiag[DIAG_STACK_LOW]->publishState(g_Stack.getLow(), 0);
-         
-      }
       /// update sensor data
       for (auto& pHASensor : _vHASensor) {
          if (pHASensor->isDue()) {
@@ -264,9 +198,29 @@ public:
             }
          } else if (strSubCmd == "text") {
             if (strSub2Cmd == "add") {
-               addText(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), TKTOCHAR(tkArgs, 6));
+               nExitValue = addText(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOINT(tkArgs, 5, 0), TKTOCHAR(tkArgs, 6));
             } else if (strSub2Cmd == "del") {
-               deleteText(TKTOCHAR(tkArgs, 3));
+               nExitValue = deleteText(TKTOCHAR(tkArgs, 3));
+            }
+         } else if (strSubCmd == "diag") {
+            // ha diag add <name> <fn> <variable> [<param>]
+            if (strSub2Cmd == "add") {
+               nExitValue = addDiag(TKTOCHAR(tkArgs, 3), TKTOCHAR(tkArgs, 4), TKTOCHAR(tkArgs, 5), TKTOCHARAFTER(tkArgs, 6));
+            } else if (strSub2Cmd == "del") {
+               nExitValue = deleteDiag(TKTOCHAR(tkArgs, 3));
+            } else if (strSub2Cmd == "update") {
+               /// update diag data
+               for (auto& pHADiag : _vHADiag) {
+                  const char* szValue = __console.getVariable(pHADiag->getVariable());
+                  if (szValue) {
+                     pHADiag->publishState(szValue);
+                     DynamicJsonDocument doc(256);
+                     doc[F("variable")] = pHADiag->getVariable();
+                     pHADiag->publishAttributes(doc);
+                  } else {
+                     pHADiag->publishAvailability(false);
+                  }
+               }
             }
          } else if (strSubCmd == "state") {
             // ha state <name> <state>
@@ -308,22 +262,13 @@ public:
       _mqttHAdev.setManufacturer("ocfu");
       _mqttHAdev.setSwVersion(__console.getAppVer());
       _mqttHAdev.setHwVersion(::getChipType());
-      _mqttHAdev.setUrl(__console.getVariable("url"));
+      _mqttHAdev.setUrl(__console.getVariable("URL"));
       _mqttHAdev.setStrId();
    
       _mqttHAdev.regItems(enabled);
       //_mqttHAdev.publishAvailability(enabled);
       _mqttHAdev.publishAvailabilityAllItems();
       
-      if (enabled) {
-         if (_mapHADiag[DIAG_RESTART_REASON]) _mapHADiag[DIAG_RESTART_REASON]->publishState(::getResetInfo());
-         if (_mapHADiag[DIAG_LAST_RESTART]) _mapHADiag[DIAG_LAST_RESTART]->publishState(__console.getStartTime());
-         
-         /// make the timer active for an instant update in the loop()
-         _timerUpdate.makeDue();
-      } else {
-         _timerUpdate.stop();
-      }
       String strCmd;
       strCmd.reserve(40);
       strCmd = "exec $(userscript) haenable ";
@@ -554,7 +499,7 @@ public:
             ptr->setStep(TKTOINT(tkParam, 2, 10));
             ptr->setUnit(TKTOCHAR(tkParam, 3));
 
-            ptr->setFn(fn);
+            ptr->setFriendlyName(fn);
             if (bAsConfig) ptr->asConfig(); // this sets the retain flag on the /cmd topic and ensures to be set, afer restart
             
             // set the command callback for the topic subscription
@@ -602,7 +547,7 @@ public:
          if (ptr) {
             CxStrToken tkParam(szParam, ",");
             ptr->setMax(TKTOINT(tkParam, 0, 64));
-            ptr->setFn(fn);
+            ptr->setFriendlyName(fn);
             if (bAsConfig) ptr->asConfig(); // this sets the retain flag on the /cmd topic and ensures to be set, afer restart
             
             // set the command callback for the topic subscription
@@ -635,9 +580,41 @@ public:
          if (strcmp((*it)->getName(), szName) == 0) {
             (*it)->publishAvailability(false);
             _vHAText.erase(it);
-            break;
+            return EXIT_SUCCESS;
          }
       }
+      return EXIT_FAILURE;
+   }
+
+   uint8_t addDiag(const char* szName, const char* fn, const char* szVar, const char* szParam) {
+      // szParam: <unit>   # more to be defined, as needed.
+      if (!_mqttHAdev.findItem(szName)) {
+         auto ptr = std::make_unique<CxMqttHADiagnostic>(szName);
+         
+         if (ptr) {
+            CxStrToken tkParam(szParam, ",");
+            ptr->setDClass(TKTOCHAR(tkParam, 0));
+            ptr->setUnit(TKTOCHAR(tkParam, 1));
+            ptr->setVariable(szVar);
+            ptr->setFriendlyName(fn);
+            _vHADiag.push_back(std::move(ptr));
+            return EXIT_SUCCESS;
+         } else {
+            __console.error(F("error adding HA item (oom?)"));
+         }
+      }
+      return EXIT_FAILURE;
+   }
+   
+   uint8_t deleteDiag(const char* szName) {
+      for (auto it = _vHADiag.begin(); it != _vHADiag.end(); ++it) {
+         if (strcmp((*it)->getName(), szName) == 0) {
+            (*it)->publishAvailability(false);
+            _vHADiag.erase(it);
+            return EXIT_SUCCESS;
+         }
+      }
+      return EXIT_FAILURE;
    }
 
 

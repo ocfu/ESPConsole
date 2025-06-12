@@ -350,7 +350,7 @@ public:
     * @brief Set friendly display name
     * @param fn Name to display in Home Assistant UI
     */
-   void setFriendlyName(const char* fn) {_szFriendlyName = fn;}
+   virtual void setFriendlyName(const char* fn) {_szFriendlyName = fn;}
    const char* getDeviceName() const {return getDeviceName<CxMqttHADevice>();}
    
    const char* getId() const {return _strId.c_str();}
@@ -665,7 +665,7 @@ public:
       String strTopic;
       
       strTopic = getTopicBase();
-      strTopic += "/attribute";
+      strTopic += "/attributes";
       
       if (publish(strTopic.c_str(), szJsonAttr, isRetained()) && !isAvailable()) {
          publishAvailability(true);
@@ -909,8 +909,8 @@ public:
    void printList(Stream& stream) {
       CxTablePrinter table(stream);
       
-      std::vector<String> vHeadLine = {F("Nr"),F("Name"),F("Friendly Name"),F("Type"), F("Available"),F("Retained"),F("Topic Base"), F("Has Cb"), F("/cmd")};
-      std::vector<uint8_t> vWidths =  {  3,  20,  20,  10,   9,   8,  30, 6, 10};
+      std::vector<String> vHeadLine = {F("Nr"),F("Name"),F("Friendly Name"),F("Type"), F("Available"),F("Retained"),F("Topic Base"), F("Has Cb"), F("/cmd"), F("Variable")};
+      std::vector<uint8_t> vWidths =  {  3,  20,  20,  10,   9,   8,  30, 6, 4, 12};
       
       table.printHeader(vHeadLine, vWidths);
      
@@ -920,7 +920,7 @@ public:
       
       while(it != _vecItems.end())
       {
-         table.printRow({String(n).c_str(), (*it)->getName(), (*it)->getFriendlyName(), (*it)->getTypeSz(), (*it)->isAvailable()?"yes":"no", (*it)->isRetainedCmd()?"yes":"no", (*it)->getTopicBase(), (*it)->hasCb()?"yes":"no", (*it)->hasCmdIF()?"yes":"no"});
+         table.printRow({String(n).c_str(), (*it)->getName(), (*it)->getFriendlyName(), ((*it)->getCat() == e_cat::diagnostic) ? "diag" : (*it)->getTypeSz(), (*it)->isAvailable()?"yes":"no", (*it)->isRetainedCmd()?"yes":"no", (*it)->getTopicBase(), (*it)->hasCb()?"yes":"no", (*it)->hasCmdIF()?"yes":"no", (*it)->getVariable()});
          it++;
          n++;
       }
@@ -942,14 +942,23 @@ public:
    
    CxMqttHASensor(CxSensor* pSensor, uint32_t nPeriod) : CxMqttHASensor(pSensor->getFriendlyName(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getUnit()) {_pSensor = pSensor; _timer.start(nPeriod);}
       
-   CxMqttHASensor(const char* fn, const char* name, const char* dclass = nullptr, const char* unit = nullptr, bool available = false, bool retain = false) : CxMqttHABase(fn, name, nullptr, nullptr, nullptr, retain), _szDeviceClass(dclass), _szUnit(unit), _pSensor(nullptr) {
+   CxMqttHASensor(const char* fn, const char* name, const char* dclass = nullptr, const char* unit = nullptr, bool available = false, bool retain = false) : CxMqttHABase(fn, name, nullptr, nullptr, nullptr, retain), _pSensor(nullptr) {
       
-      __eStateClass = e_state::measurement;
+      setUnit(unit);
+      setDClass(dclass);
       __eCat = e_cat::none;
       __eType = e_type::HAsensor;
       setAvailable(available);
    }
    
+   virtual void setUnit(const char* set) {_szUnit = set; __eStateClass = (_szUnit && *_szUnit) ?  e_state::measurement : e_state::none;}
+   const char* getUnit() {return _szUnit;}
+   
+   virtual void setDClass(const char* set) {
+      if (set && (*set == '-' || !*set)) set = nullptr;  // '-' means, no device class. It can also not be ""
+      _szDeviceClass = set;
+   }
+      
    CxSensor* getSensor() const {return _pSensor;}
    
    bool isDue() {return _timer.isDue();}
@@ -958,7 +967,7 @@ public:
       if (_szDeviceClass) {
          doc[F("dev_cla")] = _szDeviceClass;
       }
-      if (_szUnit) {
+      if (_szUnit && *_szUnit) {
          doc[F("unit_of_meas")] = _szUnit;
       }
    }
@@ -1021,10 +1030,10 @@ public:
    }
    CxMqttHAText(const char* szName) : CxMqttHAText(szName, szName, 64, true) {}
    
-   void setFn(const char* fn) {_strFriendlyName = fn; setFriendlyName(_strFriendlyName.c_str());}
+   virtual void setFriendlyName(const char* fn) override {_strFriendlyName = fn; CxMqttHABase::setFriendlyName(_strFriendlyName.c_str());}
    void setMax(uint32_t set) {_nMax = set;}
    
-   void addJsonConfig(JsonDocument &doc) const {
+   void addJsonConfig(JsonDocument &doc) const override {
       
       doc[F("ic")] = F("mdi:ab-testing");
       doc[F("mode")] = F("text");
@@ -1032,7 +1041,7 @@ public:
       
    }
    
-   void addJsonAction(JsonDocument& doc) const {}
+   void addJsonAction(JsonDocument& doc) const override {}
    
 };
 
@@ -1087,6 +1096,10 @@ private:
    const char* _szTopicState;
    bool _bUseTopicState; // instead of using json state in ~/state use non-json ~/ or alternative topic state if given in _szTopicState
    
+   String _strUnit;
+   String _strFriendlyName;
+   String _strDeviceClass;
+
 public:
    
    // constructor for diagnostic "online/offline" status entities
@@ -1104,9 +1117,17 @@ public:
 
 
    };
+   
+   CxMqttHADiagnostic(const char* szName, bool bAsMeasurement = true) : CxMqttHADiagnostic(szName, szName, nullptr, nullptr, false) {}
+   
+   virtual void setUnit(const char* set) override {_strUnit = set; CxMqttHASensor::setUnit(_strUnit.c_str());}
+   virtual void setFriendlyName(const char* fn) override {_strFriendlyName = fn; CxMqttHASensor::setFriendlyName(_strFriendlyName.c_str());}
+   
+   virtual void setDClass(const char* dclass) override { _strDeviceClass = dclass;
+      CxMqttHASensor::setDClass(_strDeviceClass.c_str());}
 
    
-   void addJsonConfig(JsonDocument &doc) const {
+   void addJsonConfig(JsonDocument &doc) const override {
       
       CxMqttHASensor::addJsonConfig(doc);
       
@@ -1117,7 +1138,7 @@ public:
       }
    }
    
-   void addJsonAction(JsonDocument& doc) const {}
+   void addJsonAction(JsonDocument& doc) const  override {}
    
 };
 
@@ -1169,9 +1190,10 @@ public:
    void setMax(int32_t set) {_nMax = set;}
    void setStep(int32_t set) {_nStep = set;}
    void setUnit(const char* set) {_strUnit = set;}
-   void setFn(const char* fn) {_strFriendlyName = fn; setFriendlyName(_strFriendlyName.c_str());}
+   virtual void setFriendlyName(const char* fn) override {_strFriendlyName = fn; CxMqttHABase::setFriendlyName(_strFriendlyName.c_str());}
 
-   void addJsonConfig(JsonDocument &doc) const {
+
+   void addJsonConfig(JsonDocument &doc) const override {
       doc[F("min")] = _nMin;
       doc[F("max")] = _nMax;
       doc[F("step")] = _nStep;
@@ -1180,7 +1202,7 @@ public:
 
    }
    
-   void addJsonAction(JsonDocument& doc) const {}
+   void addJsonAction(JsonDocument& doc) const override {}
    
 };
 
@@ -1309,7 +1331,8 @@ public:
       _vOptions.push_back(szOpt);
    }
    
-   void setFn(const char* fn) {_strFriendlyName = fn; setFriendlyName(_strFriendlyName.c_str());}
+   virtual void setFriendlyName(const char* fn) override {_strFriendlyName = fn; CxMqttHABase::setFriendlyName(_strFriendlyName.c_str());}
+
    
    uint8_t getOption() {return _nOption;}
    void setOption(uint8_t set) {_nOption = set;}
