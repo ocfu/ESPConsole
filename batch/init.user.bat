@@ -1,3 +1,4 @@
+@echo off  # suppress outputs on the console
 #
 # init.user.bat [<label> [<arguments>]]
 #
@@ -23,10 +24,6 @@
 # Note: Spaces are required before and after the equal sign!
 #
 
-# MQTT configuration
-name = "Application Name"
-root = esp/myapp
-port = 8883
 
 ###############################
 # General Setup at Start
@@ -37,12 +34,17 @@ fs:
 
 #
 # Environment Variables
+# (Naming convention: system variables in capital letters, user variables in small)
 #
 #   TZ   - Timezone
-#   url  - Device URL, used for Home Assistant (HA) setup
+#   NTP  - NTP Server
+#   BUF  - Input buffer for console (default: 128)
+#   URL  - Device URL, used for Home Assistant (HA) setup
 #
 set TZ CET-1CEST,M3.5.0,M10.5.0/3
-set url http://$(HOSTNAME)
+set URL http://$(HOSTNAME)
+set NTP fritz.box
+set BUF 128
 
 #
 # Logging Configuration
@@ -72,6 +74,7 @@ led off
 # Syntax: <period/cron> <command> <id> <mode> (see 'man timer')
 #
 timer add "0 0 * * *" "exec §(userscript) crMidnight" crMidnight  # Cron timer triggers 'crMidnight' event at midnight
+timer add 1m "exec §(userscript) tiDiag" tiDiag  # Timer to trigger the tiDiag event every 1 minute
 
 #
 # Variable-based Sensor Setup
@@ -91,6 +94,38 @@ timer add "0 0 * * *" "exec §(userscript) crMidnight" crMidnight  # Cron timer 
 crMidnight:
 #timer add 1m "reboot -f"   # Reboot 1 minute after midnight (prevents multiple reboots at midnight)
 
+# Diagnostic event
+#
+tiDiag:
+@echo off  # suppress outputs on the console
+
+# set the variables for the later mqtt/ha publishing
+heap         && set heap      $>
+frag         && set frag      $>
+stack        && set stack     $>
+stack low    && set stacklow  $>
+stack high   && set stackhigh $>
+ip           && set ip        $>
+wifi ssid    && set ssid      $>
+wifi rssi    && set rssi      $>
+info reason  && set reason    $>
+info last    && set last      $>
+info up      && set up        $>
+mqtt counter && set mqttcnt   $>
+
+set critical false
+set warning false
+
+test $(frag)  -gt 30       && set warning true
+test $(frag)  -gt 50       && set critical true
+test $(heap)  -lt 10000    && set warning true
+test $(heap)  -lt 2000     && set critical true
+test $(stacklow) -lt 600   && set warning true
+test $(stacklow) -lt 200   && set critical true
+
+mqtt pubvar      # published all variables starting with a alpha char in their names to variables/<var-name>
+ha diag update   # update all ha diagnostic entities for this device.
+
 ################################
 # I2C Configuration
 #
@@ -108,9 +143,11 @@ sensor name 2 pressure
 # MQTT Configuration
 #
 mqtt:
-mqtt server ocdk $(port)
+set name "My Project"
+
+mqtt server ocdk 8883
 mqtt qos 0
-mqtt root $(root)
+mqtt root esp/myproj
 mqtt name $(name)
 mqtt will 1
 mqtt heartbeat 1000
@@ -132,6 +169,20 @@ ha select addopt selsegopt "Temperature"
 ha select addopt selsegopt "Humidity"
 ha select addopt selsegopt "Pressure"
 ha select addopt selsegopt "Loop"
+
+# add diagnostic entities
+#           <name>         <friendly name>  <var>    [<device class>|'-'[,<unit>]]
+ha diag add diagheap       "Free Heap"      heap     "-,bytes"
+ha diag add diagfrag       "Fragmentation"  frag     "-,%"
+ha diag add diagup         "Up Time"        up       "duration,s"
+ha diag add diagip         "IP"             ip
+ha diag add diaghost       "Host Name"      HOSTNAME
+ha diag add diagrestart    "Restart Reason" reason
+ha diag add diaglast       "Last Restart"   last     "timestamp"
+ha diag add diagrssi       "RSSI"           rssi     "-,dBm"
+ha diag add diagstacklow   "Stack Low"      stacklow "-,bytes"
+ha diag add diagcounter    "Re-connects"    mqttcnt  "-,events"
+
 
 # HA Event Handlers
 #
@@ -163,7 +214,7 @@ seg enable 1
 seg br 10
 seg screen add time time                      # screen 0
 seg screen add temp sensor temperature
-seg screen add hum sensor humidity
+seg screen add hum  sensor humidity
 seg screen add pres sensor pressure
 
 seg slideshow add 0
@@ -186,6 +237,7 @@ log on
 set NTP fritz.box
 mqtt connect
 ha enable 1
+timer add 3s "exec §(userscript) tiDiag"
 
 ################################
 # WiFi Shutdown
