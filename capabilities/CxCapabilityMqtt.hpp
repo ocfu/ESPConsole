@@ -135,7 +135,7 @@ public:
          } else if (strSubCmd == "root") {
             __mqttManager.setRootPath(TKTOCHAR(tkArgs, 2));
          } else if (strSubCmd == "name") {
-            __mqttManager.setName(TKTOCHAR(tkArgs, 2));
+            __mqttManager.setName(TKTOCHARAFTER(tkArgs, 2));
          } else if (strSubCmd == "heartbeat") {
             int32_t period = TKTOINT(tkArgs, 2, -1);
             if (period == 0 || period >= 1000) _timerHeartbeat.start(period, true);
@@ -236,6 +236,18 @@ public:
       buf[sizeof(buf)-1] = '\0';
       return publish(buf, payload, retained);
    };
+   
+   void publishVariables(const char* szParam) {
+      for (const auto& entry : __console.getVariables()) {
+         if (isalpha(entry.first.charAt(0))) {
+            String strPath;
+            strPath.reserve(128);
+            strPath = F("variables/");
+            strPath += entry.first;
+            publish(strPath.c_str(), entry.second.c_str());
+         }
+      }
+   }
    
    bool startMqtt(const char* server = nullptr, uint32_t port = 0) {
       stopMqtt();
