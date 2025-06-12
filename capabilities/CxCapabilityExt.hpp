@@ -352,9 +352,9 @@ public:
          if (strVar == "TZ") {
             __console.setTimeZone(strValue.c_str());
             __console.addVariable(strVar.c_str(), strValue.c_str());
-            __console.setExitValue(0);
-         } else if (strVar == "buf") {
-            uint32_t nBufLen = TKTOINT(tkArgs, 3, __console.getCmdBufferLen());
+            nExitValue = EXIT_SUCCESS;
+         } else if (strVar == "BUF") {
+            uint32_t nBufLen = (uint32_t)strValue.toInt();
             if (nBufLen >= 64) {
                __console.setCmdBufferLen(nBufLen);
                __console.addVariable(strVar.c_str(), String(__console.getCmdBufferLen()).c_str());
