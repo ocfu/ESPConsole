@@ -196,7 +196,7 @@ public:
              printf(F(ESC_ATTR_BOLD "Ext. debug flag: " ESC_ATTR_RESET "0x%X\n"), __console.getDebugFlag());
              printf(F(ESC_ATTR_BOLD "Log server:      " ESC_ATTR_RESET "%s (%s)\n"), _strLogServer.c_str(), _bLogServerAvailable?"online":"offline");
              printf(F(ESC_ATTR_BOLD "Log port:        " ESC_ATTR_RESET "%d\n"), _nLogPort);
-             man("log");
+             man("log", "");
              _CONSOLE_INFO(F("test log message"));
              nExitValue = EXIT_FAILURE;
           }
@@ -222,7 +222,7 @@ public:
              _bBreakBatch = false;
           }
        } else if (cmd == "man") {
-          man(TKTOCHAR(tkArgs, 1));
+          nExitValue = man(TKTOCHAR(tkArgs, 1), TKTOCHARAFTER(tkArgs, 2));
        } else if (cmd == "test") {
           std::vector<const char*> vExpr;
           
@@ -974,8 +974,8 @@ private:
       return nExitValue;
    }
    
-   void man(const char* szCap) {
-      executeBatch("man.man", szCap);
+   uint8_t man(const char* szCap, const char* szParam) {
+      return executeBatch("man.man", szCap, szParam);
    }
       
 private:
