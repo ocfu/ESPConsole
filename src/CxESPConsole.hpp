@@ -60,10 +60,12 @@ extern std::map<String, String> _mapSetVariables; // Map to store static variabl
 ///
 class CxESPConsoleBase : public Print, public CxPersistentBase {
    
+   bool _bEchoOn = true;
+   
    std::function<void(const char*)> _funcPrint2logServer;
    std::function<void(const char*, const char*)> _funcExecuteBatch;
-   std::function<void(const char*)> _funcMan;
-   std::function<bool(const char*)> _funcProcessData;
+   std::function<void(const char*, const char*)> _funcMan;
+   std::function<uint8_t(const char*)> _funcProcessData;
 
 protected:
    bool __bIsWiFiClient = false;
@@ -105,7 +107,7 @@ public:
 
    // Implement the required write function
    virtual size_t write(uint8_t c) override {
-      if(__ioStream) {
+      if(__ioStream && isEcho()) {
          __ioStream->write(c);
          return 1;
       } else {
@@ -115,7 +117,7 @@ public:
    
    // Optional: Override write() for string buffers (better efficiency)
    virtual size_t write(const uint8_t *buffer, size_t size) override {
-      if (__ioStream) {
+      if (__ioStream && isEcho()) {
          return __ioStream->write(buffer, size);
       } else {
          return 0;
@@ -132,18 +134,21 @@ public:
          __ioStream = pStream;
       }
    }
-   void man(const char* sz) {if (_funcMan) _funcMan(sz);}
-   bool processData(const char* data) {if (_funcProcessData) return _funcProcessData(data); else return false;}
+   void man(const char* sz, const char* param = nullptr) {if (_funcMan) _funcMan(sz, param);}
+   uint8_t processData(const char* data) {if (_funcProcessData) return _funcProcessData(data); else return EXIT_FAILURE;}
    
    void setFuncPrintLog2Server(std::function<void(const char*)> f) {_funcPrint2logServer = f;}
    void clearFuncPrintLog2Server() {_funcPrint2logServer = nullptr;}
    
    void setFuncExecuteBatch(std::function<void(const char*, const char*)> f) {_funcExecuteBatch = f;}
    void clearFuncExecuteBatch() {_funcExecuteBatch = nullptr;}
-   void setFuncMan(std::function<void(const char*)> f) {_funcMan = f;}
+   void setFuncMan(std::function<void(const char*, const char*)> f) {_funcMan = f;}
    void clearFuncMan() {_funcMan = nullptr;}
-   void setFuncProcessData(std::function<bool(const char*)> f) {_funcProcessData = f;}
+   void setFuncProcessData(std::function<uint8_t(const char*)> f) {_funcProcessData = f;}
    void clearFuncProcessData() {_funcProcessData = nullptr;}
+   
+   void setEcho(bool set) {_bEchoOn = set;}
+   bool isEcho() {return _bEchoOn;}
 
 };
 
@@ -466,6 +471,8 @@ public:
       printf("] %d%%", progress);
    }
    
+   void _log(uint8_t level, char prefix, uint32_t flag, bool useProgmem, const char *fmt, va_list args);
+   
    // basic logging functions
    void debug(const char* fmt...);
    void debug(String& str) {debug(str.c_str());}
@@ -572,7 +579,18 @@ public:
       }
    }
    
+   void addVariable(const char* szName, uint32_t nValue) {
+      if (nValue != INVALID_UINT32) {
+         char szValue[10];
+         snprintf(szValue, sizeof(szValue), "%d", nValue);
+         addVariable(szName, szValue);
+      }
+   }
+
    void addVariable(const char* szName, const char* szValue) {
+      if (szName == nullptr || szName[0] == '\0' || szValue == nullptr) {
+         return; // No name or value provided
+      }
       _mapSetVariables[szName] = szValue;
    }
    
@@ -605,6 +623,9 @@ public:
    }
 
    const char* getVariable(const char* szName) {
+      if (szName == nullptr || szName[0] == '\0') {
+         return nullptr; // No name provided
+      }
       auto it = _mapSetVariables.find(szName);
       if (it != _mapSetVariables.end()) {
          return it->second.c_str();
@@ -838,7 +859,7 @@ public:
    // Print all registered constructors
    void listCap() {
       CxTablePrinter table(*__ioStream);
-      table.printHeader({F("Cap"), F("Loaded"), F("Locked"), F("Memory"), F("Commands")}, {6, 6, 6, 6, 3});
+      table.printHeader({F("Cap"), F("Loaded"), F("Locked"), F("Memory"), F("Commands")}, {6, 6, 6, 6, 8});
       for (const auto& entry : _mapCapRegistry) {
          table.printRow({entry.first.c_str(), _mapCapInstances.find(entry.first) != _mapCapInstances.end() ? "yes" : "no", _mapCapInstances[entry.first].get()->isLocked() ? "yes" : "no", _mapCapInstances[entry.first].get()->getMemAllocation() != INVALID_INT32 ? String(_mapCapInstances[entry.first].get()->getMemAllocation()).c_str() : "", String(_mapCapInstances[entry.first].get()->getCommandsCount()).c_str()});
       }

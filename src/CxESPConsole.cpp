@@ -61,8 +61,12 @@ uint8_t CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
             uint8_t nExitValue;
             
             entry.second->setIoStream(*__ioStream);
-            bResult = entry.second->processCmd(pstrCmd->c_str(), nClient);
-            if (bResult && !pstrCmd->startsWith("?")) {
+            entry.second->setQuiet(!isEcho());
+            setOutputVariable("");
+            setExitValue(EXIT_FAILURE); // error by default
+            nExitValue = entry.second->processCmd(pstrCmd->c_str(), nClient);
+            if (nExitValue != EXIT_NOT_HANDLED && !pstrCmd->startsWith("?")) {
+               setExitValue(nExitValue);
                overallResult = true;
                break; // Stop processing further instances for this command
             }
@@ -337,142 +341,87 @@ uint32_t CxESPConsole::_addPrefix(char c, char* buf, uint32_t lenmax) {
    return (uint32_t)strlen(buf);
 }
 
-void CxESPConsole::debug(const char *fmt, ...) {
+// Helper function for logging
+void CxESPConsole::_log(uint8_t level, char prefix, uint32_t flag, bool useProgmem, const char *fmt, va_list args) {
+   if (!fmt) return;
+   
+   char buf[100];
+   uint32_t len = _addPrefix(prefix, buf, sizeof(buf));
+   if (useProgmem) {
+      vsnprintf_P(buf + len, sizeof(buf) - len, (PGM_P)fmt, args);
+   } else {
+      vsnprintf(buf + len, sizeof(buf) - len, fmt, args);
+   }
+   printLog(level, flag, buf);
+}
 
+void CxESPConsole::debug(const char *fmt, ...) {
    va_list args;
    va_start(args, fmt);
-
-   uint32_t len = _addPrefix('D', buf, sizeof(buf));
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-
-   printLog(LOGLEVEL_DEBUG, 0, buf);
-
+   _log(LOGLEVEL_DEBUG, 'D', 0, false, fmt, args);
    va_end(args);
 }
-   uint32_t len = _addPrefix('D', buf, sizeof(buf));
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   printLog(LOGLEVEL_DEBUG, 0, buf);
 
+void CxESPConsole::debug(const FLASHSTRINGHELPER *fmt, ...) {
+   va_list args;
+   va_start(args, fmt);
+   _log(LOGLEVEL_DEBUG, 'D', 0, true, (const char *)fmt, args);
    va_end(args);
 }
 
 void CxESPConsole::debug_ext(uint32_t flag, const char *fmt, ...) {
-
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('X', buf, sizeof(buf));
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   printLog(LOGLEVEL_DEBUG_EXT, flag, buf);
-
+   _log(LOGLEVEL_DEBUG_EXT, 'X', flag, false, fmt, args);
    va_end(args);
 }
 
 void CxESPConsole::debug_ext(uint32_t flag, const FLASHSTRINGHELPER *fmt, ...) {
-   if (!fmt) return;
-
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('X', buf, sizeof(buf));
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   printLog(LOGLEVEL_DEBUG_EXT, flag, buf);
-
+   _log(LOGLEVEL_DEBUG_EXT, 'X', flag, true, (const char *)fmt, args);
    va_end(args);
 }
 
 void CxESPConsole::info(const char *fmt, ...) {
-   if (!fmt) return;
-
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('I', buf, sizeof(buf));
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   printLog(LOGLEVEL_INFO, 0, buf);
-
+   _log(LOGLEVEL_INFO, 'I', 0, false, fmt, args);
    va_end(args);
 }
 
-void CxESPConsole::info(const FLASHSTRINGHELPER * fmt...) {
-   if (!fmt) return;
-
+void CxESPConsole::info(const FLASHSTRINGHELPER *fmt, ...) {
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('I', buf, sizeof(buf));
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   printLog(LOGLEVEL_INFO, 0, buf);
-
+   _log(LOGLEVEL_INFO, 'I', 0, true, (const char *)fmt, args);
    va_end(args);
 }
 
 void CxESPConsole::warn(const char *fmt, ...) {
-   if (!fmt) return;
-
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('W', buf, sizeof(buf));
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   printLog(LOGLEVEL_WARN, 0, buf);
-
+   _log(LOGLEVEL_WARN, 'W', 0, false, fmt, args);
    va_end(args);
 }
 
-void CxESPConsole::warn(const FLASHSTRINGHELPER * fmt...) {
-   if (!fmt) return;
-
+void CxESPConsole::warn(const FLASHSTRINGHELPER *fmt, ...) {
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('W', buf, sizeof(buf));
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   printLog(LOGLEVEL_WARN, 0, buf);
-
+   _log(LOGLEVEL_WARN, 'W', 0, true, (const char *)fmt, args);
    va_end(args);
 }
 
 void CxESPConsole::error(const char *fmt, ...) {
-   if (!fmt) return;
-   
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('E', buf, sizeof(buf));
-   vsnprintf(buf+len, sizeof(buf)-len, fmt, args);
-   
-   printLog(LOGLEVEL_ERROR, 0, buf);
-
+   _log(LOGLEVEL_ERROR, 'E', 0, false, fmt, args);
    va_end(args);
 }
 
-void CxESPConsole::error(const FLASHSTRINGHELPER * fmt...) {
-   if (!fmt) return;
-
+void CxESPConsole::error(const FLASHSTRINGHELPER *fmt, ...) {
    va_list args;
    va_start(args, fmt);
-   
-   char buf[100];
-   uint32_t len = _addPrefix('E', buf, sizeof(buf));
-   vsnprintf_P(buf+len, sizeof(buf)-len, (PGM_P) fmt, args);
-   
-   printLog(LOGLEVEL_ERROR, 0, buf);
-   
+   _log(LOGLEVEL_ERROR, 'E', 0, true, (const char *)fmt, args);
    va_end(args);
 }
 
