@@ -55,7 +55,7 @@
 #elif defined (_VERSION)
 #define _VERSION_ID _VERSION
 #else
-#define _VERION_ID "-"
+#define _VERSION_ID "-"
 #endif
 // for the identification of the binary (e.g. for archiving purposes)
 #if defined (_NAME) && defined (_VERSION)
@@ -65,7 +65,7 @@ const char* g_szId      PROGMEM = "$$id:" _NAME ":" _VERSION;
 const char* g_szIdmyESP PROGMEM = "$$idm:myESP:" ESPCONSOLE_VERSION;
 #endif
 #ifndef _NAME
-#define _NAME App
+#define _NAME "App"
 #endif
 #pragma GCC pop_options
 
