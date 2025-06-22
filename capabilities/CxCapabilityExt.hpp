@@ -63,6 +63,7 @@
 
 #include "CxCapability.hpp"
 #include "CxESPConsole.hpp"
+#include "ArduinoJson.h"
 
 #include "../capabilities/CxCapabilityBasic.hpp"
 

@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "../../.."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"__locale": "cpp",
+			"bitset": "cpp"
+		},
+		"todo-tree.filtering.includeGlobs": [
+			"extenal/**"
+		]
+	}
+}
