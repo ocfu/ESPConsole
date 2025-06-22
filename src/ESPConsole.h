@@ -1,6 +1,7 @@
 //
 // ESPConsole.h
 //
+#pragma once
 
 #if defined (ESP_CONSOLE_ALL)
 #define ESP_CONSOLE_BASIC
@@ -61,8 +62,9 @@
 #if defined (_NAME) && defined (_VERSION)
 const char* g_szId      PROGMEM = "$$id:" _NAME ":" _VERSION;
 #endif
-#if defined (ESPCONSOLE_VERSION)
-const char* g_szIdmyESP PROGMEM = "$$idm:myESP:" ESPCONSOLE_VERSION;
+#include "../version.h"
+#if defined (LIB_VERSION)
+const char* g_szLib PROGMEM = "$$lib:ESPConsole:" LIB_VERSION;
 #endif
 #ifndef _NAME
 #define _NAME "App"
