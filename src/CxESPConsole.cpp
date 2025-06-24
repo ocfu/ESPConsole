@@ -62,7 +62,7 @@ uint8_t CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
             
             entry.second->setIoStream(*__ioStream);
             entry.second->setQuiet(!isEcho());
-            setOutputVariable("");
+            //setOutputVariable("");
             setExitValue(EXIT_FAILURE); // error by default
             nExitValue = entry.second->processCmd(pstrCmd->c_str(), nClient);
             if (nExitValue != EXIT_NOT_HANDLED && !pstrCmd->startsWith("?")) {

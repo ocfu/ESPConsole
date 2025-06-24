@@ -178,7 +178,7 @@ public:
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth", "id", "app" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth", "id", "app", "min", "max" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -1153,6 +1153,40 @@ public:
             __console.setOutputVariable(fValue);
          }
          nExitValue = EXIT_SUCCESS;
+      } else if (cmd == "max") {
+         // max <value1> [<value2> <value3> ...]
+         // returns the maximum value of the given values
+         // sets the exit value to 0, if valid
+         float maxValue = TKTOFLOAT(tkArgs, 1, INVALID_FLOAT);
+         for (size_t i = 2; i < tkArgs.count(); i++) {
+            float fValue = TKTOFLOAT(tkArgs, i, INVALID_FLOAT);
+            if (!std::isnan(fValue)) {
+               maxValue = std::max(maxValue, fValue);
+            }
+         }
+         if (!std::isnan(maxValue)) {
+            __console.setOutputVariable(maxValue);
+            nExitValue = EXIT_SUCCESS;
+         } else {
+            nExitValue = EXIT_FAILURE;
+         }
+      } else if (cmd == "min") {
+         // min <value1> [<value2> <value3> ...]
+         // returns the minimum value of the given values
+         // sets the exit value to 0, if valid
+         float minValue = TKTOFLOAT(tkArgs, 1, INVALID_FLOAT);
+         for (size_t i = 2; i < tkArgs.count(); i++) {
+            float fValue = TKTOFLOAT(tkArgs, i, INVALID_FLOAT);
+            if (!std::isnan(fValue)) {
+               minValue = std::min(minValue, fValue);
+            }
+         }
+         if (!std::isnan(minValue)) {
+            __console.setOutputVariable(minValue);
+            nExitValue = EXIT_SUCCESS;
+         } else {
+            nExitValue = EXIT_FAILURE;
+         }
       }
       else {
          return EXIT_NOT_HANDLED;

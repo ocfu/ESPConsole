@@ -318,3 +318,14 @@ echo "  server   Sets the NTP server and try to sync with."
 echo "  sync     Try to sync with NTP server."
 echo
 
+#
+min:
+echo "$(USAGE) <value1> <value2> [<value3> ...]
+echo "  Returns the minimum value of the given values."
+
+#
+max:
+echo "$(USAGE) <value1> <value2> [<value3> ...]"
+echo "  Returns the maximum value of the given values."
+
+
