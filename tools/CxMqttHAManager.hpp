@@ -760,6 +760,7 @@ private:
    CxMqttHADevice() : CxMqttHABase(true) {
       __pDev = this;
       __eType = e_type::HAdevice;
+      setAvailable(true); // Device is available by default
    }
 
 protected:

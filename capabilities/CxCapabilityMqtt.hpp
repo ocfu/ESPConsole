@@ -86,7 +86,6 @@ public:
          if (_bMqttServerOnline != bOnline) {
             if (bOnline) {
                _CONSOLE_INFO(F("mqtt server is online!"));
-               __mqttManager.publishWill("online");
             } else {
                __console.error(F("mqtt server %s on port %d is not available!"), __mqttManager.getServer(), __mqttManager.getPort());
             }

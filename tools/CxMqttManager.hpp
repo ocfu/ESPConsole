@@ -442,6 +442,8 @@ public:
       if (bConnected) {
          _nConnectCntr++;
          _resubscribeTopics();
+         // publish the online message to the root path
+         publishWill("online");
       }
       return bConnected;
    }
