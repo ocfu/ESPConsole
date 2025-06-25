@@ -58,7 +58,7 @@ fi
 # For "git": checks for uncommitted changes (except $VERSION_FILE), extracts version, commits, tags, and pushes.
 if [[ "$1" == "git" ]]; then
   # Check for uncommitted changes except version.h
-  git_status=$(git status --porcelain | grep -v "$VERSION_FILE" || true)
+  git_status=$(git status --porcelain | grep -Ev '$VERSION_FILE|$LIB_PROPS' || true)
   if [[ -n "$git_status" ]]; then
     echo "Error: Uncommitted changes present (except $VERSION_FILE):"
     echo "$git_status"
@@ -73,7 +73,6 @@ if [[ "$1" == "git" ]]; then
   fi
 
   # Commit, tag, and push
-  git add "$VERSION_FILE"
   prev_version=$(git show HEAD:$VERSION_FILE | grep "#define $VERSION_DEFINE" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
   shift
   if [[ $# -ge 1 ]]; then
@@ -122,12 +121,14 @@ new_version="$major.$minor.$patch"
 
 # Update the version in the file (with quotes)
 sed -i '' -E "s/(#define $VERSION_DEFINE) \"[0-9]+\.[0-9]+\.[0-9]+\"/\1 \"$new_version\"/" "$VERSION_FILE"
+git add "$VERSION_FILE"
 
 # Also update library.properties if it exists (without quotes)
 if [[ -f "$LIB_PROPS" ]]; then
   echo "Updating version in $LIB_PROPS to $new_version"
   sed -i.bak -E "s/^(version[[:space:]]*=[[:space:]]*).*/\1$new_version/" "$LIB_PROPS"
   rm -f "$LIB_PROPS.bak"
+  git add "$LIB_PROPS"
 fi
 
 echo "Version updated to $new_version"
