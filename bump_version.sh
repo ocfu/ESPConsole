@@ -38,7 +38,7 @@
 set -e
 
 VERSION_FILE="version.h"
-VERSION_DEFINE="PROJECT_VERSION"
+VERSION_DEFINE="LIB_VERSION"
 LIB_PROPS="library.properties"
 
 if [[ -f "$LIB_PROPS" ]]; then
