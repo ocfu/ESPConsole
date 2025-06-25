@@ -58,7 +58,7 @@ fi
 # For "git": checks for uncommitted changes (except $VERSION_FILE), extracts version, commits, tags, and pushes.
 if [[ "$1" == "git" ]]; then
   # Check for uncommitted changes except version.h
-  git_status=$(git status --porcelain | grep -Ev '$VERSION_FILE|$LIB_PROPS' || true)
+  git_status=$(git status --porcelain | grep -Ev $VERSION_FILE|$LIB_PROPS || true)
   if [[ -n "$git_status" ]]; then
     echo "Error: Uncommitted changes present (except $VERSION_FILE):"
     echo "$git_status"
