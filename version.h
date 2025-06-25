@@ -1,3 +1,3 @@
 // Auto-generated version file
 #pragma once
-#define LIB_VERSION "0.0.4"
+#define LIB_VERSION "0.0.5"
