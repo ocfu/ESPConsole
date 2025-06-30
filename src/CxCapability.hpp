@@ -51,7 +51,7 @@ class CxCapability : public Print, public CxProcessStatistic {
    bool _bQuiet = false;
 
 protected:
-   bool __bLocked;
+   bool __bLocked = false;
    size_t __nMemAllocation = 0;
 
    const char* name;  // Command set name
@@ -61,7 +61,7 @@ protected:
    virtual const std::vector<const char*>& getCommands() {return commands;}
 
 public:
-   explicit CxCapability(const char* setName, const std::vector<const char*>& cmds) : name(setName?setName:"unknown"), commands(cmds), __bLocked(false) {
+   explicit CxCapability(const char* setName, const std::vector<const char*>& cmds) : name(setName?setName:"unknown"), commands(cmds) {
    }
    virtual ~CxCapability() {}
    

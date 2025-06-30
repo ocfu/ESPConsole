@@ -43,6 +43,13 @@ public:
    CxTimer() : CxTimer(0) {}
    CxTimer(uint32_t period, std::function<void(const char*)> cb, bool bHoldAfterDue = false) : _nPeriod(period), _last(0), _bOnHold(false), _isDue(false), _bHoldAfterDue(bHoldAfterDue), __cb(cb) {if (!bHoldAfterDue) start();}
 
+
+   // add a virtual destructor to allow derived classes to clean up properly
+   virtual ~CxTimer() {
+      // clear the callback to avoid dangling pointers
+      __cb = nullptr;
+   }
+   
    void setId(const char* set) {_strId = set;}
    const char* getId() {return _strId.c_str();}
    

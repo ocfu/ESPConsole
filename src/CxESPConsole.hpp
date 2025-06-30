@@ -74,8 +74,8 @@ protected:
    Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
    
 public:
-   explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream), __bIsSafeMode(false), __bIsWiFiClient(false) {}
-   CxESPConsoleBase() : __ioStream(nullptr), __bIsSafeMode(false), __bIsWiFiClient(false) {}
+   explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream) {}
+   CxESPConsoleBase() : __ioStream(nullptr) {}
    
    virtual ~CxESPConsoleBase() {}
 
@@ -155,7 +155,7 @@ public:
 class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcessStatistic {
          
    String _strHostName; // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
-   String _strPrompt; // Prompt string
+   String _strPrompt = ""; // Prompt string
    String _strPromptClient; // Prompt string for WiFiClient
    bool _bPromptEnabled = true;
    bool _bClientPromptEnabled = true;
@@ -168,13 +168,13 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    
    uint32_t _nCmdBufferLen = 64;
    char* _pszCmdBuffer = nullptr;                 // Command line buffer
-   int _iCmdBufferIndex = 0;            // Actual cursor position in command line (always at the last char of input, cur left/right not supported)
+   uint32_t _iCmdBufferIndex = 0;            // Actual cursor position in command line (always at the last char of input, cur left/right not supported)
    
    char** _aszCmdHistory = nullptr;               // Command line history buffer
-   int _nCmdHistorySize;                // History size (max. number of command lines in the buffer)
-   int _nCmdHistoryCount = 0;           // Actual number of command lines in the buffer
-   int _iCmdHistoryIndex = -1;          // Acutal index of the command line buffer
-   int _nStateEscSequence = 0;          // Actual ESC sequence state during input
+   uint32_t _nCmdHistorySize = 4;                // History size (max. number of command lines in the buffer)
+   uint32_t _nCmdHistoryCount = 0;           // Actual number of command lines in the buffer
+   int32_t _iCmdHistoryIndex = -1;          // Acutal index of the command line buffer
+   uint32_t _nStateEscSequence = 0;          // Actual ESC sequence state during input
    
    bool _bWaitingForUsrResponseYN = false;   // Indicates an active (pending) user response
    void (*_cbUsrResponse)(bool) = nullptr; // Callback for the response answer
@@ -305,8 +305,10 @@ public:
    CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 #endif
    CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
-   : CxESPConsoleBase(stream), CxESPTime(), _nCmdHistorySize(4), _szAppName(app), _szAppVer(ver), _strPrompt("") {
+   : CxESPConsoleBase(stream), CxESPTime() {
 
+      _szAppName = app;
+      _szAppVer = ver;
 
       setCmdBufferLen(64);
       
@@ -336,7 +338,7 @@ public:
       ///
       /// release the allocated space for the command history buffer
       ///
-      for (int i = 0; i < _nCmdHistorySize; ++i) {
+      for (uint32_t i = 0; i < _nCmdHistorySize; ++i) {
          delete[] _aszCmdHistory[i];
       }
       delete[] _aszCmdHistory;
@@ -355,7 +357,7 @@ public:
          ///
          /// release the allocated space for the command history buffer
          ///
-         for (int i = 0; i < _nCmdHistorySize; ++i) {
+         for (uint32_t i = 0; i < _nCmdHistorySize; ++i) {
             delete[] _aszCmdHistory[i];
          }
          delete[] _aszCmdHistory;
@@ -367,7 +369,7 @@ public:
       /// the max. length of each command line is determined by _nMAXLENGTH
       ///
       _aszCmdHistory = new char*[_nCmdHistorySize];
-      for (int i = 0; i < _nCmdHistorySize; ++i) {
+      for (uint32_t i = 0; i < _nCmdHistorySize; ++i) {
          _aszCmdHistory[i] = new char[_nCmdBufferLen]();
       }
    }
@@ -572,8 +574,8 @@ public:
    }
 
    void addVariable(const char* szName, int32_t nValue) {
-      if (nValue != INVALID_INT32) {
-         char szValue[10];
+      if (nValue != (int32_t)INVALID_INT32) {
+         char szValue[12]; // Enough for -2147483648\0
          snprintf(szValue, sizeof(szValue), "%d", nValue);
          addVariable(szName, szValue);
       }

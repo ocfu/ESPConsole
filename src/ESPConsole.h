@@ -46,6 +46,7 @@
 #include "../capabilities/CxCapabilityRC.hpp"
 #endif
 
+#include <CxESPConsole.hpp>
 
 #ifndef __SKIP_GLOBALS__
 #define __SKIP_GLOBALS__

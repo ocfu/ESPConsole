@@ -243,15 +243,14 @@ void CxESPConsoleMaster::loop() {
    if (_pWiFiServer) {
       char commandBuffer[128] = {0};
       bool commandReceived = false;
-      int index = 0;
       
-      WiFiClient client = _pWiFiServer->available();
+      WiFiClient client = _pWiFiServer->accept();
       
       // first check, if remote connection has a command
       if (client) {
          info(F("New client connected."));
          memset(commandBuffer, 0, sizeof(commandBuffer));
-         int index = 0;
+         size_t index = 0;
          CxTimer timerTO(1000); // set timeout
 
          while (client.connected()) {
