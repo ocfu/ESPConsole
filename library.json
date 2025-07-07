@@ -1,0 +1,40 @@
+{
+   "name": "ESPConsole",
+   "version": "0.0.0",
+   "description": "A console library for ESP platforms.",
+   "keywords": [
+      "esp",
+      "console",
+      "serial",
+      "debug"
+   ],
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/ocfu/ESPConsole.git"
+   },
+   "authors": [
+      {
+         "name": "ocfu",
+         "email": "your.email@example.com"
+      }
+   ],
+   "license": "MIT",
+   "frameworks": [
+      "arduino",
+      "espidf"
+   ],
+   "platforms": [
+      "espressif32",
+      "espressif8266",
+      "native"
+   ],
+   "export": {
+    "include": ["src", "examples", "LICENSE.txt", "ESPConsole.h"]
+  },
+   "build": {
+      "libArchive": false
+   },
+   "dependencies": {
+      "ArduinoJson": "^7.4.2"
+   }
+}
