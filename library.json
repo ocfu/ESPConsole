@@ -33,8 +33,5 @@
   },
    "build": {
       "libArchive": false
-   },
-   "dependencies": {
-      "ArduinoJson": "^7.4.2"
    }
 }
