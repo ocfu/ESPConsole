@@ -19,10 +19,7 @@
       }
    ],
    "license": "MIT",
-   "frameworks": [
-      "arduino",
-      "espidf"
-   ],
+   "frameworks": "*",
    "platforms": [
       "espressif32",
       "espressif8266",
