@@ -1,7 +1,7 @@
 #include "CxESPConsole.hpp"
 #include "../capabilities/CxCapabilityMqttHA.hpp"
 #include "../capabilities/CxCapabilityI2C.hpp"
-#include "../tools/CxSensorBme.hpp"
+#include "tools/CxSensorBme.hpp"
 #include "../capabilities/CxCapabilitySegDisplay.hpp"
 
 // ----------------------------------------------------------------------------

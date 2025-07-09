@@ -17,13 +17,13 @@
 
 #include "CxCapability.hpp"
 
-#include "../tools/CxESPHeapTracker.hpp"
-#include "../tools/CxESPStackTracker.hpp"
-#include "../tools/CxESPTime.hpp"
-#include "../tools/CxStrToken.hpp"
-#include "../tools/CxTimer.hpp"
-#include "../tools/CxPersistentBase.hpp"
-#include "../tools/CxTablePrinter.hpp"
+#include "tools/CxESPHeapTracker.hpp"
+#include "tools/CxESPStackTracker.hpp"
+#include "tools/CxESPTime.hpp"
+#include "tools/CxStrToken.hpp"
+#include "tools/CxTimer.hpp"
+#include "tools/CxPersistentBase.hpp"
+#include "tools/CxTablePrinter.hpp"
 
 #ifdef ARDUINO
 #ifndef ESP_CONSOLE_NOWIFI

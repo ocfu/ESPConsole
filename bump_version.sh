@@ -40,8 +40,11 @@ set -e
 VERSION_FILE="version.h"
 VERSION_DEFINE="LIB_VERSION"
 LIB_PROPS="library.properties"
+LIB_JSON="library.json"
 
-if [[ -f "$LIB_PROPS" ]]; then
+
+# if library.json or library.properties exists, use LIB_VERSION
+if [[ -f "$LIB_JSON" || -f "$LIB_PROPS" ]]; then
   VERSION_DEFINE="LIB_VERSION"
 fi
 
@@ -123,12 +126,19 @@ new_version="$major.$minor.$patch"
 sed -i '' -E "s/(#define $VERSION_DEFINE) \"[0-9]+\.[0-9]+\.[0-9]+\"/\1 \"$new_version\"/" "$VERSION_FILE"
 git add "$VERSION_FILE"
 
-# Also update library.properties if it exists (without quotes)
+# Also update library.json and library.properties if it exists (without quotes)
 if [[ -f "$LIB_PROPS" ]]; then
   echo "Updating version in $LIB_PROPS to $new_version"
   sed -i.bak -E "s/^(version[[:space:]]*=[[:space:]]*).*/\1$new_version/" "$LIB_PROPS"
   rm -f "$LIB_PROPS.bak"
   git add "$LIB_PROPS"
+fi
+
+if [[ -f "$LIB_JSON" ]]; then
+  echo "Updating version in $LIB_JSON to $new_version"
+  sed -i.bak -E "s/(\"version\"[[:space:]]*:[[:space:]]*\")[0-9]+\.[0-9]+\.[0-9]+(\")/\1$new_version\2/" "$LIB_JSON"
+  rm -f "$LIB_JSON.bak"
+  git add "$LIB_JSON"
 fi
 
 echo "Version updated to $new_version"

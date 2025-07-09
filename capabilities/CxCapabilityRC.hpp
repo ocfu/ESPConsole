@@ -7,8 +7,8 @@
 
 #include "../capabilities/CxCapabilityFS.hpp"
 
-#include "../tools/CxGpioTracker.hpp"
-#include "../tools/CxTimer.hpp"
+#include "tools/CxGpioTracker.hpp"
+#include "tools/CxTimer.hpp"
 
 // Info: http://www.rflink.nl/blog2/wiring
 // https://github.com/sui77/rc-switch

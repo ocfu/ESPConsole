@@ -11,7 +11,7 @@
 
 
 #include "Arduino.h"
-#include "../tools/CxProcessStatistic.hpp"
+#include "tools/CxProcessStatistic.hpp"
 
 // include some generic defines, such as ESC sequences, format for prompts, debug macros etc.
 #include "defines.h"

@@ -19,7 +19,7 @@
 
 
 #include "../capabilities/CxCapabilityExt.hpp"
-#include "../tools/CxPersistentImpl.hpp"
+#include "tools/CxPersistentImpl.hpp"
 
 #include "esphw.h"
 

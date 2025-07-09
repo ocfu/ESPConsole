@@ -67,18 +67,18 @@
 
 #include "../capabilities/CxCapabilityBasic.hpp"
 
-#include "../tools/CxGpioTracker.hpp"
-#include "../tools/CxLed.hpp"
-#include "../tools/CxButton.hpp"
-#include "../tools/CxRelay.hpp"
-#include "../tools/CxContact.hpp"
-#include "../tools/CxAnalog.hpp"
+#include "tools/CxGpioTracker.hpp"
+#include "tools/CxLed.hpp"
+#include "tools/CxButton.hpp"
+#include "tools/CxRelay.hpp"
+#include "tools/CxContact.hpp"
+#include "tools/CxAnalog.hpp"
 #include "esphw.h"
-#include "../tools/CxSensorManager.hpp"
-#include "../tools/espmath.h"
+#include "tools/CxSensorManager.hpp"
+#include "tools/espmath.h"
 
 #ifndef ESP_CONSOLE_NOWIFI
-#include "../tools/CxOta.hpp"
+#include "tools/CxOta.hpp"
 #ifdef ARDUINO
 #ifdef ESP32
 #include <WebServer.h>

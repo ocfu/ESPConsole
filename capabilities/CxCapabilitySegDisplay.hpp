@@ -33,8 +33,8 @@
 
 #include "../capabilities/CxCapabilityFS.hpp"
 
-#include "../tools/CxGpioTracker.hpp"
-#include "../tools/CxTimer.hpp"
+#include "tools/CxGpioTracker.hpp"
+#include "tools/CxTimer.hpp"
 
 #ifdef ARDUINO
 #include "TM1637TinyDisplay.h"

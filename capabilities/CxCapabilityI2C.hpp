@@ -20,8 +20,8 @@
 
 #include "../capabilities/CxCapabilityFS.hpp"
 
-#include "../tools/CxGpioTracker.hpp"
-#include "../tools/CxTimer.hpp"
+#include "tools/CxGpioTracker.hpp"
+#include "tools/CxTimer.hpp"
 
 
 #include <map>

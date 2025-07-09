@@ -20,7 +20,7 @@
 #include "../capabilities/CxCapabilityFS.hpp"
 
 
-#include "../tools/CxMqttManager.hpp"
+#include "tools/CxMqttManager.hpp"
 
 class CxCapabilityMqtt : public CxCapability {
    CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();

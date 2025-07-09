@@ -53,7 +53,7 @@
 
 #include "../capabilities/CxCapabilityMqtt.hpp"
 
-#include "../tools/CxMqttHAManager.hpp"
+#include "tools/CxMqttHAManager.hpp"
 
 /**
  * @class CxCapabilityMqttHA
