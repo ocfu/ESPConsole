@@ -540,6 +540,12 @@ bool cmd_sw(CxStrToken &tkArgs) {
    __console.printf(F(ESC_ATTR_BOLD " Arduino:" ESC_ATTR_RESET " %d.%d.%d %s\n"), major, minor, patch, ide);
 #endif
    __console.printf(F(ESC_ATTR_BOLD "    Firmware:" ESC_ATTR_RESET " %s" ESC_ATTR_BOLD " Ver.:" ESC_ATTR_RESET " %s"), __console.getAppName(), __console.getAppVer());
+   if (g_szBuildId && g_szBuildId[0]) {
+      __console.printf(F(ESC_ATTR_BOLD " (" ESC_ATTR_RESET "%s)"), g_szBuildId);
+   }
+#ifdef DEBUG
+   __console.printf(F(ESC_ATTR_BOLD ESC_TEXT_RED " DBG" ESC_ATTR_RESET));
+#endif
 #ifdef ARDUINO
    __console.printf(F(ESC_ATTR_BOLD " Sketch size: " ESC_ATTR_RESET));
    if (ESP.getSketchSize() / 1024 < 465) {
