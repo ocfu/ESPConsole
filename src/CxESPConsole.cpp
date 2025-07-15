@@ -111,6 +111,10 @@ void CxESPConsoleMaster::begin() {
 #ifdef ESP_CONSOLE_EXT
    setupExt();
 #endif
+#ifdef ESP_CONSOLE_FS
+   setupFS();
+#endif
+
 
    ::readSettings(_settings);
 
@@ -263,6 +267,9 @@ void CxESPConsoleMaster::loop() {
 #endif
 #ifdef ESP_CONSOLE_EXT
    loopExt();
+#endif
+#ifdef ESP_CONSOLE_FS
+   loopFS();
 #endif
 
    if (_timerUpdate.isDue()) {

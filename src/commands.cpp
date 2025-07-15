@@ -886,6 +886,9 @@ bool execute(const char *szCmd, uint8_t nClient) {
 #ifdef ESP_CONSOLE_EXT
       printCommands(commandsExt, NUM_COMMANDS_EXT, " Extended");
 #endif /* ESP_CONSOLE_EXT */
+#ifdef ESP_CONSOLE_FS
+      printCommands(commandsFS, NUM_COMMANDS_FS, " Filesystem");
+#endif /* ESP_CONSOLE_FS */
       __console.setExitValue(EXIT_SUCCESS);
       return true;
    }
@@ -909,6 +912,13 @@ bool execute(const char *szCmd, uint8_t nClient) {
       return true;
    }
 #endif /* ESP_CONSOLE_EXT */
+#ifdef ESP_CONSOLE_FS
+   // Try filesystem commands
+   if (executeInTable(cmd.c_str(), tkArgs, commandsFS, NUM_COMMANDS_FS)) {
+      __console.setExitValue(EXIT_SUCCESS);
+      return true;
+   }
+#endif /* ESP_CONSOLE_FS */
    __console.setExitValue(EXIT_FAILURE);
    return false;
 }

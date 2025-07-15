@@ -69,3 +69,42 @@ extern const size_t NUM_COMMANDS_EXT;
 void setupExt();
 void loopExt();
 #endif 
+
+#ifdef ESP_CONSOLE_FS
+extern const CommandEntry commandsFS[] PROGMEM;
+extern const size_t NUM_COMMANDS_FS;
+void setupFS();
+void loopFS();
+
+// Filesystem functions
+void setupFS();
+void loopFS();
+bool hasFS();
+uint32_t getDf();
+uint8_t printFsInfo();
+uint8_t printDu(const char* szFn = nullptr);
+uint8_t printSize(bool fmt = false);
+uint8_t printDf(bool fmt = false);
+uint8_t ls(bool bAll = false, bool bLong = false);
+uint8_t cat(const char* szFn);
+uint8_t rm(const char* szFn);
+uint8_t cp(const char* szSrc, const char* szDst);
+uint8_t mv(const char* szSrc, const char* szDst);
+uint8_t touch(const char* szFn);
+uint8_t mount();
+uint8_t umount();
+uint8_t format();
+bool fileExists(const char* szFn);
+void _getFSInfo(FSInfo& fsinfo);
+uint8_t _handleFile();
+uint8_t executeBatch(const char* path, const char* label, const char* arg = nullptr);
+uint8_t man(const char* szCap, const char* szParam);
+void _printNoFS();
+void _printNoSuchFileOrDir(const char* szCmd, const char* szFn = nullptr);
+uint8_t _sendFile(WiFiClient* client, const char* filename);
+
+void trim(char* str);
+bool test(std::vector<const char*> & vExpression);
+
+#endif
+

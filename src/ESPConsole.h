@@ -59,5 +59,11 @@ extern const char* g_szLib;
 #pragma GCC pop_options
 #endif /*__SKIP_GLOBALS__ */
 
+#ifndef MIN
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
 
 void initESPConsole(const char* app = _NAME, const char* ver = _VERSION_ID);
