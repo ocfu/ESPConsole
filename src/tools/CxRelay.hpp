@@ -33,10 +33,10 @@ private:
       
       if (id == ERelayEvent::relayon) {
          strCmd.replace("$(STATE)", "ON");
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == ERelayEvent::relayoff) {
          strCmd.replace("$(STATE)", "OFF");
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       }
    }
    

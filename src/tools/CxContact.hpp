@@ -32,10 +32,10 @@ private:
       
       if (id == CxContact::EContactEvent::open) {
          strCmd.replace(F("$(STATE)"), "0");
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == CxContact::EContactEvent::close) {
          strCmd.replace(F("$(STATE)"), "1");
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       }
    };
 
@@ -150,7 +150,7 @@ public:
          
          strCmd.replace(F("$(COUNTER)"), String(_nCnt).c_str());
          strCmd.replace(F("$(ADD)"), String(nAdd).c_str());
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       }
    }), _nCnt(0), _nLastCnt(0) {
    }

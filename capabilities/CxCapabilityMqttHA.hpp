@@ -65,7 +65,6 @@
 class CxCapabilityMqttHA : public CxCapability {
 private:
    /// access to the instances of the master console, MQTT HA device,  MQTT manager and sensor manager
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    CxMqttHADevice& _mqttHAdev = CxMqttHADevice::getInstance();
    CxMqttManager& __mqttManager = CxMqttManager::getInstance();
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();

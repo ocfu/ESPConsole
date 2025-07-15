@@ -160,7 +160,6 @@ bool g_bOTAinProgress = false;
  */
 class CxCapabilityExt : public CxCapability {
    /// access to the instances of the master console, GPIO tracker, sensor manager
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    CxGPIOTracker& _gpioTracker = CxGPIOTracker::getInstance();
    CxGPIODeviceManagerManager& _gpioDeviceManager = CxGPIODeviceManagerManager::getInstance();
    CxSensorManager& _sensorManager = CxSensorManager::getInstance();

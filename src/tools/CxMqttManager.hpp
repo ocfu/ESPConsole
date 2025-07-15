@@ -107,7 +107,6 @@ public:
    };
 
 private:
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    
    bool         _bIsInitialized; ///< the mqtt manager is ready to use
    WiFiClient   _wifiClient;    ///< WiFi client for underlying network communication.
@@ -636,7 +635,6 @@ private:
    uint8_t _nQos;             ///< QoS level (0, 1, or 2).
    CxMqttManager& _mqttManager = CxMqttManager::getInstance(); ///< MQTT manager instance.
    CxMqttManager::tCallback _cb; ///< Callback function for received messages.
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
    /**

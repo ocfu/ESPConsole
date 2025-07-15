@@ -200,7 +200,6 @@ protected:
     * @details The console object is used to access the console for logging and output.
     * The console object is initialized with the console singleton instance.
     */
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
    /**

@@ -22,7 +22,7 @@ private:
    
 public:
    // Constructor accepting a Stream reference
-   CxTablePrinter(Stream& stream, const char* name = nullptr) : _output(stream), _szName(name), _nLines(0) {}
+   explicit CxTablePrinter(Stream& stream, const char* name = nullptr) : _output(stream), _szName(name), _nLines(0) {}
    
    void printHeader(const std::vector<String>& titles, const std::vector<uint8_t>& widths) {
       _vColumnWidths = widths; // Store the widths

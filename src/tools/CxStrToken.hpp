@@ -93,7 +93,7 @@ public:
       const char* token;
       
    public:
-      ctkProxy(const char* t) : token(t) {}
+      explicit ctkProxy(const char* t) : token(t) {}
       
       template <typename T>
       T as(T defaultValue = T{}) const {
@@ -138,7 +138,12 @@ public:
       }
    };
 
-   CxStrToken() : _szStrCopy(nullptr), _szDelimiters(nullptr), _nCount(0), _result(nullptr) {reset();}
+   CxStrToken() : _szStrCopy(nullptr), _szDelimiters(nullptr), _nCount(0), _result(nullptr) {
+      reset();
+      for (int i = 0; i < MAX_TOKENS; ++i) {
+         _aszTokens[i] = nullptr;
+      }
+   }
    CxStrToken(const char* sz, const char* szDelimiters)
    : CxStrToken() {
       setString(sz, szDelimiters);
@@ -329,7 +334,13 @@ private:
    }
    
 public:
-   CxMultiStrToken() : CxStrToken(), _delimiterCount(0) {}
+   CxMultiStrToken() : CxStrToken(), _delimiterCount(0) {
+      // Initialize delimiters to empty strings
+      for (uint8_t i = 0; i < MAX_DELIMITERS; ++i) {
+         _delimiters[i] = "";
+         _delimiterUsed[i] = 0; // No delimiters used initially
+      }
+   }
    
    CxMultiStrToken(const char* sz, const char* delimiters[], uint8_t delimiterCount)
    : CxStrToken(), _delimiterCount(delimiterCount) {

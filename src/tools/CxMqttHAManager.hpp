@@ -55,6 +55,7 @@
 #ifndef CxMqttHA_hpp
 #define CxMqttHA_hpp
 
+#include "CxSensorManager.hpp"
 #include "CxMqttManager.hpp"
 #include "espmath.h"
 #include "ArduinoJson.h"
@@ -86,7 +87,6 @@ private:
    String _strTopicBase;           ///< Base MQTT topic path
    
 protected:
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
    /**

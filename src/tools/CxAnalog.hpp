@@ -36,13 +36,13 @@ private:
       
       if (id == CxAnalog::EAnalogEvent::raiseabove) {
          strCmd += " #above";
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == CxAnalog::EAnalogEvent::raisebelow) {
          strCmd += " #below";
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == CxAnalog::EAnalogEvent::value) {
          strCmd.replace(F("$(VALUE)"), String(dev->get()));
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       }
    };
    
@@ -72,7 +72,7 @@ public:
       
       if (_timer.isDue()) {
          _nValue = get();
-         ESPConsole.addVariable(getName(), _nValue);
+        __console.addVariable(getName(), _nValue);
          callCb(CxAnalog::EAnalogEvent::value);
       }
       

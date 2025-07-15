@@ -30,15 +30,15 @@ void setup() {
    }
    Serial.println("\nWiFi connected.");
    
-   ESPConsole.setAppNameVer("Min WiFi", "v1.0");
-   ESPConsole.setTimeZone("CET-1CEST,M3.5.0,M10.5.0/3");
+  __console.setAppNameVer("Min WiFi", "v1.0");
+  __console.setTimeZone("CET-1CEST,M3.5.0,M10.5.0/3");
 
    CAPREG(CxCapabilityBasic);
    CAPLOAD(CxCapabilityBasic);
    
-   ESPConsole.begin(server);
+  __console.begin(server);
 }
 
 void loop() {
-   ESPConsole.loop();
+  __console.loop();
 }

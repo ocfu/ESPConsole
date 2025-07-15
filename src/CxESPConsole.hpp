@@ -15,7 +15,7 @@
 #include "defines.h"
 #include "esphw.h"
 
-#include "CxCapability.hpp"
+#include "commands.h"
 
 #include "tools/CxESPHeapTracker.hpp"
 #include "tools/CxESPStackTracker.hpp"
@@ -24,9 +24,10 @@
 #include "tools/CxTimer.hpp"
 #include "tools/CxPersistentBase.hpp"
 #include "tools/CxTablePrinter.hpp"
+#include "tools/CxProcessStatistic.hpp"
 
 #ifdef ARDUINO
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
   #include <WiFiClient.h>
   #ifdef ESP32
     #include <WiFi.h>
@@ -46,9 +47,10 @@
 
 class CxESPConsoleMaster;
 
-extern CxESPConsoleMaster& ESPConsole;
+extern CxESPConsoleMaster& __console;
 
 extern std::map<String, String> _mapSetVariables; // Map to store static variables added by the command set
+
 
 
 
@@ -103,7 +105,7 @@ public:
    void setStream(Stream& stream) {__ioStream = &stream;}
    Stream* getStream() {return __ioStream;}
       
-   void flush() {__ioStream->flush();}
+   void flush() override {__ioStream->flush();}
 
    // Implement the required write function
    virtual size_t write(uint8_t c) override {
@@ -250,7 +252,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    // logging functions
    uint32_t _addPrefix(char c, char* buf, uint32_t lenmax);
    
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
    void _abortClient(); // aborts (ends) the (WiFi) client
 #endif
    
@@ -301,10 +303,10 @@ public:
    ///
    /// Constructor needed to differenciate between serial and wifi clients to abort the the session, if needed, properly.
    ///
-#ifndef ESP_CONSOLE_NOWIFI
-   CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
+#ifdef ESP_CONSOLE_WIFI
+   explicit CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
 #endif
-   CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
+   explicit CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
    : CxESPConsoleBase(stream), CxESPTime() {
 
       _szAppName = app;
@@ -710,9 +712,10 @@ public:
 
 };
 
+#ifdef ESP_CONSOLE_WIFI
 class CxESPConsoleClient : public CxESPConsole {
 public:
-   CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;setUsrLogLevel(0);}
+   explicit CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;setUsrLogLevel(0);}
 
    virtual void begin() override;
    
@@ -721,24 +724,20 @@ public:
    };
    
 };
-
-
-// Master console at serial port and manage capabilities
-// Instance shall exist only once
-extern std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
+#endif // ESP_CONSOLE_NOWIFI
 
 class CxESPConsoleMaster : public CxESPConsole {
+   /// timer for updating stack info and sensor data
+   CxTimer10s _timerUpdate;
       
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
    WiFiServer* _pWiFiServer = nullptr;
    WiFiClient _activeClient;
    
    bool _bAPMode = false;
 #endif
    
-   std::map<String, std::unique_ptr<CxCapability> (*)(const char*)> _mapCapRegistry;  // Function pointers for constructors
-
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
     CxESPConsoleClient* _createClientInstance(WiFiClient& wifiClient, const char* app = "", const char* ver = "") const {
       return new CxESPConsoleClient(wifiClient, app, ver);
    }
@@ -763,109 +762,6 @@ public:
 
    virtual void begin() override;
    virtual void loop() override;
-
-   // Register constructor method (Prevent duplicates)
-   bool regCap(const char* name, std::unique_ptr<CxCapability> (*constructor)(const char*)) {
-      if (_mapCapRegistry.find(name) != _mapCapRegistry.end()) {
-         print(F("Capability '")); print(name); println(F("' already listed."));
-         return false;  // Registration failed
-      }
-      _mapCapRegistry[name] = constructor;
-      return true;  // Registration successful
-   }
-   
-   // Unregister a constructor method and remove instance
-   void unregCap(const char* name) {
-      _mapCapRegistry.erase(name);
-      _mapCapInstances.erase(name);
-   }
-   
-   // Create an instance or return existing one (copy pointer)
-//   std::unique_ptr<CxCapability> createCapInstanceCpy(const char* name, const char* param) {
-//      // If an instance already exists, return a new copy
-//      auto itInstance = _mapCapInstances.find(name);
-//      if (itInstance != _mapCapInstances.end()) {
-//         return std::make_unique<CxCapability>(*itInstance->second);  // Copy existing instance
-//      }
-//      
-//      // If a constructor exists, create and store the instance
-//      auto it = _mapCapRegistry.find(name);
-//      if (it != _mapCapRegistry.end()) {
-//         std::unique_ptr<CxCapability> newInstance = it->second(param); // could be improved?
-//         _mapCapInstances[name] = std::make_unique<CxCapability>(*newInstance);  // Store copy
-//         return newInstance;  // Return newly created instance
-//      }
-//      print(F("Capability '")); print(name); println(F("' not copied."));
-//      return nullptr;
-//   }
-   
-   // Create an instance or return existing one
-   CxCapability* createCapInstance(const char* name, const char* param) {
-      // If an instance already exists, return the same pointer
-      auto itInstance = _mapCapInstances.find(name);
-      if (itInstance != _mapCapInstances.end()) {
-         print(F("Capability '")); print(name); println(F("' already exists."));
-         return itInstance->second.get();
-      }
-      
-      // If a constructor exists, create and store the instance
-      auto it = _mapCapRegistry.find(name);
-      if (it != _mapCapRegistry.end()) {
-         size_t mem = g_Heap.available(true); // force update
-         std::unique_ptr<CxCapability> instance = it->second(name); // could be improved?
-         if (instance) {
-            _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
-            _mapCapInstances[name]->setIoStream(*__ioStream);
-            _mapCapInstances[name]->setup();
-            size_t mem2 = g_Heap.available(true); // force update
-            if (mem2 < mem) {
-               print(F("Capability '" ESC_ATTR_BOLD)); print(name); print(F(ESC_ATTR_RESET "' loaded. " ESC_ATTR_BOLD)); print(mem - mem2); println(F(ESC_ATTR_RESET " bytes allocated."));
-               _mapCapInstances[name].get()->setMemAllocation(mem - mem2);
-            } else {
-               print(F("Capability '" ESC_ATTR_BOLD)); print(name); println(F(ESC_ATTR_RESET "' loaded. It has actually released memory."));
-               _mapCapInstances[name].get()->setMemAllocation(INVALID_INT32);
-            }
-            print(_mapCapInstances[name].get()->getCommandsCount()); println(F(ESC_ATTR_RESET" commands added."));
-         } else {
-            print(F("Capability '")); print(name); println(F("' could not be created."));
-            return nullptr;
-         }
-         return _mapCapInstances[name].get();
-      }
-      print(F("Capability '")); print(name); println(F("' not found."));
-      return nullptr;
-   }
-   
-   CxCapability* getCapInstance(const char* name) {
-      auto itInstance = _mapCapInstances.find(name);
-      if (itInstance != _mapCapInstances.end()) {
-         return itInstance->second.get();
-      }
-      return nullptr;
-   }
-   
-   void deleteCapInstance(const char* name) {
-      auto it = _mapCapInstances.find(name);
-      if (it != _mapCapInstances.end()) {
-         if (!it->second.get()->isLocked()) {
-            _mapCapInstances.erase(it);  // Unique_ptr automatically deletes the object
-            print(F("Capability '")); print(name); println(F("' deleted."));
-         } else {
-            print(F("Capability '")); print(name); println(F("' is locked!"));
-         }
-      } else {
-         print(F("Capability '")); print(name); println(F("' not found."));
-      }
-   }
-   
-   // Print all registered constructors
-   void listCap() {
-      CxTablePrinter table(*__ioStream);
-      table.printHeader({F("Cap"), F("Loaded"), F("Locked"), F("Memory"), F("Commands")}, {6, 6, 6, 6, 8});
-      for (const auto& entry : _mapCapRegistry) {
-         table.printRow({entry.first.c_str(), _mapCapInstances.find(entry.first) != _mapCapInstances.end() ? "yes" : "no", _mapCapInstances[entry.first].get()->isLocked() ? "yes" : "no", _mapCapInstances[entry.first].get()->getMemAllocation() != INVALID_INT32 ? String(_mapCapInstances[entry.first].get()->getMemAllocation()).c_str() : "", String(_mapCapInstances[entry.first].get()->getCommandsCount()).c_str()});
-      }
-   }
    
    // process (loop) statistics
    void printPs() {
@@ -884,17 +780,6 @@ public:
       printf("%1.2f", avgload());
       println();
 
-      for (const auto& entry : _mapCapRegistry) {
-         if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
-            printf("%-8s ", entry.first.c_str());
-            print(F("loop "));
-            printf("%4d ", _mapCapInstances[entry.first].get()->looptime());
-            printf("%1.2f ", _mapCapInstances[entry.first].get()->load());
-            printf("%1.2f", _mapCapInstances[entry.first].get()->avgload());
-            println();
-         }
-      }
-
       printf(ESC_ATTR_BOLD "%-8s ", "total");
       print(F("*    "));
       printf("%4d ", __totalCPU.looptime());
@@ -906,7 +791,7 @@ public:
    }
 
    
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
    bool isConnected() {
 #ifdef ARDUINO
       return (WiFi.status() == WL_CONNECTED);
@@ -919,22 +804,7 @@ public:
    void setAPMode(bool set) {_bAPMode = set;}
 #endif
    
-   //bool processCmd(const char* cmd, bool bQuiet = false);
-//   bool processCmd(Stream& stream, const char* cmd, bool bQuiet = false) {
-//      // redirect stream to client
-//      Stream* pStream = __ioStream;
-//      __ioStream = &stream;
-//      
-//      bool bResult = CxESPConsole::processCmd(cmd, bQuiet);
-//      
-//      __ioStream = pStream;
-//      
-//      return bResult;
-//   }
-   //bool processCmd(const char* cmd, bool bQuiet = false);
-
-   
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
    void begin(WiFiServer& server) {
       _pWiFiServer = &server;
       server.begin();

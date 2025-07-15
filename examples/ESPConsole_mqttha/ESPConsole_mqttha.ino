@@ -15,7 +15,7 @@ void startBme() {
    CxCapabilityI2C* pI2C = CxCapabilityI2C::getInstance();
    
    if (pI2C) {
-      ESPConsole.debug(F("initialise BME sensors..."));
+     __console.debug(F("initialise BME sensors..."));
       g_Temperature.begin(pI2C->getBmeDevice(), ECSensorType::temperature);
       g_Humidity.begin(pI2C->getBmeDevice(), ECSensorType::humidity);
       g_Pressure.begin(pI2C->getBmeDevice(), ECSensorType::pressure);
@@ -87,7 +87,7 @@ void setup() {
    Serial.begin(115200);
    Serial.println();
    
-   ESPConsole.setAppNameVer("test 1", "v1.0");
+  __console.setAppNameVer("test 1", "v1.0");
    CAPREG(CxMyCapability);
    CAPLOAD(CxMyCapability);
    
@@ -109,19 +109,19 @@ void setup() {
    CAPREG(CxCapabilityI2C);
    CAPLOAD(CxCapabilityI2C);
    startBme();
-   ESPConsole.processCmd("sensor list");
+  __console.processCmd("sensor list");
    
    CAPREG(CxCapabilitySegDisplay);
    CAPLOAD(CxCapabilitySegDisplay);
    
    
-   ESPConsole.begin(server);
+  __console.begin(server);
    
    
 }
 
 void loop() {
-   ESPConsole.loop();
+  __console.loop();
 }
 
 

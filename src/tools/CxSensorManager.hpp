@@ -99,7 +99,6 @@ class CxSensor {
    CxTimer _timer;
 
 protected:
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
    
    unsigned long __nLastUpdate = 0;  /// Timestamp of the last update
    uint8_t __nResolution = 12;  /// Resolution of the sensor (9-12 bits)
@@ -307,7 +306,6 @@ public:
 class CxSensorManager {
 private:
    /// Reference to the console instance
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    
    /// Map to store sensors with their unique IDs
    std::map<uint8_t, CxSensor*> _mapSensors;

@@ -282,7 +282,6 @@ class CxBmeSensorContainer : public CxInitializer {
    CxBmeSensorContainer() {VI2CInitializers.push_back(this);} /// register this instance in the vector of initializers. Will be called in the setup() of the I2C capability.
 
 protected:
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
    
 public:
    /// Disable copying and assignment to enforce singleton pattern

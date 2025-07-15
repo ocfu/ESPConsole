@@ -23,7 +23,6 @@
 #include "tools/CxMqttManager.hpp"
 
 class CxCapabilityMqtt : public CxCapability {
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    
    bool _bMqttServerOnline = false;
    

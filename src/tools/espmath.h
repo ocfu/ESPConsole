@@ -131,7 +131,7 @@ inline double roundToPrecision(double x, unsigned prec) {
  *
  * @return Smoothed value or previous value if rejected as outlier.
  */
-float smoothRobust(float reference, float value, float maxDiff,
+inline float smoothRobust(float reference, float value, float maxDiff,
                    float threshold = INVALID_FLOAT, float minAlpha = INVALID_FLOAT, float maxAlpha = INVALID_FLOAT) {
    // Step 0: first call scenario and validate values
    if (std::isnan(reference) || std::isnan(value) || std::isnan(maxDiff)) {

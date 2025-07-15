@@ -17,7 +17,7 @@ class CxGPIODevice : public CxGPIO {
    String _strFriendlyName;
    String _strCmd;
    
-   uint8_t _id = INVALID_UINT8;
+   uint8_t _id;
    
 public:
    typedef std::function<void(CxGPIODevice* dev, uint8_t id, const char* cmd)> cbFunc;
@@ -38,7 +38,6 @@ protected:
       }
    }
    
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
 
    /// Register the device with the manager
    void registerDevice();
@@ -47,7 +46,7 @@ protected:
    void unregisterDevice();
    
 public:
-   CxGPIODevice(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false, const char* cmd = "") : CxGPIO(pin, mode, inverted), _id(pin), _strCmd(cmd) {
+   CxGPIODevice(uint8_t pin, uint8_t mode = INVALID_MODE, bool inverted = false, const char* cmd = "") : CxGPIO(pin, mode, inverted), _strCmd(cmd), _id(pin) {
       registerDevice();
    }
    
@@ -116,10 +115,10 @@ private:
       
       if (id == CxGPIOVirtual::EVirtualEvent::evon) {
          strCmd.replace("$(STATE)", "ON");
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == CxGPIOVirtual::EVirtualEvent::evoff) {
          strCmd.replace("$(STATE)", "OFF");
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       }
    }
    
@@ -165,7 +164,6 @@ private:
    
 protected:
    /// Reference to the console instance
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 
 public:

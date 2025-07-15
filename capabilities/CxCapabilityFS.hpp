@@ -23,7 +23,7 @@
 
 #include "esphw.h"
 
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
 #ifdef ARDUINO
 #include <FS.h>
 #ifdef ESP32
@@ -58,7 +58,6 @@ class CxCapabilityFS : public CxCapability {
    CxTimer60s _timer60sLogServer;
 
 protected:
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
 public:
 
@@ -76,7 +75,7 @@ public:
       umount();
       
       // remove log functions
-      ESPConsole.clearFuncPrintLog2Server();
+     __console.clearFuncPrintLog2Server();
    }
    
    void setup() override {
@@ -96,9 +95,9 @@ public:
       }
 
       // implement specific fs functions
-      ESPConsole.setFuncPrintLog2Server([this](const char *sz) { this->_print2logServer(sz); });
-      ESPConsole.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
-      ESPConsole.setFuncMan([this](const char *sz, const char* param) { this->man(sz, param); });
+     __console.setFuncPrintLog2Server([this](const char *sz) { this->_print2logServer(sz); });
+     __console.setFuncExecuteBatch([this](const char *sz, const char* label) { this->executeBatch(sz, label); });
+     __console.setFuncMan([this](const char *sz, const char* param) { this->man(sz, param); });
  
       CxPersistentImpl::getInstance().setImplementation(ESPConsole);
  

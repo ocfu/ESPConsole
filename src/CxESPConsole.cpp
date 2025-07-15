@@ -7,99 +7,111 @@
 //
 
 #include "CxESPConsole.hpp"
-#include "../capabilities/CxCapabilityBasic.hpp"
 
-CxESPHeapTracker g_Heap(51000); // init as early as possible...
+CxESPHeapTracker g_Heap(51000);  // init as early as possible...
 CxESPStackTracker g_Stack;
 
 uint8_t CxESPConsole::__nUsers = 0;
-std::map<String, std::unique_ptr<CxCapability>> _mapCapInstances;  // Stores created instances
-std::map<String, String> _mapSetVariables; // Map to store environment variables
+std::map<String, String>
+    _mapSetVariables;  // Map to store environment variables
 
+CxESPConsoleMaster &__console =
+    CxESPConsoleMaster::getInstance();  // Global console instance
 
-CxESPConsoleMaster& ESPConsole = CxESPConsoleMaster::getInstance();
+#if defined(LIB_VERSION)
+const char *g_szLib PROGMEM = "$$lib:ESPConsole:" LIB_VERSION;
+#endif
 
-uint8_t CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
+void initESPConsole(const char *app, const char *ver) {
+   g_Stack.begin();
+
+#ifdef ARDUINO
+   Serial.begin(115200);
+   Serial.println();
+   Serial.print(F("ESP console "));
+   Serial.print(app);
+   Serial.print(F(" - "));
+   Serial.print(ver);
+   Serial.println();
+#endif
+
+   __console.setAppNameVer(app, ver);
+}
+
+uint8_t CxESPConsole::processCmd(const char *cmd, uint8_t nClient) {
    if (!cmd) return EXIT_FAILURE;
 
    if (cmd && *cmd == '{') {
       return processData(cmd);
    }
-   
+
    // syntax:
    // <cmd><delimiter><cmd><delimiter>...
-   const char* aszDelimiters[] = {";", "&&", "||"};
-   
-   CxMultiStrToken* ptkCmd = new CxMultiStrToken(cmd, aszDelimiters, 3);
-   
-   if (!ptkCmd) {
-      return EXIT_FAILURE;
-   }
-   
+   const char *aszDelimiters[] = {";", "&&", "||"};
+
+   CxMultiStrToken tkCmd(cmd, aszDelimiters, 3);
+
    bool overallResult = false;
-   
-   for (uint8_t i = 0; i < ptkCmd->count(); i++) {
-      String* pstrCmd = new String(TKTOCHAR(*ptkCmd, i));
-      uint8_t nLogic = 0; // 0: no logic, 1: AND, 2: OR
-      
-      switch (ptkCmd->delimiterIndex(i)) {  // 1-based return. 0: no delimiter used
-         case 2: // 2nd delimiter
+
+   for (uint8_t i = 0; i < tkCmd.count(); i++) {
+      String strCmd(TKTOCHAR(tkCmd, i));
+      uint8_t nLogic = 0;  // 0: no logic, 1: AND, 2: OR
+
+      switch (
+          tkCmd.delimiterIndex(i)) {  // 1-based return. 0: no delimiter used
+         case 2:                      // 2nd delimiter
             nLogic = 1;
             break;
-         case 3: // 3rd
+         case 3:  // 3rd
             nLogic = 2;
             break;
-         default: // 0 and 1st
+         default:  // 0 and 1st
             nLogic = 0;
       }
-      
-      if (pstrCmd) {
-         substituteVariables(*pstrCmd);
-         pstrCmd->replace("§", "$"); // § used in quotes for variables.
-         
-         for (auto& entry : _mapCapInstances) {
-            uint8_t nExitValue;
-            
-            entry.second->setIoStream(*__ioStream);
-            entry.second->setQuiet(!isEcho());
-            //setOutputVariable("");
-            setExitValue(EXIT_FAILURE); // error by default
-            nExitValue = entry.second->processCmd(pstrCmd->c_str(), nClient);
-            if (nExitValue != EXIT_NOT_HANDLED && !pstrCmd->startsWith("?")) {
-               setExitValue(nExitValue);
-               overallResult = true;
-               break; // Stop processing further instances for this command
-            }
-         }
-         
-         if (!overallResult && pstrCmd->length() > 0 && !pstrCmd->startsWith("?")) {
-            println("Unknown command: ");
-            println(pstrCmd->c_str());
-         }
-         delete pstrCmd;
-      }
-            
-      // TODO: improve compatibility with POSIX
-      // example: test 1 -eq 0 && echo hello || echo world
-      // since the first expression fails, the later command echo world is not processed (same with ";").
-      // this is not compatible with the POSIX
-      
-      if (nLogic == 1 && getExitValue() == EXIT_FAILURE) { // AND logic, break, if the command was not successful
-         overallResult = true; // consider it as done, the next command will not be processed
-         break; // Stop processing further commands
-      } else if (nLogic == 2 && getExitValue() == EXIT_SUCCESS) { // OR logic, break, if the command was successful
-         overallResult = true; // consider it as done, the next command will not be processed
-         break; // Stop processing further commands
+
+      substituteVariables(strCmd);
+      strCmd.replace("§", "$");  // § used in quotes for variables.
+      strCmd.trim();  // remove leading and trailing spaces
+
+      bool bExecuted = execute(strCmd.c_str(), nClient);
+
+      if (!bExecuted && strCmd.length() > 0 && !strCmd.startsWith("?")) {
+         println("Unknown command: ");
+         println(strCmd.c_str());
       }
 
+      // TODO: improve compatibility with POSIX
+      // example: test 1 -eq 0 && echo hello || echo world
+      // since the first expression fails, the later command echo world is not
+      // processed (same with ";"). this is not compatible with the POSIX
+
+      if (nLogic == 1 &&
+          getExitValue() == EXIT_FAILURE) {  // AND logic, break, if the command
+                                             // was not successful
+         overallResult = true;  // consider it as done, the next command will
+                                // not be processed
+         break;                 // Stop processing further commands
+      } else if (nLogic == 2 &&
+                 getExitValue() == EXIT_SUCCESS) {  // OR logic, break, if the
+                                                    // command was successful
+         overallResult = true;  // consider it as done, the next command will
+                                // not be processed
+         break;                 // Stop processing further commands
+      }
    }
-   delete ptkCmd;
    return overallResult ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 
 void CxESPConsoleMaster::begin() {
    info(F("==== MASTER ===="));
-   
+
+#ifdef ESP_CONSOLE_WIFI
+   setupOta();
+#endif
+#ifdef ESP_CONSOLE_EXT
+   setupExt();
+#endif
+
    ::readSettings(_settings);
 
    // silence the log messages on the console by default
@@ -112,36 +124,47 @@ void CxESPConsoleMaster::begin() {
       executeBatch("init", "final");
       executeBatch("rdy", "ma");
    }
+   g_Heap.update();  // update heap tracker
 }
 
-void CxESPConsole::begin() {
-   println();println();
+void CxESPConsole::begin() {   
+   println();
+   println();
    info(F("==== CONSOLE ===="));
 
    if (__nUsers == __nMaxUsers) {
       warn(F("Connection will be closed, max. number of clients reached."));
+#ifdef ESP_CONSOLE_WIFI      
       _abortClient();
+#endif
    }
    __nUsers++;
-   setConsoleName(""); // shall be set by the last derived class
+   setConsoleName("");  // shall be set by the last derived class
 }
 
 void CxESPConsole::wlcm() {
    // show the wellcome message
-#ifndef ESP_CONSOLE_NOWIFI
-   printf(F("ESP console %s - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime(*__ioStream);println();
+#ifdef ESP_CONSOLE_NOWIFI
+   printf(F("ESP console %s - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET),
+          __szConsoleName, getAppName(), getAppVer());
+   print(" - ");
+   printDateTime(*__ioStream);
+   println();
 #else
-   printf(F("ESP console %s + WiFi - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime();println();
+   printf(F("ESP console %s + WiFi - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET),
+          __szConsoleName, getAppName(), getAppVer());
+   print(" - ");
+   printDateTime(*__ioStream);
+   println();
 #endif
    println();
 }
 
-bool CxESPConsole::hasFS() {
-   return false;
-}
+bool CxESPConsole::hasFS() { return false; }
 
+#ifdef ESP_CONSOLE_WIFI
 void CxESPConsoleClient::begin() {
-   CxESPConsole& con = CxESPConsoleMaster::getInstance();
+   CxESPConsole &con = CxESPConsoleMaster::getInstance();
    con.setUsrLogLevel(LOGLEVEL_OFF);
    info(F("==== CLIENT ===="));
    CxESPConsole::begin();
@@ -151,76 +174,75 @@ void CxESPConsoleClient::begin() {
       con.executeBatch(*__ioStream, "rdy", "cl");
    }
 };
-
+#endif
 
 void CxESPConsole::__handleConsoleInputs() {
-   
    while (__ioStream->available() > 0) {
       char c = __ioStream->read();
-      
+
       // Wenn eine Abfrage aktiv ist, Eingabe darauf anwenden
       if (_bWaitingForUsrResponseYN) {
          _handleUserResponse(c);
          continue;
       }
-      
-      if (c == '\n') { // Kommando abgeschlossen
-         _pszCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
+
+      if (c == '\n') {                            // Kommando abgeschlossen
+         _pszCmdBuffer[_iCmdBufferIndex] = '\0';  // Null-Terminierung
          println();
-/*
-         print("heap: ");
-#ifdef ARDUINO
-         print(ESP.getFreeHeap());
-#endif
-         println();
- */
-         CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _pszCmdBuffer, isWiFiClient() ? 1 : 0);
+         /*
+                  print("heap: ");
+         #ifdef ARDUINO
+                  print(ESP.getFreeHeap());
+         #endif
+                  println();
+          */
+         CxESPConsoleMaster::getInstance().processCmd(
+             *__ioStream, _pszCmdBuffer, isWiFiClient() ? 1 : 0);
          _storeCmd(_pszCmdBuffer);
          _clearCmdBuffer();
          prompt();
-         _iCmdHistoryIndex = -1; // Reset der Historiennavigation
-      } else if (c == '\b' || c == 127) { // Backspace or del
+         _iCmdHistoryIndex = -1;           // Reset der Historiennavigation
+      } else if (c == '\b' || c == 127) {  // Backspace or del
          if (_iCmdBufferIndex > 0) {
             _iCmdBufferIndex--;
             _pszCmdBuffer[_iCmdBufferIndex] = '\0';
             _redrawCmd();
          }
-      } else if (c == 27) { // Escape-Sequenz erkannt
+      } else if (c == 27) {  // Escape-Sequenz erkannt
          _nStateEscSequence = 1;
-      } else if (_nStateEscSequence && c == '[') { // ESC für ANSI-Sequenz
+      } else if (_nStateEscSequence && c == '[') {  // ESC für ANSI-Sequenz
          _nStateEscSequence = 2;
-      } else if (_nStateEscSequence == 2 && c == 'A') { // cursor up
+      } else if (_nStateEscSequence == 2 && c == 'A') {  // cursor up
          _navigateCmdHistory(1);
          _nStateEscSequence = 0;
-      } else if (_nStateEscSequence == 2 && c == 'B') { // Cursor down
+      } else if (_nStateEscSequence == 2 && c == 'B') {  // Cursor down
          _navigateCmdHistory(-1);
          _nStateEscSequence = 0;
-      } else if (_nStateEscSequence == 2 && c == 'C') { // Cursor right
+      } else if (_nStateEscSequence == 2 && c == 'C') {  // Cursor right
          _nStateEscSequence = 0;
-      } else if (_nStateEscSequence == 2 && c == 'D') { // Cursor left
+      } else if (_nStateEscSequence == 2 && c == 'D') {  // Cursor left
          _nStateEscSequence = 0;
-      }  else if (_nStateEscSequence == 2) { // Cursor down
+      } else if (_nStateEscSequence == 2) {  // Cursor down
          _nStateEscSequence = 0;
-      } else if (_iCmdBufferIndex < _nCmdBufferLen - 1) { // Zeichen hinzufügen
+      } else if (_iCmdBufferIndex < _nCmdBufferLen - 1) {  // Zeichen hinzufügen
          _pszCmdBuffer[_iCmdBufferIndex++] = c;
-         _pszCmdBuffer[_iCmdBufferIndex] = '\0'; // Null-Terminierung
-         print(c); // Zeichen anzeigen
+         _pszCmdBuffer[_iCmdBufferIndex] = '\0';  // Null-Terminierung
+         print(c);                                // Zeichen anzeigen
       }
    }
 }
 
-
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
 void CxESPConsole::_abortClient() {
    if (!isWiFiClient()) {
       println("No exit on a serial connection.");
       return;
    }
 #ifdef ARDUINO
-   WiFiClient* client = reinterpret_cast<WiFiClient*>(__ioStream);
-   
+   WiFiClient *client = reinterpret_cast<WiFiClient *>(__ioStream);
+
    if (client && client->connected()) {
-      client->abort(); // abort WiFiClient
+      client->abort();  // abort WiFiClient
    }
 #endif
 }
@@ -236,63 +258,79 @@ void CxESPConsoleMaster::loop() {
    startMeasure();
    CxESPConsole::loop();
    loopTimers();
+#ifdef ESP_CONSOLE_WIFI
+   loopWifi();
+#endif
+#ifdef ESP_CONSOLE_EXT
+   loopExt();
+#endif
+
+   if (_timerUpdate.isDue()) {
+      // update heap info and sensor data every 10 seconds
+      g_Heap.update();
+   }  
 
 #ifdef ARDUINO
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
    // check, if a new wifi client is or the current one is (still) connected
    if (_pWiFiServer) {
       char commandBuffer[128] = {0};
       bool commandReceived = false;
-      
+
       WiFiClient client = _pWiFiServer->accept();
-      
+
       // first check, if remote connection has a command
       if (client) {
          info(F("New client connected."));
          memset(commandBuffer, 0, sizeof(commandBuffer));
          size_t index = 0;
-         CxTimer timerTO(1000); // set timeout
+         CxTimer timerTO(1000);  // set timeout
 
          while (client.connected()) {
             if (timerTO.isDue()) {
                info(F("timeout waiting for commands"));
-               break; // no command received. get into interactive console session.
+               break;  // no command received. get into interactive console
+                       // session.
             }
 
             while (client.available() > 0) {
                char c = client.read();
-               if (c == '\n' || c == '\r' || index >= sizeof(commandBuffer) - 1) {
+               if (c == '\n' || c == '\r' ||
+                   index >= sizeof(commandBuffer) - 1) {
                   commandBuffer[index] = '\0';
                   commandReceived = true;
                   break;
                }
                commandBuffer[index++] = c;
             }
-            
+
             if (commandReceived) {
                info(F("remote command received: %s"), commandBuffer);
                processCmd(client, commandBuffer, 1);
                client.stop();
-               
+
                info(F("Client disconnected after command."));
                break;
             }
          }
       }
-      
+
       // start an interactive console
       if (!commandReceived && (!_activeClient || !_activeClient.connected())) {
          if (client) {
             info(F("Start interactive console"));
-            _activeClient = client; // Aktiven Client aktualisieren
-            delete __espConsoleWiFiClient; // Alte Instanz löschen
-            __espConsoleWiFiClient = _createClientInstance(_activeClient, getAppName(), getAppVer()); // Neue Instanz mit WiFiClient
+            _activeClient = client;         // Aktiven Client aktualisieren
+            delete __espConsoleWiFiClient;  // Alte Instanz löschen
+            __espConsoleWiFiClient = _createClientInstance(
+                _activeClient, getAppName(),
+                getAppVer());  // Neue Instanz mit WiFiClient
             if (__espConsoleWiFiClient) {
                __espConsoleWiFiClient->setHostName(getHostName());
                __espConsoleWiFiClient->setPromptClient(getPromptClient());
                __espConsoleWiFiClient->begin();
             } else {
-               error(F("*** error: _createInstance() for new wifi client failed!"));
+               error(F(
+                   "*** error: _createInstance() for new wifi client failed!"));
             }
             g_Heap.update();
          } else if (__espConsoleWiFiClient) {
@@ -302,27 +340,22 @@ void CxESPConsoleMaster::loop() {
             g_Heap.update();
          }
       }
-      
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->loop(); // Befehle in der Hauptschleife abarbeiten
+
+      if (__espConsoleWiFiClient)
+         __espConsoleWiFiClient
+             ->loop();  // Befehle in der Hauptschleife abarbeiten
    }
 #endif
 #endif
    stopMeasure();
-   for (auto& entry : _mapCapInstances) {
-      entry.second->setIoStream(*__ioStream);
-      entry.second->startMeasure();
-      entry.second->loop();
-      entry.second->stopMeasure();
-      
-      if (getLoopDelay()) delay(getLoopDelay());
-   }
    __sysCPU.startMeasure();
 }
 
-
-bool CxESPConsoleMaster::isHostAvailable(const char* szHost, int nPort) {
+#ifdef ESP_CONSOLE_WIFI
+bool CxESPConsoleMaster::isHostAvailable(const char *szHost, int nPort) {
 #ifdef ARDUINO
-   if (WiFi.status() == WL_CONNECTED && nPort > 0 && szHost && szHost[0] != '\0') { //Check WiFi connection status
+   if (WiFi.status() == WL_CONNECTED && nPort > 0 && szHost &&
+       szHost[0] != '\0') {  // Check WiFi connection status
       WiFiClient client;
       if (client.connect(szHost, nPort)) {
          client.stop();
@@ -332,18 +365,20 @@ bool CxESPConsoleMaster::isHostAvailable(const char* szHost, int nPort) {
 #endif
    return false;
 }
+#endif  // ESP_CONSOLE_NOWIFI
 
 // logging functions
-uint32_t CxESPConsole::_addPrefix(char c, char* buf, uint32_t lenmax) {
+uint32_t CxESPConsole::_addPrefix(char c, char *buf, uint32_t lenmax) {
    if (!buf) return 0;
    snprintf(buf, lenmax, "%s [%c] ", getTime(true), c);
    return (uint32_t)strlen(buf);
 }
 
 // Helper function for logging
-void CxESPConsole::_log(uint8_t level, char prefix, uint32_t flag, bool useProgmem, const char *fmt, va_list args) {
+void CxESPConsole::_log(uint8_t level, char prefix, uint32_t flag,
+                        bool useProgmem, const char *fmt, va_list args) {
    if (!fmt) return;
-   
+
    char buf[100];
    uint32_t len = _addPrefix(prefix, buf, sizeof(buf));
    if (useProgmem) {
@@ -426,15 +461,17 @@ void CxESPConsole::error(const FLASHSTRINGHELPER *fmt, ...) {
 
 void CxESPConsole::printLog(uint8_t level, uint32_t flag, const char *sz) {
    if (!sz) return;
-   
+
    if (!isWiFiClient()) {
-      if (__espConsoleWiFiClient) __espConsoleWiFiClient->printLog(level, flag, sz); // forward to wifi client console
+      if (__espConsoleWiFiClient)
+         __espConsoleWiFiClient->printLog(
+             level, flag, sz);  // forward to wifi client console
    }
-   
+
    if (level == LOGLEVEL_DEBUG_EXT && !(getDebugFlag() & flag)) {
       return;
    }
-   
+
    if (getUsrLogLevel() >= level) println(sz);
    if (getLogLevel() >= level) print2LogServer(sz);
 }

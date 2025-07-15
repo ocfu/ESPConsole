@@ -14,7 +14,7 @@
 #define ota_error_t int
 #endif
 
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
 
 class CxOta;
 extern CxOta Ota1;

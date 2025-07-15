@@ -185,7 +185,6 @@ class CxCapabilityI2C : public CxCapability {
     * @var console
     * @brief Reference to the console instance.
     */
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
 
    bool _bEnabled = true;
    

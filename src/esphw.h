@@ -12,7 +12,7 @@
 #include "Arduino.h"
 #ifdef ARDUINO
 #include <EEPROM.h>
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
 #include <WiFiClient.h>
 #ifdef ESP32
 #include <WiFi.h>
@@ -105,7 +105,6 @@ template <class T> int EEPROM_vanishData(int ee, T& value)
 {
    unsigned int i;
 #ifdef ARDUINO
-   byte* p = (byte*)(void*)&value;
    for (i = 0; i < sizeof(value); i++)
       EEPROM.write(ee++, '\0');
 #endif

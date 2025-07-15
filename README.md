@@ -127,7 +127,7 @@ By default the library includes WiFi and OTA.
 
 | Macro | Description |
 |-------|-------------|
-|`ESP_CONSOLE_NOWIFI`| exclude Wi-Fi- and OTA-specific code |
+|`ESP_CONSOLE_WIFI`| add Wi-Fi- and OTA-specific code |
 |`ARDUINO_CLI_VER=<MMmmPP>`| (optional) Unfortunately Arduino CLI does not provide any (reliable) compiler macro indicating the used version. This marcro defines it manually, only for the benefit of the command `sw`, which shows relevant version info.
 
 The library is developed using XCode and Arduino CLI. For testing purpose, there are code segments, only for the use in this test environment and Arduino specific code is framed by ```#ifdef ARDUINO ... #endif```. 
@@ -140,7 +140,7 @@ arduino-cli compile -b esp8266:esp8266:nodemcuv2:eesz=4M1M,led=2 --clean --outpu
 
 # Examples
 [ESPConsole_min](https://github.com/ocfu/ESPConsole/tree/main/examples/ESPConsole_min)
-Bare minimum Arduino example. The ESPConsole library provides a simple command-line terminal interface over the serial port with a minimal set of commands. To reduce the flash memory usage, you can define the compiler macro `ESP_CONSOLE_NOWIFI`. This will exclude Wi-Fi-specific code during compilation, saving space in the flash.
+Bare minimum Arduino example. The ESPConsole library provides a simple command-line terminal interface over the serial port with a minimal set of commands. To reduce the flash memory usage, you can define the compiler macro `ESP_CONSOLE_WIFI`. This will exclude Wi-Fi-specific code during compilation, saving space in the flash.
 
 
 ```cpp
@@ -178,17 +178,17 @@ void setup() {
    }
    Serial.println("\nWiFi connected.");
    
-   ESPConsole.setAppNameVer("Min WiFi", "v1.0");
-   ESPConsole.setTimeZone("CET-1CEST,M3.5.0,M10.5.0/3");
+  __console.setAppNameVer("Min WiFi", "v1.0");
+  __console.setTimeZone("CET-1CEST,M3.5.0,M10.5.0/3");
 
    CAPREG(CxCapabilityBasic);
    CAPLOAD(CxCapabilityBasic);
    
-   ESPConsole.begin(server);
+  __console.begin(server);
 }
 
 void loop() {
-   ESPConsole.loop();
+  __console.loop();
 }
 ```
 

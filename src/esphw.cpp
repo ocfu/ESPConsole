@@ -735,7 +735,7 @@ bool writeHostName(const char* szHostname) {
 
 void scanWiFi(Stream& stream) {
 #ifdef ARDUINO
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
    int n = WiFi.scanNetworks();
    if (n == 0) {
       stream.println("no networks found");

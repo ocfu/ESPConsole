@@ -39,19 +39,19 @@ private:
       strCmd = cmd;
       
       if (id == CxButton::EBtnEvent::singlepress) {
-         ESPConsole.processCmd(cmd);
+        __console.processCmd(cmd);
       } else if (id == CxButton::EBtnEvent::doublepress) {
          strCmd += " #double";
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == CxButton::EBtnEvent::multiplepress) {
          strCmd += " #multi";
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == CxButton::EBtnEvent::pressed10s) {
          strCmd += " #long";
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       } else if (id == CxButton::EBtnEvent::reset) {
          strCmd += " #reset";
-         ESPConsole.processCmd(strCmd.c_str());
+        __console.processCmd(strCmd.c_str());
       }
    };
 

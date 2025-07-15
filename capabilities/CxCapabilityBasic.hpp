@@ -60,7 +60,6 @@
  */
 class CxCapabilityBasic : public CxCapability {
    /// access to the instance of the master console
-   CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();
    
 public:
    /// Default constructor and default capabilities methods.
@@ -317,25 +316,25 @@ public:
          }
          nExitValue = EXIT_SUCCESS;
       } else if (cmd == "hostname") {
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
          printHostName();
          println();
 #endif
          nExitValue = EXIT_SUCCESS;
       } else if (cmd == "ip") {
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
          printIp();
          println();
 #endif
          nExitValue = EXIT_SUCCESS;
       } else if (cmd == "ssid") {
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
          printSSID();
          println();
 #endif
          nExitValue = EXIT_SUCCESS;
       } else if (cmd == "exit") {
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
          _CONSOLE_INFO(F("exit wifi client"));
          //console._abortClient();
 #else
@@ -343,7 +342,7 @@ public:
 #endif
          nExitValue = EXIT_SUCCESS;
       } else if (cmd == "net") {
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
          printNetworkInfo();
 #endif
          nExitValue = EXIT_SUCCESS;
@@ -540,14 +539,14 @@ public:
       __console.warn(F("reboot..."));
 #ifdef ARDUINO
       delay(1000); // let some time to handle last network messages
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
       WiFi.disconnect();
 #endif
       ESP.restart();
 #endif
    }
    
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
    void printHostName() {
       print(__console.getHostName());
       __console.setOutputVariable(__console.getHostName());
@@ -670,7 +669,7 @@ public:
    }
 
    void printNetworkInfo() {
-#ifndef ESP_CONSOLE_NOWIFI
+#ifdef ESP_CONSOLE_WIFI
       print(F(ESC_ATTR_BOLD "Mode: " ESC_ATTR_RESET)); printMode();println();
       print(F(ESC_ATTR_BOLD "SSID: " ESC_ATTR_RESET)); printSSID(); printf(F(" (%s)"), __console.isConnected()? ESC_TEXT_BRIGHT_GREEN "connected" ESC_ATTR_RESET : ESC_TEXT_BRIGHT_RED "not connected" ESC_ATTR_RESET);println();
       print(F(ESC_ATTR_BOLD "Host: " ESC_ATTR_RESET)); printHostName(); println();
