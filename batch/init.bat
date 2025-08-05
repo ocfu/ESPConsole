@@ -7,8 +7,8 @@ fs:
 touch .safemode   # system will boot into safe mode if this file exists on next boot
 loopdelay 1       # sets the delay at the end of each loop in usec
 set userscript init.$(HOSTNAME).bat
-test -f $(userscript) || cp $(userscript).bak $(userscript)  # if no user script exists, first fall back is backup file
-test -f $(userscript) || cp init.user.bat $(userscript)      # second fall back is default init file
+test -f $(userscript) || test -f $(userscript).bak && cp $(userscript).bak $(userscript)  # if no user script exists, first fall back is backup file
+test -f $(userscript) || test -f init.user.bat     && cp init.user.bat $(userscript)      # second fall back is default init file
 
 # I2C capability
 i2c:
@@ -75,8 +75,8 @@ break on $(SAFEMODE)
 # Safemode
 #
 sm:
-
+echo SAFEMODE ON
 
 # more commands for all labels
 all:
-exec $(userscript) $(LABEL)
+test -f $(userscript) exec $(userscript) $(LABEL)
