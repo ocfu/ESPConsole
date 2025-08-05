@@ -107,14 +107,13 @@ void loopWifi() {
 }
 
 // Command ssid
-bool cmd_ssid(CxStrToken &tkArgs) {
+void cmd_ssid(CxStrToken &tkArgs) {
    printSSID();
    __console.println();
-   return true;
 }
 
 // Command ntp
-bool cmd_ntp(CxStrToken &tkArgs) {
+void cmd_ntp(CxStrToken &tkArgs) {
    String strSubCmd = TKTOCHAR(tkArgs, 1);
 
    if (strSubCmd == "server" && tkArgs.count() > 2) {
@@ -129,46 +128,43 @@ bool cmd_ntp(CxStrToken &tkArgs) {
          __console.print(F(ESC_BG_BRIGHT_RED "(not snynced)"));
       }
       __console.println(ESC_ATTR_RESET);
-      return true;
+      return;
    }
 
    if (__console.setNtpServer(__console.getVariable("NTP"))) {
       __console.setTimeZone(__console.getVariable("TZ"));
-      return true;
+   } else {
+      __console.error(F("NTP Server not set!"));
+      __console.setExitValue(EXIT_FAILURE);
    }
-   return false;
 }
 
 // Command hostname
-bool cmd_hostname(CxStrToken &tkArgs) {
+void cmd_hostname(CxStrToken &tkArgs) {
    printHostName();
    __console.println();
-   return true;
 }
 
 // Command ip
-bool cmd_ip(CxStrToken &tkArgs) {
+void cmd_ip(CxStrToken &tkArgs) {
    printIp();
    __console.println();
-   return true;
 }
 
 // Command exit
-bool cmd_exit(CxStrToken &tkArgs) {
+void cmd_exit(CxStrToken &tkArgs) {
    _CONSOLE_INFO(F("exit wifi client"));
    // console._abortClient();
    __console.printf(F("exit has no function!"));
-   return true;
 }
 
 // Command net
-bool cmd_net(CxStrToken &tkArgs) {
+void cmd_net(CxStrToken &tkArgs) {
    printNetworkInfo();
-   return true;
 }
 
 // Command wifi
-bool cmd_wifi(CxStrToken &tkArgs) {
+void cmd_wifi(CxStrToken &tkArgs) {
    String strCmd = TKTOCHAR(tkArgs, 1);
    const char *b = TKTOCHAR(tkArgs, 2);
 
@@ -233,7 +229,7 @@ bool cmd_wifi(CxStrToken &tkArgs) {
             __console.println(F("connected"));
          } else {
             __console.println(F("not connected"));
-            return false;
+            __console.setExitValue(EXIT_FAILURE);
          }
       }
    } else if (strCmd == "rssi") {
@@ -243,7 +239,6 @@ bool cmd_wifi(CxStrToken &tkArgs) {
       __console.setOutputVariable(WiFi.RSSI());
 #endif
    }
-   return true;
 }
 void help_wifi() {
    __console.println(F("wifi commands:"));
@@ -260,16 +255,16 @@ void help_wifi() {
 }
 
 // Command ping
-bool cmd_ping(CxStrToken &tkArgs) {
+void cmd_ping(CxStrToken &tkArgs) {
    if (tkArgs.count() > 2) {
       if (isHostAvailble(TKTOCHAR(tkArgs, 1), TKTOINT(tkArgs, 2, 0))) {
          __console.println(F("ok"));
-         return true;
       } else {
          __console.println(F("host not available on this port!"));
-      };
+      }
+   } else {
+      __console.setExitValue(EXIT_FAILURE);
    }
-   return false;
 }
 void help_ping() {
    __console.println(F("ping <host> [<port>]"));
@@ -283,8 +278,8 @@ const CommandEntry commandsWiFi[] PROGMEM = {
     {"hostname", cmd_hostname, nullptr},
     {"ip", cmd_ip, nullptr},
     {"exit", cmd_exit, nullptr},
-    {"wifi", cmd_wifi, help_wifi},
-    {"ping", cmd_ping, help_ping},
+    {"wifi", cmd_wifi, HELP_OR_NULLPTR(help_wifi)},
+    {"ping", cmd_ping, HELP_OR_NULLPTR(help_ping)},
 
     // Add more commands here
 };

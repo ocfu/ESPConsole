@@ -3,16 +3,14 @@
 #include "tools/espmath.h"  // for ExprParser
 
 // Command function to reboot the device
-bool cmd_reboot(CxStrToken &tkArgs) {
+void cmd_reboot(CxStrToken &tkArgs) {
    String opt = TKTOCHAR(tkArgs, 1);
 
    // force reboot
    if (opt == "-f") {
       reboot();
-      return true;
    } else {
       // Optionally handle non-force reboot here
-      return true;
    }
 }
 void help_reboot() {
@@ -22,13 +20,12 @@ void help_reboot() {
 }
 
 // Command function cls (clear screen)
-bool cmd_cls(CxStrToken &tkArgs) {
+void cmd_cls(CxStrToken &tkArgs) {
    __console.cls();
-   return true;
 }
 
 // Command prompt
-bool cmd_prompt(CxStrToken &tkArgs) {
+void cmd_prompt(CxStrToken &tkArgs) {
    // prompt [-CL] [<prompt string>]
    // prompt [-OFF/ON]
 
@@ -79,11 +76,10 @@ bool cmd_prompt(CxStrToken &tkArgs) {
       }
    }
    __console.prompt(bClient);
-   return true;
 }
 void help_prompt() {
    __console.println(
-       F("prompt [-CL] [<prompt string>] : Set the command "
+       F("prompt [-CL] [<prompt string>] : Set the command) "
          "prompt. Use -CL for "
          "client prompt."));
    __console.println(
@@ -92,13 +88,12 @@ void help_prompt() {
 }
 
 // Command wlcm
-bool cmd_wlcm(CxStrToken &tkArgs) {
+void cmd_wlcm(CxStrToken &tkArgs) {
    __console.wlcm();
-   return true;
 }
 
 // Command info
-bool cmd_info(CxStrToken &tkArgs) {
+void cmd_info(CxStrToken &tkArgs) {
    // Print system information
    if (tkArgs.count() > 1) {
       String strSubCmd = TKTOCHAR(tkArgs, 1);
@@ -121,7 +116,6 @@ bool cmd_info(CxStrToken &tkArgs) {
       printInfo();
       __console.println();
    }
-   return true;
 }
 void help_info() {
    __console.println(
@@ -133,17 +127,16 @@ void help_info() {
 }
 
 // Command uptime
-bool cmd_uptime(CxStrToken &tkArgs) {
+void cmd_uptime(CxStrToken &tkArgs) {
    // Print system uptime
    __console.printUptimeExt();  // FIXME: @echo off does not
                                 // work on this print
    __console.println();
    __console.setOutputVariable(__console.getUpTimeISO());
-   return true;
 }
 
 // Command set
-bool cmd_set(CxStrToken &tkArgs) {
+void cmd_set(CxStrToken &tkArgs) {
    String strVar = TKTOCHAR(tkArgs, 1);
    uint8_t prec = 0;
    String strOp1 = TKTOCHAR(tkArgs, 2);
@@ -211,19 +204,18 @@ bool cmd_set(CxStrToken &tkArgs) {
       __console.printVariables(getIoStream());
       bSuccess = true;
    }
-   return bSuccess;
+   if (!bSuccess) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command ps
-bool cmd_ps(CxStrToken &tkArgs) {
+void cmd_ps(CxStrToken &tkArgs) {
    // Print process statistics
    __console.printPs();
    __console.println();
-   return true;
 }
 
 // Command loopdelay
-bool cmd_loopdelay(CxStrToken &tkArgs) {
+void cmd_loopdelay(CxStrToken &tkArgs) {
    if (tkArgs.count() > 1) {
       __console.setLoopDelay(TKTOINT(tkArgs, 1, 0));
    } else {
@@ -231,46 +223,40 @@ bool cmd_loopdelay(CxStrToken &tkArgs) {
       __console.println(__console.getLoopDelay());
       __console.setOutputVariable(__console.getLoopDelay());
    }
-   return true;
 }
 
 // Command delay
-bool cmd_delay(CxStrToken &tkArgs) {
+void cmd_delay(CxStrToken &tkArgs) {
    delay(TKTOINT(tkArgs, 1, 1));
-   return true;
 }
 
 // Command time
-bool cmd_time(CxStrToken &tkArgs) {
+void cmd_time(CxStrToken &tkArgs) {
    if (__console.getStream()) __console.setOutputVariable(__console.printTime(*__console.getStream(), true));
    __console.println();
-   return true;
 }
 
 // Command date
-bool cmd_date(CxStrToken &tkArgs) {
+void cmd_date(CxStrToken &tkArgs) {
    if (__console.getStream()) __console.setOutputVariable(__console.printDate(*__console.getStream()));
    __console.println();
-   return true;
 }
 
 // Command heap
-bool cmd_heap(CxStrToken &tkArgs) {
+void cmd_heap(CxStrToken &tkArgs) {
    printHeap();
    __console.println();
-   return true;
 }
 
 // Command frag
-bool cmd_frag(CxStrToken &tkArgs) {
+void cmd_frag(CxStrToken &tkArgs) {
    printHeapFragmentation();
    __console.println();
    __console.setOutputVariable((uint32_t)g_Heap.fragmentation());
-   return true;
 }
 
 // Command stack
-bool cmd_stack(CxStrToken &tkArgs) {
+void cmd_stack(CxStrToken &tkArgs) {
    String strSubCmd = TKTOCHAR(tkArgs, 1);
    strSubCmd.toLowerCase();
 
@@ -290,18 +276,16 @@ bool cmd_stack(CxStrToken &tkArgs) {
       }
       __console.setOutputVariable((uint32_t)g_Stack.getSize());
    }
-   return true;
 }
 
 // Command users
-bool cmd_users(CxStrToken &tkArgs) {
+void cmd_users(CxStrToken &tkArgs) {
    __console.printf(F("%d users\n"), __console.users());
    __console.setOutputVariable(__console.users());
-   return true;
 }
 
 // Command usr
-bool cmd_usr(CxStrToken &tkArgs) {
+void cmd_usr(CxStrToken &tkArgs) {
    // set user specific commands here. The first parameter
    // is the command number, the second the flag and the
    // optional third how to set / clear.
@@ -348,7 +332,6 @@ bool cmd_usr(CxStrToken &tkArgs) {
          }
          break;
    }
-   return true;
 }
 void help_usr() {
    __console.println(
@@ -366,7 +349,7 @@ void help_usr() {
 }
 
 // Command echo
-bool cmd_echo(CxStrToken &tkArgs) {
+void cmd_echo(CxStrToken &tkArgs) {
    String strValue;
    bool bSuppressNewLine = false;
 
@@ -396,21 +379,19 @@ bool cmd_echo(CxStrToken &tkArgs) {
       i++;
    }
    if (!bSuppressNewLine) __console.println();
-   return true;
 }
 
 // Command @echo
-bool cmd_echo_off(CxStrToken &tkArgs) {
+void cmd_echo_off(CxStrToken &tkArgs) {
    if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
       __console.setEcho(false);
    } else if (strncmp(TKTOCHAR(tkArgs, 1), "on", 2) == 0) {
       __console.setEcho(true);
    }
-   return true;
 }
 
 // Command timer
-bool cmd_timer(CxStrToken &tkArgs) {
+void cmd_timer(CxStrToken &tkArgs) {
    // timer add <period>|<cron> <cmd> [<id> [<mode>]]
    // timer del [id]
    // cmd: command to execute
@@ -468,59 +449,51 @@ bool cmd_timer(CxStrToken &tkArgs) {
                                            pTimer->getId());
                             __console.delTimer(pTimer->getId());
                          } }, (nMode == 0));
-                  return true;  // success
                } else {
                   __console.error(F("could not add timer %s! (existing or too many timers)"), pTimer->getId());
                   delete pTimer;
-                  return false;  // failure
+                  __console.setExitValue(EXIT_FAILURE);
                }
             }
          } else {
-            __console.printf(F("invalid time for timer"), nPeriod);
-            return false;  // failure
+            __console.error(F("invalid time for timer"));
+            __console.setExitValue(EXIT_FAILURE);
          }
       } else {
-         __console.printf(F("not enough arguments for timer add!"));
-         return false;  // failure, not enough arguments
+         __console.error(F("not enough arguments for timer add!"));
+         __console.setExitValue(EXIT_FAILURE);
       }  // count
    } else if (strSubCmd == "del") {
       __console.delTimer(TKTOCHAR(tkArgs, 2));
-      return true;
    } else if (strSubCmd == "stop") {
       __console.stopTimer(TKTOCHAR(tkArgs, 2));
-      return true;
    } else if (strSubCmd == "start") {
       __console.startTimer(TKTOCHAR(tkArgs, 2));
-      return true;
    } else if (strSubCmd == "list") {
       // list all timers
       __console.printTimers(getIoStream());
-      return true;
    }
-   return false;
 }
 
 // Command hw
-bool cmd_hw(CxStrToken &tkArgs) {
+void cmd_hw(CxStrToken &tkArgs) {
    __console.printf(F(ESC_ATTR_BOLD "    Chip Type:" ESC_ATTR_RESET " %s " ESC_ATTR_BOLD "Chip-ID: " ESC_ATTR_RESET "0x%X\n"), getChipType(), getChipId());
 #ifdef ARDUINO
    __console.printf(F(ESC_ATTR_BOLD "   Flash Size:" ESC_ATTR_RESET " %dk (real) %dk (ide)\n"), getFlashChipRealSize() / 1024, getFlashChipSize() / 1024);
    __console.printf(F(ESC_ATTR_BOLD "Chip-Frequenz:" ESC_ATTR_RESET " %dMHz\n"), ESP.getCpuFreqMHz());
 #endif
    __console.setOutputVariable(getChipType());
-   return true;
 }
 
 // Command id
-bool cmd_id(CxStrToken &tkArgs) {
+void cmd_id(CxStrToken &tkArgs) {
    // Print the device ID
    __console.printf(F("Device ID: 0x%X\n"), getChipId());
    __console.setOutputVariable(getChipId());
-   return true;
 }
 
 // Command sw
-bool cmd_sw(CxStrToken &tkArgs) {
+void cmd_sw(CxStrToken &tkArgs) {
    // Print the software version
 #ifdef ARDUINO
    __console.printf(F(ESC_ATTR_BOLD "   Plattform:" ESC_ATTR_RESET " %s"), ARDUINO_BOARD);
@@ -560,19 +533,17 @@ bool cmd_sw(CxStrToken &tkArgs) {
    println();
 #endif
    __console.setOutputVariable(__console.getAppVer());
-   return true;
 }
 
 // Command app
-bool cmd_app(CxStrToken &tkArgs) {
+void cmd_app(CxStrToken &tkArgs) {
    // Print the application name
    __console.printf(F("Application Name: %s\n"), __console.getAppName());
    __console.setOutputVariable(__console.getAppName());
-   return true;
 }
 
 // Command esp
-bool cmd_esp(CxStrToken &tkArgs) {
+void cmd_esp(CxStrToken &tkArgs) {
    // Print ESP specific information
 #ifdef ARDUINO
 #ifdef ESP32
@@ -672,11 +643,10 @@ bool cmd_esp(CxStrToken &tkArgs) {
    __console.setOutputVariable(ESP.getCoreVersion().c_str());
 #endif
 #endif /* ARDUINO */
-   return true;
 }
 
 // Command flash
-bool cmd_flash(CxStrToken &tkArgs) {
+void cmd_flash(CxStrToken &tkArgs) {
    // Print flash information
 #ifdef ARDUINO
    __console.printf(F("-FLASHMAP---------------\n"));
@@ -724,16 +694,14 @@ bool cmd_flash(CxStrToken &tkArgs) {
    __console.printf(F("------------------------\n"));
    __console.setOutputVariable(ESP.getFlashChipSize() / 1024);
 #endif  // ARDUINO
-   return true;
 }
 
 // Command eeprom
-bool cmd_eeprom(CxStrToken &tkArgs) {
+void cmd_eeprom(CxStrToken &tkArgs) {
    // Print EEPROM information
    if (TKTOCHAR(tkArgs, 1)) {
       ::printEEPROM(getIoStream(), TKTOINT(tkArgs, 1, 0), TKTOINT(tkArgs, 2, 128));
    }
-   return true;
 }
 void help_eeprom() {
    __console.println(F("eeprom [<start> [<len>]] : Print EEPROM content."));
@@ -743,11 +711,11 @@ void help_eeprom() {
 
 // Command table in PROGMEM
 const CommandEntry commands[] PROGMEM = {
-    {"reboot", cmd_reboot, help_reboot},
+    {"reboot", cmd_reboot, HELP_OR_NULLPTR(help_reboot)},
     {"cls", cmd_cls, nullptr},
-    {"prompt", cmd_prompt, help_prompt},
+    {"prompt", cmd_prompt, HELP_OR_NULLPTR(help_prompt)},
     {"wlcm", cmd_wlcm, nullptr},
-    {"info", cmd_info, help_info},
+    {"info", cmd_info, HELP_OR_NULLPTR(help_info)},
     {"uptime", cmd_uptime, nullptr},
     {"set", cmd_set, nullptr},
     {"ps", cmd_ps, nullptr},
@@ -769,7 +737,7 @@ const CommandEntry commands[] PROGMEM = {
     {"app", cmd_app, nullptr},
     {"esp", cmd_esp, nullptr},
     {"flash", cmd_flash, nullptr},
-    {"eeprom", cmd_eeprom, help_eeprom},
+    {"eeprom", cmd_eeprom, HELP_OR_NULLPTR(help_eeprom)},
     // Add more commands here
 };
 
@@ -792,7 +760,7 @@ void printCommands(const CommandEntry *cmds, const size_t numCmds, const char *t
       strncpy(cmdName, cmds[i].name, sizeof(cmdName) - 1);
       cmdName[sizeof(cmdName) - 1] = '\0';
 #endif
-      if (cmdName[0] != '\0') {
+      if (cmdName[0] != '\0' && cmdName[0] != '$') { // Skip empty or special commands
          if (i > 0) {
             __console.print(F(","));
          }
@@ -826,7 +794,11 @@ void printHelp(const char *cmd, const CommandEntry *cmds, const size_t numCmds) 
          if (help) {
             help();
          } else {
+#ifdef ESP_CONSOLE_FS
+            __console.man(cmd);
+#else
             __console.println(F("No help available."));
+#endif
          }
          return;
       }  // Command found
@@ -849,12 +821,9 @@ bool executeInTable(const char *cmd, CxStrToken &tkArgs, const CommandEntry *cmd
             return true;
          }
          CommandFunc func = (CommandFunc)pgm_read_ptr(&cmds[i].func);
-         if (!func(tkArgs)) {
-            __console.setExitValue(EXIT_FAILURE);
-         } else {
-            __console.setExitValue(EXIT_SUCCESS);
-         }
-         return true;
+         __console.setExitValue(EXIT_SUCCESS); // set exit value to success by default
+         func(tkArgs);  // Call the command function, a failed exit value will be set by the command function
+         return true;  // Command found and executed
       }
    }
    return false;
@@ -889,37 +858,31 @@ bool execute(const char *szCmd, uint8_t nClient) {
 #ifdef ESP_CONSOLE_FS
       printCommands(commandsFS, NUM_COMMANDS_FS, " Filesystem");
 #endif /* ESP_CONSOLE_FS */
-      __console.setExitValue(EXIT_SUCCESS);
       return true;
    }
 
    // Try core commands
    if (executeInTable(cmd.c_str(), tkArgs, commands, NUM_COMMANDS)) {
-      __console.setExitValue(EXIT_SUCCESS);
       return true;
    }
 #ifdef ESP_CONSOLE_WIFI
    // Try WiFi commands
    if (executeInTable(cmd.c_str(), tkArgs, commandsWiFi, NUM_COMMANDS_WIFI)) {
-      __console.setExitValue(EXIT_SUCCESS);
       return true;
    }
 #endif /* ESP_CONSOLE_WIFI */
 #ifdef ESP_CONSOLE_EXT
    // Try extended commands
    if (executeInTable(cmd.c_str(), tkArgs, commandsExt, NUM_COMMANDS_EXT)) {
-      __console.setExitValue(EXIT_SUCCESS);
       return true;
    }
 #endif /* ESP_CONSOLE_EXT */
 #ifdef ESP_CONSOLE_FS
    // Try filesystem commands
    if (executeInTable(cmd.c_str(), tkArgs, commandsFS, NUM_COMMANDS_FS)) {
-      __console.setExitValue(EXIT_SUCCESS);
       return true;
    }
 #endif /* ESP_CONSOLE_FS */
-   __console.setExitValue(EXIT_FAILURE);
    return false;
 }
 

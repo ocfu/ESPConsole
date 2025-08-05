@@ -77,7 +77,7 @@ void loopExt() {
 }
 
 // Command gpio
-bool cmd_gpio(CxStrToken& tkArgs) {
+void cmd_gpio(CxStrToken& tkArgs) {
    String strSubCmd = TKTOCHAR(tkArgs, 1);
    uint8_t nPin = TKTOINT(tkArgs, 2, INVALID_PIN);
    int16_t nValue = TKTOINT(tkArgs, 3, -1);
@@ -116,7 +116,6 @@ bool cmd_gpio(CxStrToken& tkArgs) {
 #endif
          }
       }
-      return true;
    } else if (strSubCmd == "set") {
       if (__gpioTracker.isValidPin(nPin)) {
          CxGPIO gpio(nPin);
@@ -136,19 +135,19 @@ bool cmd_gpio(CxStrToken& tkArgs) {
             } else if (strValue == "virtual") {
             } else {
                __console.printf(F("invalid pin mode!"));
-               return false;
+               __console.setExitValue(EXIT_FAILURE);
             }
          } else if (nValue < 1024) {
             CxGPIODevice* pDev = __gpioDeviceManager.getDeviceByPin(nPin);
             if (pDev) pDev->set(nValue);
          } else {
             __console.printf(F("invalid value!"));
-            return false;
+            __console.setExitValue(EXIT_FAILURE);
          }
       } else {
          __console.println("invalid");
          __gpioTracker.printInvalidReason(getIoStream(), nPin);
-         return false;
+         __console.setExitValue(EXIT_FAILURE);
       }
    } else if (strSubCmd == "get") {
       if (__gpioTracker.isValidPin(nPin)) {
@@ -156,7 +155,7 @@ bool cmd_gpio(CxStrToken& tkArgs) {
          gpio.printState(getIoStream());
       } else {
          __gpioTracker.printInvalidReason(getIoStream(), nPin);
-         return false;
+         __console.setExitValue(EXIT_FAILURE);
       }
    } else if (strSubCmd == "list") {
       __gpioDeviceManager.printList();      
@@ -282,11 +281,11 @@ bool cmd_gpio(CxStrToken& tkArgs) {
             }
          } else {
             __console.println(F("invalid device type!"));
-            return false;
+            __console.setExitValue(EXIT_FAILURE);
          }
       } else {
          __console.println(F("invalid pin!"));
-         return false;
+         __console.setExitValue(EXIT_FAILURE);
       }
    } else if (strSubCmd == "del") {
       // FIXME: delete command crashes the system
@@ -300,7 +299,7 @@ bool cmd_gpio(CxStrToken& tkArgs) {
             delete p;
          } else {
             __console.println(F("device not found!"));
-            return false;
+            __console.setExitValue(EXIT_FAILURE);
          }
          __gpioDeviceManager.removeDevice(strName.c_str());
       }
@@ -312,11 +311,11 @@ bool cmd_gpio(CxStrToken& tkArgs) {
             p->setName(strValue.c_str());
          } else {
             __console.println(F("device not found!"));
-            return false;
+            __console.setExitValue(EXIT_FAILURE);
          }
       } else {
          __console.println(F("invalid pin!"));
-         return false;
+         __console.setExitValue(EXIT_FAILURE);
       }
    } else if (strSubCmd == "fn") {
       CxGPIODevice* p = __gpioDeviceManager.getDeviceByPin(nPin);
@@ -325,7 +324,7 @@ bool cmd_gpio(CxStrToken& tkArgs) {
          p->setFriendlyName(TKTOCHAR(tkArgs, 3));
       } else {
          __console.println(F("device not found!"));
-         return false;
+         __console.setExitValue(EXIT_FAILURE);
       }
 
    } else if (strSubCmd == "deb") {
@@ -335,7 +334,7 @@ bool cmd_gpio(CxStrToken& tkArgs) {
          p->setDebounce(TKTOINT(tkArgs, 3, p->getDebounce()));
       } else {
          __console.println(F("device not found!"));
-         return false;
+         __console.setExitValue(EXIT_FAILURE);
       }
    } else if (strSubCmd == "isr") {
       // isr <pin> <id> [<debounce time>]
@@ -378,11 +377,11 @@ bool cmd_gpio(CxStrToken& tkArgs) {
             }
          } else {
             __console.println(F("device not found!"));
-            return false;
+            __console.setExitValue(EXIT_FAILURE);
          }
       }
-   } 
-   return true;
+   }
+   __console.setExitValue(EXIT_FAILURE);
 }
 void help_gpio() {
    __console.println(F("gpio <subcmd> [args]"));
@@ -400,7 +399,7 @@ void help_gpio() {
    __console.println(F("  let <var_name> = <value|device_name> - assign value to variable or device state to variable"));
 }
 
-bool cmd_led(CxStrToken& tkArgs) {
+void cmd_led(CxStrToken& tkArgs) {
    String strSubCmd = TKTOCHAR(tkArgs, 1);
    uint8_t nIndexOffset = 0;
 
@@ -469,7 +468,6 @@ bool cmd_led(CxStrToken& tkArgs) {
    } else if (strSubCmd == "toggle") {
       led->toggle();
    } 
-   return true;
 }
 void help_led() {
    __console.println(F("led <subcmd> [args]"));
@@ -479,12 +477,12 @@ void help_led() {
    __console.println(F("  off - turn off the LED"));
    __console.println(F("  blink [pattern] - blink the LED with a pattern (ok, error, busy, flash, data, wait, connect) or custom blink rate in ms and brightness (default is 1000ms and 128)"));
    __console.println(F("  flash [pattern] - flash the LED with a pattern (ok, error, busy, flash, data, wait, connect) or custom flash rate in ms and brightness (default is 250ms and 128)"));
-   __console.println(F("  invert [true|false] - invert the LED logic (default is false)"));
+   __console.println(F("  invert [true|false] - invert the LED logic"));
    __console.println(F("  toggle - toggle the LED state"));
 }  
 
 // Command sensor
-bool cmd_sensor(CxStrToken& tkArgs) {
+void cmd_sensor(CxStrToken& tkArgs) {
    String strSubCmd = TKTOCHAR(tkArgs, 1);
    if (strSubCmd == "list") {
       __sensorManager.printList();
@@ -494,7 +492,7 @@ bool cmd_sensor(CxStrToken& tkArgs) {
          __sensorManager.setSensorName(nId, TKTOCHAR(tkArgs, 3));
       } else {
          __console.println(F("usage: sensor name <id> <name>"));
-         return false;
+         __console.setExitValue(EXIT_FAILURE);
       }
    } else if (strSubCmd == "get") {
       float f = __sensorManager.getSensorValueFloat(TKTOFLOAT(tkArgs, 2, INVALID_FLOAT));
@@ -536,7 +534,6 @@ bool cmd_sensor(CxStrToken& tkArgs) {
    } else if (strSubCmd == "del") {
       __sensorManager.removeSensor(TKTOCHAR(tkArgs, 2));
    }
-   return true;
 }
 void help_sensor() {
    __console.println(F("sensor <subcmd> [args]"));
@@ -549,7 +546,7 @@ void help_sensor() {
 }
 
 // Command relay
-bool cmd_relay(CxStrToken& tkArgs) {
+void cmd_relay(CxStrToken& tkArgs) {
    String strName = TKTOCHAR(tkArgs, 1);
    String strSubCmd = TKTOCHAR(tkArgs, 2);
    strSubCmd.toLowerCase();
@@ -578,11 +575,10 @@ bool cmd_relay(CxStrToken& tkArgs) {
             p->setDefaultOn(TKTOINT(tkArgs, 3, 0));
          } else {
             __console.println(F("invalid relay command"));
-            return false;
+            __console.setExitValue(EXIT_FAILURE);
          }
       }
    }
-   return true;
 }
 void help_relay() {
    __console.println(F("relay <name> <subcmd> [args]"));
@@ -596,7 +592,7 @@ void help_relay() {
 }
 
 // Command smooth
-bool cmd_smooth(CxStrToken& tkArgs) {
+void cmd_smooth(CxStrToken& tkArgs) {
    // smooth <reference> <value> <maxDiff> [<threshold> <minAlpha> <maxAlpha>]
    // set the output variable $> to the smoothed value
    // sets the exit value to 0, if valid
@@ -619,17 +615,16 @@ bool cmd_smooth(CxStrToken& tkArgs) {
    float maxAlpha = TKTOFLOAT(tkArgs, 6, INVALID_FLOAT);
 
    if (std::isnan(value) || std::isnan(maxDiff)) {
-      return false;  // invalid input
+      __console.setExitValue(EXIT_FAILURE);
    } else {
       float fValue = smoothRobust(reference, value, maxDiff, threshold, minAlpha, maxAlpha);
       __console.setOutputVariable(fValue);
-      return (std::isnan(fValue) ? false : true);  // consider as non success, if nan was returned.
+      if (std::isnan(fValue)) __console.setExitValue(EXIT_FAILURE); // consider as non success, if nan was returned.
    }
-   return true;
 }
 
 // Command max
-bool cmd_max(CxStrToken& tkArgs) {
+void cmd_max(CxStrToken& tkArgs) {
    // max <value1> <value2> [<value3> ...]
    // returns the maximum value of the given values
    // sets the output variable $> to the maximum value
@@ -637,7 +632,7 @@ bool cmd_max(CxStrToken& tkArgs) {
 
    float fMax = TKTOFLOAT(tkArgs, 1, INVALID_FLOAT);
    if (std::isnan(fMax)) {
-      return false;  // invalid input
+      __console.setExitValue(EXIT_FAILURE);
    }
 
    for (size_t i = 2; i < tkArgs.count(); i++) {
@@ -648,11 +643,10 @@ bool cmd_max(CxStrToken& tkArgs) {
    }
 
    __console.setOutputVariable(fMax);
-   return true;
 }
 
 // Command min
-bool cmd_min(CxStrToken& tkArgs) {
+void cmd_min(CxStrToken& tkArgs) {
    // min <value1> <value2> [<value3> ...]
    // returns the minimum value of the given values
    // sets the output variable $> to the minimum value
@@ -660,7 +654,7 @@ bool cmd_min(CxStrToken& tkArgs) {
 
    float fMin = TKTOFLOAT(tkArgs, 1, INVALID_FLOAT);
    if (std::isnan(fMin)) {
-      return false;  // invalid input
+      __console.setExitValue(EXIT_FAILURE);
    }
    for (size_t i = 2; i < tkArgs.count(); i++) {
       float fValue = TKTOFLOAT(tkArgs, i, INVALID_FLOAT);
@@ -669,11 +663,10 @@ bool cmd_min(CxStrToken& tkArgs) {
       }
    }
    __console.setOutputVariable(fMin);
-   return true;
 }
 
 // Command processdata
-bool cmd_processdata(CxStrToken& tkArgs) {
+void cmd_processdata(CxStrToken& tkArgs) {
    String strType = TKTOCHAR(tkArgs, 1);
    if (strType == "json" && tkArgs.count() > 3) {
       if (!__mapProcessJsonDataItems.size()) {
@@ -725,23 +718,20 @@ bool cmd_processdata(CxStrToken& tkArgs) {
          table.printRow({pair.first, pair.second.c_str()});
       }
    }
-   return true;
 }
 
 // Command table in PROGMEM
 const CommandEntry commandsExt[] PROGMEM = {
-   {"gpio", cmd_gpio, help_gpio},
-   {"led", cmd_led, help_led},
-   {"sensor", cmd_sensor, help_sensor},
-   {"relay", cmd_relay, help_relay},
-   {"smooth", cmd_smooth, nullptr},
-   {"max", cmd_max, nullptr},
-   {"min", cmd_min, nullptr},
-   {"processdata", cmd_processdata, nullptr},
+    {"gpio", cmd_gpio, HELP_OR_NULLPTR(help_gpio)},
+    {"led", cmd_led, HELP_OR_NULLPTR(help_led)},
+    {"sensor", cmd_sensor, HELP_OR_NULLPTR(help_sensor)},
+    {"relay", cmd_relay, HELP_OR_NULLPTR(help_relay)},
+    {"smooth", cmd_smooth, nullptr},
+    {"max", cmd_max, nullptr},
+    {"min", cmd_min, nullptr},
+    {"processdata", cmd_processdata, nullptr},
     // Add more extended commands here
 };
-
-
 
 const size_t NUM_COMMANDS_EXT = sizeof(commandsExt) / sizeof(commandsExt[0]);
 

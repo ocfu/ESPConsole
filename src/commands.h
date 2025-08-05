@@ -6,8 +6,15 @@
 
 #define MAX_COMMAND_NAME_LENGTH 32  // Maximum length of command names
 
+// If ESP_CONSOLE_FS is defined, the help function will be set to nullptr (the man command will be used to print help)
+#ifdef ESP_CONSOLE_FS
+#define HELP_OR_NULLPTR(func) nullptr
+#else
+#define HELP_OR_NULLPTR(func) func
+#endif
+
 // Command function type
-typedef bool (*CommandFunc)(CxStrToken &);
+typedef void (*CommandFunc)(CxStrToken &);
 
 // Help function type (no args, just prints help)
 typedef void (*HelpFunc)();

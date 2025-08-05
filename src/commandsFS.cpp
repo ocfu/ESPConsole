@@ -1,6 +1,6 @@
 #include "commands.h"
 
-#ifdef ESP_CONSOLE_EXT
+#ifdef ESP_CONSOLE_FS
 
 #ifdef ARDUINO
 #include <FS.h>
@@ -36,7 +36,7 @@ void setupFS() {
    // implement specific fs functions
    //__console.setFuncPrintLog2Server([this](const char *sz) { this->_print2logServer(sz); });
    //__console.setFuncExecuteBatch([this](const char *sz, const char *label) { this->executeBatch(sz, label); });
-   //__console.setFuncMan([this](const char *sz, const char *param) { this->man(sz, param); });
+   __console.setFuncMan([](const char *sz, const char *param) {man(sz, param); });
 
    //CxPersistentImpl::getInstance().setImplementation(ESPConsole);
 
@@ -47,116 +47,116 @@ void loopFS() {
 }
 
 // Command du
-bool cmd_du(CxStrToken& tkArgs) {
-   bool bReturn = true;
+void cmd_du(CxStrToken& tkArgs) {
+   bool bResult = true;
    if (TKTOCHAR(tkArgs, 1)) {
-      bReturn = (printDu(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+    bResult = (printDu(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
       __console.println();
    } else {
       __console.println(".");
    }
-   return bReturn;
+   if(!bResult) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command df
-bool cmd_df(CxStrToken& tkArgs) {
-   bool bReturn = true;
-   bReturn = (printDf(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+void cmd_df(CxStrToken& tkArgs) {
+   bool bResult = true;
+   bResult = (printDf(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
    __console.println(F(" bytes"));
-   return bReturn;
+   if (!bResult) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command size
-bool cmd_size(CxStrToken& tkArgs) {
-   bool bReturn = true;
-   bReturn = (printSize() == EXIT_SUCCESS);
+void cmd_size(CxStrToken& tkArgs) {
+   bool bResult = true;
+   bResult = (printSize() == EXIT_SUCCESS);
    __console.println(F(" bytes"));
-   return bReturn;
+   if (!bResult) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command ls
-bool cmd_ls(CxStrToken& tkArgs) {
+void cmd_ls(CxStrToken& tkArgs) {
    String strOpt = TKTOCHAR(tkArgs, 1);
-   return (ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la") == EXIT_SUCCESS);
+   __console.setExitValue(ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la"));
 }
 
 // Command la
-bool cmd_la(CxStrToken& tkArgs) {
-   return (ls(true, true) == EXIT_SUCCESS);
+void cmd_la(CxStrToken& tkArgs) {
+   __console.setExitValue(ls(true, true));
 }
 
 // Command cat
-bool cmd_cat(CxStrToken& tkArgs) {
-   return (cat(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+void cmd_cat(CxStrToken& tkArgs) {
+   __console.setExitValue(cat(TKTOCHAR(tkArgs, 1)));
 }
 
 // Command cp
-bool cmd_cp(CxStrToken& tkArgs) {
-   return (cp(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+void cmd_cp(CxStrToken& tkArgs) {
+   __console.setExitValue(cp(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 1)));
 }
 
 // Command rm
-bool cmd_rm(CxStrToken& tkArgs) {
-   return (rm(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+void cmd_rm(CxStrToken& tkArgs) {
+   __console.setExitValue(rm(TKTOCHAR(tkArgs, 1)));
 }
 
 // Command mv
-bool cmd_mv(CxStrToken& tkArgs) {
-   return (mv(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+void cmd_mv(CxStrToken& tkArgs) {
+   __console.setExitValue(mv(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 1)));
 }
 
 // Command touch
-bool cmd_touch(CxStrToken& tkArgs) {
-   return (touch(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+void cmd_touch(CxStrToken& tkArgs) {
+   __console.setExitValue(touch(TKTOCHAR(tkArgs, 1)));
 }
 
 // Command mount
-bool cmd_mount(CxStrToken& tkArgs) {
-   return (mount() == EXIT_SUCCESS);
+void cmd_mount(CxStrToken& tkArgs) {
+   __console.setExitValue(mount());
 }
 
 // Comand umount
-bool cmd_umount(CxStrToken& tkArgs) {
-   return (umount() == EXIT_SUCCESS);
+void cmd_umount(CxStrToken& tkArgs) {
+   __console.setExitValue(umount());
 }
 
 // Command format
-bool cmd_format(CxStrToken& tkArgs) {
-   return (format() == EXIT_SUCCESS);
+void cmd_format(CxStrToken& tkArgs) {
+   __console.setExitValue(format());
 }
 
 // Command hasfs
-bool cmd_hasfs(CxStrToken& tkArgs) {
+void cmd_hasfs(CxStrToken& tkArgs) {
    bool bHasFS = hasFS();
    __console.setOutputVariable(bHasFS ? "true" : "false");
-   return bHasFS;
+   if (!bHasFS) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command fs
-bool cmd_fs(CxStrToken& tkArgs) {
-   bool bReturn = true;
-   bReturn = (printFsInfo() == EXIT_SUCCESS);
+void cmd_fs(CxStrToken& tkArgs) {
+   bool bResult = true;
+   bResult = (printFsInfo() == EXIT_SUCCESS);
    __console.println();
-   return bReturn;
+   if (!bResult) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command $UPLOAD$
-bool cmd_upload(CxStrToken& tkArgs) {
-   return (_handleFile() == EXIT_SUCCESS);
+void cmd_upload(CxStrToken& tkArgs) {
+   __console.setExitValue(_handleFile());
 }
 
 // Command $DOWNLOAD$
-bool cmd_download(CxStrToken& tkArgs) {
-   return (_handleFile() == EXIT_SUCCESS);
+void cmd_download(CxStrToken& tkArgs) {
+   __console.setExitValue(_handleFile());
 }
 
 // Command exec
-bool cmd_exec(CxStrToken& tkArgs) {
-   return (executeBatch(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3)) == EXIT_SUCCESS);
+void cmd_exec(CxStrToken& tkArgs) {
+   __console.setExitValue(executeBatch(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3)));
 }
 
 // Command break
-bool cmd_break(CxStrToken& tkArgs) {
+void cmd_break(CxStrToken& tkArgs) {
    String strCond = TKTOCHAR(tkArgs, 1);
    strCond.toLowerCase();
 
@@ -169,12 +169,23 @@ bool cmd_break(CxStrToken& tkArgs) {
    } else {
       _bBreakBatch = false;
    }
-   return true;
 }
 
 // Command man
-bool cmd_man(CxStrToken& tkArgs) {
-   return (man(TKTOCHAR(tkArgs, 1), TKTOCHARAFTER(tkArgs, 2)) == EXIT_SUCCESS);
+void cmd_man(CxStrToken& tkArgs) {
+   __console.setExitValue(man(TKTOCHAR(tkArgs, 1), TKTOCHARAFTER(tkArgs, 2)));
+}
+
+// Command test
+void cmd_test(CxStrToken& tkArgs) {
+   std::vector<const char*> vExpr;
+
+   // loop through tkArgs fill the vector
+   for (uint8_t i = 1; i < tkArgs.count(); i++) {
+      vExpr.push_back(TKTOCHAR(tkArgs, i));
+   }
+
+   if (!test(vExpr)) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command table in PROGMEM
@@ -194,11 +205,12 @@ const CommandEntry commandsFS[] PROGMEM = {
    {"format", cmd_format, nullptr},
    {"hasfs", cmd_hasfs, nullptr},
    {"fs", cmd_fs, nullptr},
-   {"upload", cmd_upload, nullptr},
-   {"download", cmd_download, nullptr},
+   {"$UPLOAD$", cmd_upload, nullptr},
+   {"$DOWNLOAD$", cmd_download, nullptr},
    {"exec", cmd_exec, nullptr},
    {"break", cmd_break, nullptr},
    {"man", cmd_man, nullptr},
+   {"test", cmd_test, nullptr},
    
    // Add more filesystem commands here
 };
@@ -947,14 +959,21 @@ bool test(std::vector<const char*>& vExpression) {
       // check if string is not empty
       return strlen(vExpression[1]) > 0;
    } else if (vExpression.size() == 3) {
+      // check string comparison first
+      if (strcmp(vExpression[1], "=") == 0) {
+         return strcmp(vExpression[0], vExpression[2]) == 0;
+      } else if (strcmp(vExpression[1], "!=") == 0) {
+         return strcmp(vExpression[0], vExpression[2]) != 0;
+      }
+
+      // then check numeric comparison
       char* end1;
       char* end2;
       float n1 = std::strtof(vExpression[0], &end1);
-      while (isspace(*end1)) end1++;
+      while (isspace((unsigned char)*end1)) end1++;
       float n2 = std::strtof(vExpression[2], &end2);
-      while (isspace(*end2)) end2++;
+      while (isspace((unsigned char)*end2)) end2++;
       if (vExpression[0] != end1 && *end1 == '\0' && vExpression[2] != end2 && *end2 == '\0') {
-         // check numeric comparison
          if (strcmp(vExpression[1], "-eq") == 0) {
             return n1 == n2;
          } else if (strcmp(vExpression[1], "-ne") == 0) {
@@ -968,17 +987,10 @@ bool test(std::vector<const char*>& vExpression) {
          } else if (strcmp(vExpression[1], "-ge") == 0) {
             return n1 >= n2;
          }
-      } else {
-         // check string comparison
-         if (strcmp(vExpression[1], "=") == 0) {
-            return strcmp(vExpression[0], vExpression[2]) == 0;
-         } else if (strcmp(vExpression[1], "!=") == 0) {
-            return strcmp(vExpression[0], vExpression[2]) != 0;
-         }
       }
    }
 
    return false;
 }
 
-#endif
+#endif // ESP_CONSOLE_FS
