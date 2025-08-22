@@ -1,34 +1,15 @@
 # Initialisation at start
 
-#
-# Filesystem capability and environment settings
-#
-fs:
+#############################
+# This script is used to initialize the system and set up the environment
+# 
+start:
+echo Initializing system...
 touch .safemode   # system will boot into safe mode if this file exists on next boot
 loopdelay 1       # sets the delay at the end of each loop in usec
 set userscript init.$(HOSTNAME).bat
 test -f $(userscript) || test -f $(userscript).bak && cp $(userscript).bak $(userscript)  # if no user script exists, first fall back is backup file
 test -f $(userscript) || test -f init.user.bat     && cp init.user.bat $(userscript)      # second fall back is default init file
-
-# I2C capability
-i2c:
-break on $(SAFEMODE)
-
-# MQTT capability
-mqtt:
-break on $(SAFEMODE)
-
-# Home Assistant capability
-ha:
-break on $(SAFEMODE)
-
-# Segment Display (seg) capability
-seg:
-break on $(SAFEMODE)
-
-# RC
-rc:
-break on $(SAFEMODE)
 
 # final initialisations
 final:
@@ -37,46 +18,63 @@ timer add 1m "wifi check -q" tiWifi
 wifi connect
 stack off
 usr 0
-break on $(SAFEMODE)
+
+# Safemode
+sm:
+echo SAFEMODE ON
+
+#############################
+# Specific initializations
+#
+
+# I2C capability
+i2c:
+
+# MQTT capability
+mqtt:
+
+# Home Assistant capability
+ha:
+
+# Segment Display (seg) capability
+seg:
+
+# RC
+rc:
+
+#############################
+# Runtime settings
+#
 
 # wifi is up and connected
 wifi-up:
 timer stop tiRecon
-break on $(SAFEMODE)
 
 # wifi is down
 wifi-down:
 timer start tiRecon
-break on $(SAFEMODE)
 
 # wifi is online
 wifi-online:
 timer stop tiRecon
-break on $(SAFEMODE)
 
 # wifi is offline
 wifi-offline:
 timer start tiRecon
-break on $(SAFEMODE)
 
 # Access Point up
 ap-up:
 timer stop tiWifi
 timer stop tiRecon
-break on $(SAFEMODE)
 
 # Access Point down
 ap-down:
 timer start tiWifi
 timer start tiRecon
-break on $(SAFEMODE)
 
-#
-# Safemode
-#
-sm:
-echo SAFEMODE ON
-
+#############################
 # more commands for all labels
 all:
-test -f $(userscript) exec $(userscript) $(LABEL)
+break on $(SAFEMODE)
+
+test -f $(userscript) exec $(userscript) $(LABEL) # calls the user script if it exists

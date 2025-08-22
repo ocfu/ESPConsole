@@ -73,6 +73,9 @@ uint8_t CxESPConsole::processCmd(const char *cmd, uint8_t nClient) {
       strCmd.replace("§", "$");  // § used in quotes for variables.
       strCmd.trim();  // remove leading and trailing spaces
 
+      debug(F("Processing command: %s, logic: %d, client: %d"),
+            strCmd.c_str(), nLogic, nClient);
+
       bool bExecuted = execute(strCmd.c_str(), nClient);
 
       if (!bExecuted && strCmd.length() > 0 && !strCmd.startsWith("?")) {
@@ -81,7 +84,7 @@ uint8_t CxESPConsole::processCmd(const char *cmd, uint8_t nClient) {
       }
 
       // TODO: improve compatibility with POSIX
-      // example: test 1 -eq 0 && echo hello || echo world
+      // example: test 1 -eq 0 && echo nothing || echo hello world
       // since the first expression fails, the later command echo world is not
       // processed (same with ";"). this is not compatible with the POSIX
 
@@ -123,12 +126,13 @@ void CxESPConsoleMaster::begin() {
    CxESPConsole::begin();
 
    if (isSafeMode()) {
+      g_Heap.update();  // update heap tracker
       executeBatch("rdy", "sm");
    } else {
       executeBatch("init", "final");
+      g_Heap.update();  // update heap tracker
       executeBatch("rdy", "ma");
    }
-   g_Heap.update();  // update heap tracker
 }
 
 void CxESPConsole::begin() {   

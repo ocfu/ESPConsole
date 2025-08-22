@@ -35,12 +35,12 @@ void setupFS() {
 
    // implement specific fs functions
    //__console.setFuncPrintLog2Server([this](const char *sz) { this->_print2logServer(sz); });
-   //__console.setFuncExecuteBatch([this](const char *sz, const char *label) { this->executeBatch(sz, label); });
+   __console.setFuncExecuteBatch([](const char *sz, const char *label) { executeBatch(sz, label); });
    __console.setFuncMan([](const char *sz, const char *param) {man(sz, param); });
 
    //CxPersistentImpl::getInstance().setImplementation(ESPConsole);
 
-   __console.executeBatch("init", "fs");
+   __console.executeBatch("init", "start");
 }
 
 void loopFS() {

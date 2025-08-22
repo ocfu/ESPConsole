@@ -530,7 +530,7 @@ void cmd_sw(CxStrToken &tkArgs) {
    }
    __console.print(ESC_ATTR_RESET);
 #else
-   println();
+   __console.println();
 #endif
    __console.setOutputVariable(__console.getAppVer());
 }
@@ -820,7 +820,11 @@ bool executeInTable(const char *cmd, CxStrToken &tkArgs, const CommandEntry *cmd
             printHelp(entryName, cmds, numCmds);
             return true;
          }
+#ifdef ARDUINO
          CommandFunc func = (CommandFunc)pgm_read_ptr(&cmds[i].func);
+#else
+         CommandFunc func = cmds[i].func;
+#endif
          __console.setExitValue(EXIT_SUCCESS); // set exit value to success by default
          func(tkArgs);  // Call the command function, a failed exit value will be set by the command function
          return true;  // Command found and executed
