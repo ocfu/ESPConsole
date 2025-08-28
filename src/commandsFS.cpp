@@ -34,7 +34,6 @@ void setupFS() {
    }
 
    // implement specific fs functions
-   //__console.setFuncPrintLog2Server([this](const char *sz) { this->_print2logServer(sz); });
    __console.setFuncExecuteBatch([](const char *sz, const char *label) { executeBatch(sz, label); });
    __console.setFuncMan([](const char *sz, const char *param) {man(sz, param); });
 

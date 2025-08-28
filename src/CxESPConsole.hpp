@@ -64,7 +64,7 @@ class CxESPConsoleBase : public Print, public CxPersistentBase {
    
    bool _bEchoOn = true;
    
-   std::function<void(const char*)> _funcPrint2logServer;
+   std::function<void(uint8_t level, const char*)> _funcPrint2logServer;
    std::function<void(const char*, const char*)> _funcExecuteBatch;
    std::function<void(const char*, const char*)> _funcMan;
    std::function<uint8_t(const char*)> _funcProcessData;
@@ -126,7 +126,7 @@ public:
       }
    }
    
-   void print2LogServer(const char* sz) {if (_funcPrint2logServer) _funcPrint2logServer(sz);}
+   void print2LogServer(uint8_t level, const char* sz) {if (_funcPrint2logServer) _funcPrint2logServer(level, sz);}
    void executeBatch(const char* sz, const char* label) {if (_funcExecuteBatch) _funcExecuteBatch(sz, label);}
    void executeBatch(Stream& stream, const char* sz, const char* label) {
       if (_funcExecuteBatch) {
@@ -139,7 +139,7 @@ public:
    void man(const char* sz, const char* param = nullptr) {if (_funcMan) _funcMan(sz, param);}
    uint8_t processData(const char* data) {if (_funcProcessData) return _funcProcessData(data); else return EXIT_FAILURE;}
    
-   void setFuncPrintLog2Server(std::function<void(const char*)> f) {_funcPrint2logServer = f;}
+   void setFuncPrintLog2Server(std::function<void(uint8_t, const char*)> f) {_funcPrint2logServer = f;}
    void clearFuncPrintLog2Server() {_funcPrint2logServer = nullptr;}
    
    void setFuncExecuteBatch(std::function<void(const char*, const char*)> f) {_funcExecuteBatch = f;}
@@ -450,7 +450,12 @@ public:
       addVariable("USER", sz);
    }
 
-   void setAppNameVer(const char* szName, const char* szVer) {_szAppName = szName;_szAppVer = szVer;}
+   void setAppNameVer(const char* szName, const char* szVer) {
+      _szAppName = szName;
+      _szAppVer = szVer;
+      addVariable("APPNAME", szName);
+      addVariable("APPVER", szVer);
+   }
    const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
    const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
    

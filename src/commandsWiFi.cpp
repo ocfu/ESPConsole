@@ -2,6 +2,8 @@
 #include "commands.h"
 
 #ifdef ARDUINO
+#include <WiFiUdp.h> // needed for syslog messages
+
 #ifdef ESP32
 #include <WebServer.h>
 WebServer webServer(80);
@@ -96,6 +98,44 @@ void setupOta() {
    });
 
    Ota1.begin(__console.getHostName(), szOtaPassword);
+}
+
+void print2logServer(uint8_t level, const char *sz) {
+   uint8_t nSeverity;
+
+   switch (level) {
+      case LOGLEVEL_DEBUG:
+      case LOGLEVEL_DEBUG_EXT:
+         nSeverity = SYSLOG_SEVERITY_DEBUG;
+         break;
+      case LOGLEVEL_INFO:
+         nSeverity = SYSLOG_SEVERITY_INFO;
+         break;
+      case LOGLEVEL_WARN:
+         nSeverity = SYSLOG_SEVERITY_WARNING;
+         break;
+      case LOGLEVEL_ERROR:
+         nSeverity = SYSLOG_SEVERITY_ERR;
+         break;
+      default:
+         nSeverity = SYSLOG_SEVERITY_INFO;
+         break;
+   }
+
+   const char *szServer = __console.getVariable("SYSLOG_SERVER");
+   const char *szPort = __console.getVariable("SYSLOG_PORT");
+
+   uint16_t port = (szPort) ? (uint16_t)strtol(szPort, nullptr, 10) : SYSLOG_DEFAULT_PORT;
+   uint8_t facility = SYSLOG_DEFAULT_FACILITY;
+
+   syslog(szServer, port, sz, facility, nSeverity);
+}
+
+void setupWifi() {
+   // implement specific functions
+   __console.setFuncPrintLog2Server([](uint8_t level, const char *sz) { print2logServer(level, sz); });
+
+   setupOta();
 }
 
 void loopWifi() {
@@ -270,6 +310,47 @@ void help_ping() {
    __console.println(F("ping <host> [<port>]"));
 }
 
+// Command syslog
+void cmd_syslog(CxStrToken &tkArgs) {
+
+   // syslog <message> [options]
+   // options:
+   //   -n <server>
+   //   -P <port>                (default: 514)
+   //   -s <severity>            (default: 6 (info))
+   //   -f <facility>            (default: 16 (local0))
+
+   const char* szMessage = TKTOCHAR(tkArgs, 1);
+   if (!szMessage) {
+      __console.setExitValue(EXIT_FAILURE);
+      return;
+   }
+
+   const char* szServer = __console.getVariable("SYSLOG_SERVER");
+   uint16_t port = (uint16_t) strtol(__console.getVariable("SYSLOG_PORT"), nullptr, 10);
+   uint8_t severity = SYSLOG_DEFAULT_SEVERITY;
+   uint8_t facility = SYSLOG_DEFAULT_FACILITY;
+
+   for (int8_t i = 2; i < tkArgs.count(); i++) {
+      String opt = TKTOCHAR(tkArgs, i);
+      if (opt == "-n" && (i + 1) < tkArgs.count()) {
+         i++;
+         szServer = TKTOCHAR(tkArgs, i);
+      } else if (opt == "-P" && (i + 1) < tkArgs.count()) {
+         i++;
+         port = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_PORT);
+      } else if (opt == "-f" && (i + 1) < tkArgs.count()) {
+         i++;
+         facility = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_FACILITY);
+      } else if (opt == "-s" && (i + 1) < tkArgs.count()) {
+         i++;
+         severity = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_SEVERITY);
+      }
+   }
+
+   syslog(szServer, port, szMessage, facility, severity);
+}
+
 // Command table in PROGMEM
 const CommandEntry commandsWiFi[] PROGMEM = {
     {"ssid", cmd_ssid, nullptr},
@@ -280,6 +361,7 @@ const CommandEntry commandsWiFi[] PROGMEM = {
     {"exit", cmd_exit, nullptr},
     {"wifi", cmd_wifi, HELP_OR_NULLPTR(help_wifi)},
     {"ping", cmd_ping, HELP_OR_NULLPTR(help_ping)},
+    {"syslog", cmd_syslog, nullptr},
 
     // Add more commands here
 };
@@ -466,7 +548,7 @@ void startWiFi(const char *ssid, const char *pw) {
          delay(1);
       }
 
-      // stop blinking "..." and let the message on the screen
+      // stop blinking "..." and let the szMessage on the screen
       __console.print(ESC_CLEAR_LINE "\r");
       __console.printf(F(ESC_ATTR_BOLD "WiFi: connecting to %s..." ESC_ATTR_RESET), szSSID);
 
@@ -622,5 +704,40 @@ void _handleConnect() {
 
 #endif
 }
+
+void syslog(const char* syslogServer, uint16_t port, const char* szMessage, uint8_t facility, uint8_t severity) {
+   if (!syslogServer || !szMessage || !*syslogServer || !*szMessage) {
+      return;
+   }
+
+   // check, if wifi is connected
+   if (WiFi.status() != WL_CONNECTED) {
+      return;
+   }
+
+   WiFiUDP udp;
+   // Syslog PRI = <facility*8 + severity>
+   int pri = facility * 8 + severity;
+
+    // RFC3164 timestamp: "Mmm dd hh:mm:ss"
+    char timestamp[16];
+    time_t now = time(nullptr);
+    struct tm* tm_info = localtime(&now);
+    strftime(timestamp, sizeof(timestamp), "%b %d %H:%M:%S", tm_info);
+
+    
+    // Hostname fallback
+    const char* host = __console.getHostName();
+
+    // Compose syslog message: <PRI>TIMESTAMP HOST TAG: MESSAGE
+    char syslogMsg[384];
+    snprintf(syslogMsg, sizeof(syslogMsg), "<%d>%s %s %s: %s", pri, timestamp, host, __console.getAppName(), szMessage);
+    
+    udp.beginPacket(syslogServer, port);
+    udp.write((const uint8_t*)syslogMsg, strlen(syslogMsg));
+    udp.endPacket();
+}
+
+
 
 #endif  // ESP_CONSOLE_NOWIFI

@@ -22,26 +22,26 @@ echo "Enter $(ESC_BOLD)?$(ESC_RESET) to get help. Have a nice day :-)"
 #
 ma:
 prompt "$(USER)@serial:/> "
-log info "System is ready!"
 rm .safemode   # system start was successful, no safemode needed at next boot
 test ! -f $(userscript).bak && test -f $(userscript) && cp $(userscript) $(userscript).bak
+syslog "$(APPNAME) $(APPVER) started" 
 
 #
 # Client console setup
 #
 cl:
-log info "Client is ready!"
 prompt -CL "$(USER)@$(HOSTNAME):/> "
+syslog "$(APPNAME) $(APPVER) client started" 
 
 #
 # ESP in safemode
 #
 sm:
-log warn "ESP in safemode"
+syslog "ESP in safemode" -s 4 
 exec $(userscript) sm
 prompt "$(ESC_BOLD)$(USER)@serial-$(ESC_BRED)$(ESC_BLINK)SAFEMODE$(ESC_RESET):/> "
 timer add 2s "led flash 100 100 2" tiSMLed repeat
 
 sm-cl:
-log warn "ESP in safemode"
+syslog "ESP in safemode" -s 4 
 prompt -CL "$(ESC_BOLD)$(USER)@$(HOSTNAME)-$(ESC_BRED)$(ESC_BLINK)SAFEMODE$(ESC_RESET):/> "

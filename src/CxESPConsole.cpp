@@ -73,9 +73,6 @@ uint8_t CxESPConsole::processCmd(const char *cmd, uint8_t nClient) {
       strCmd.replace("§", "$");  // § used in quotes for variables.
       strCmd.trim();  // remove leading and trailing spaces
 
-      debug(F("Processing command: %s, logic: %d, client: %d"),
-            strCmd.c_str(), nLogic, nClient);
-
       bool bExecuted = execute(strCmd.c_str(), nClient);
 
       if (!bExecuted && strCmd.length() > 0 && !strCmd.startsWith("?")) {
@@ -109,7 +106,7 @@ void CxESPConsoleMaster::begin() {
    info(F("==== MASTER ===="));
 
 #ifdef ESP_CONSOLE_WIFI
-   setupOta();
+   setupWifi();
 #endif
 #ifdef ESP_CONSOLE_EXT
    setupExt();
@@ -484,5 +481,5 @@ void CxESPConsole::printLog(uint8_t level, uint32_t flag, const char *sz) {
    }
 
    if (getUsrLogLevel() >= level) println(sz);
-   if (getLogLevel() >= level) print2LogServer(sz);
+   if (getLogLevel() >= level && strlen(sz) > 17) print2LogServer(level, sz + 17);
 }
