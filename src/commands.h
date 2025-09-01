@@ -110,7 +110,7 @@ uint8_t man(const char* szCap, const char* szParam);
 void _printNoFS();
 void _printNoSuchFileOrDir(const char* szCmd, const char* szFn = nullptr);
 uint8_t _sendFile(WiFiClient* client, const char* filename);
-void syslog(const char* syslogServer, uint16_t port, const char* message, uint8_t facility = SYSLOG_FACILITY_LOCAL0, uint8_t severity = SYSLOG_SEVERITY_INFO);
+void syslog(const char* syslogServer, uint16_t port, const char* message, uint8_t facility = SYSLOG_FACILITY_LOCAL0, uint8_t severity = SYSLOG_SEVERITY_INFO, bool bMetrics = false);
 
 void trim(char* str);
 bool test(std::vector<const char*> & vExpression);

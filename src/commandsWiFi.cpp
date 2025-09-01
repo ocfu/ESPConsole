@@ -319,6 +319,7 @@ void cmd_syslog(CxStrToken &tkArgs) {
    //   -P <port>                (default: 514)
    //   -s <severity>            (default: 6 (info))
    //   -f <facility>            (default: 16 (local0))
+   //   -M                       (enable metrics)
 
    const char* szMessage = TKTOCHAR(tkArgs, 1);
    if (!szMessage) {
@@ -330,6 +331,7 @@ void cmd_syslog(CxStrToken &tkArgs) {
    uint16_t port = (uint16_t) strtol(__console.getVariable("SYSLOG_PORT"), nullptr, 10);
    uint8_t severity = SYSLOG_DEFAULT_SEVERITY;
    uint8_t facility = SYSLOG_DEFAULT_FACILITY;
+   bool bMetrics = false;
 
    for (int8_t i = 2; i < tkArgs.count(); i++) {
       String opt = TKTOCHAR(tkArgs, i);
@@ -345,10 +347,14 @@ void cmd_syslog(CxStrToken &tkArgs) {
       } else if (opt == "-s" && (i + 1) < tkArgs.count()) {
          i++;
          severity = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_SEVERITY);
+      } else if (opt == "-M") {
+         i++;
+         // enable metrics
+         bMetrics = true;
       }
    }
 
-   syslog(szServer, port, szMessage, facility, severity);
+   syslog(szServer, port, szMessage, facility, severity, bMetrics);
 }
 
 // Command table in PROGMEM
@@ -705,39 +711,97 @@ void _handleConnect() {
 #endif
 }
 
-void syslog(const char* syslogServer, uint16_t port, const char* szMessage, uint8_t facility, uint8_t severity) {
-   if (!syslogServer || !szMessage || !*syslogServer || !*szMessage) {
-      return;
-   }
+// void syslog(const char* syslogServer, uint16_t port, const char* szMessage, uint8_t facility, uint8_t severity) {
+//    // RFC 3164
+//     if (!syslogServer || !szMessage || !*syslogServer || !*szMessage) return;
+//     if (WiFi.status() != WL_CONNECTED) return;
 
-   // check, if wifi is connected
-   if (WiFi.status() != WL_CONNECTED) {
-      return;
-   }
+//     WiFiUDP udp;
+//     int pri = facility * 8 + severity;
+
+//     // Small buffer for header
+//     char header[96];
+//     time_t now = time(nullptr);
+//     struct tm* tm_info = localtime(&now);
+//     char timestamp[32];
+//     strftime(timestamp, sizeof(timestamp), "%b %d %H:%M:%S", tm_info);
+//     snprintf(header, sizeof(header), "<%d>%s", pri, timestamp);
+
+//     // Send header, hostname, app name, and message in parts
+//     udp.beginPacket(syslogServer, port);
+//     udp.write((const uint8_t*)header, strlen(header));
+//     udp.write((const uint8_t*)" ", 1);
+//     udp.write((const uint8_t*)__console.getHostName(), strlen(__console.getHostName()));
+//     udp.write((const uint8_t*)" ", 1);
+//     udp.write((const uint8_t *)__console.getAppName(), strlen(__console.getAppName()));
+//     udp.write((const uint8_t *)"@", 1);
+//     udp.write((const uint8_t *)__console.getAppVer(), strlen(__console.getAppVer()));
+//     udp.write((const uint8_t *)": ", 2);
+//     udp.write((const uint8_t*)szMessage, strlen(szMessage));
+//     udp.endPacket();
+// }
+
+void syslog(const char *syslogServer, uint16_t port, const char *szMessage, uint8_t facility, uint8_t severity, bool bMetrics) {
+   // RFC 5424
+   if (!syslogServer || !szMessage || !*syslogServer || !*szMessage) return;
+   if (WiFi.status() != WL_CONNECTED) return;
 
    WiFiUDP udp;
-   // Syslog PRI = <facility*8 + severity>
    int pri = facility * 8 + severity;
 
-    // RFC3164 timestamp: "Mmm dd hh:mm:ss"
-    char timestamp[16];
-    time_t now = time(nullptr);
-    struct tm* tm_info = localtime(&now);
-    strftime(timestamp, sizeof(timestamp), "%b %d %H:%M:%S", tm_info);
+   // RFC5424 timestamp: "YYYY-MM-DDTHH:MM:SSZ"
+   char timestamp[32];
+   time_t now = time(nullptr);
+   struct tm *tm_info = gmtime(&now);  // RFC5424 uses UTC
+   strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", tm_info);
 
-    
-    // Hostname fallback
-    const char* host = __console.getHostName();
+   // Version is always 1 for RFC5424
+   const char *version = "1";
 
-    // Compose syslog message: <PRI>TIMESTAMP HOST TAG: MESSAGE
-    char syslogMsg[384];
-    snprintf(syslogMsg, sizeof(syslogMsg), "<%d>%s %s %s: %s", pri, timestamp, host, __console.getAppName(), szMessage);
-    
-    udp.beginPacket(syslogServer, port);
-    udp.write((const uint8_t*)syslogMsg, strlen(syslogMsg));
-    udp.endPacket();
+   // Hostname, app name, procid, msgid
+   const char *hostname = __console.getHostName();
+   const char *appname = __console.getAppName();
+   const char *appver = __console.getAppVer();
+   const char *msgid = "-";     // No message ID
+
+   char procid[16];
+   snprintf(procid, sizeof(procid), "%d", getChipId());
+
+   // some examples for structured data
+   // [metrics@32473 looptime="250" heap="4" free="1234" fragm="0.03" stack="1024"]
+
+
+   // Send RFC5424 syslog message in sequence
+   udp.beginPacket(syslogServer, port);
+
+   // <PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
+   char priVer[16];
+   snprintf(priVer, sizeof(priVer), "<%d>%s ", pri, version);
+   udp.write((const uint8_t *)priVer, strlen(priVer));
+   udp.write((const uint8_t *)timestamp, strlen(timestamp));
+   udp.write((const uint8_t *)" ", 1);
+   udp.write((const uint8_t *)hostname, strlen(hostname));
+   udp.write((const uint8_t *)" ", 1);
+   udp.write((const uint8_t *)appname, strlen(appname));
+   udp.write((const uint8_t *)"-", 1);  // separator between appname and version
+   udp.write((const uint8_t *)appver, strlen(appver));
+   udp.write((const uint8_t *)" ", 1);
+   udp.write((const uint8_t *)procid, strlen(procid));
+   udp.write((const uint8_t *)" ", 1);
+   udp.write((const uint8_t *)msgid, strlen(msgid));
+   udp.write((const uint8_t *)" ", 1);
+   if (bMetrics) {
+      char structured_data[96];
+      snprintf(structured_data, sizeof(structured_data), "[metrics@%s looptime=\"%d\" free=\"%d\" fragm=\"%u\" stack=\"%d\"]",
+               procid, __console.avglooptime(), g_Heap.available(), g_Heap.fragmentation(), g_Stack.getSize());
+      udp.write((const uint8_t *)structured_data, strlen(structured_data));
+   } else {
+      udp.write((const uint8_t *)"-", 1);
+   }
+   udp.write((const uint8_t *)" ", 1);
+   udp.write((const uint8_t *)szMessage, strlen(szMessage));
+
+   udp.endPacket();
 }
-
-
 
 #endif  // ESP_CONSOLE_NOWIFI
