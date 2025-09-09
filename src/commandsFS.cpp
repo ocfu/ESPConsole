@@ -75,8 +75,7 @@ void cmd_size(CxStrToken& tkArgs) {
 
 // Command ls
 void cmd_ls(CxStrToken& tkArgs) {
-   String strOpt = TKTOCHAR(tkArgs, 1);
-   __console.setExitValue(ls(strOpt == "-a" || strOpt == "-la", strOpt == "-l" || strOpt == "-la"));
+   __console.setExitValue(ls(tkArgs.indexOf("-a") != -1 || tkArgs.indexOf("-la") != -1, tkArgs.indexOf("-l") != -1 || tkArgs.indexOf("-la") != -1));
 }
 
 // Command la
@@ -156,18 +155,7 @@ void cmd_exec(CxStrToken& tkArgs) {
 
 // Command break
 void cmd_break(CxStrToken& tkArgs) {
-   String strCond = TKTOCHAR(tkArgs, 1);
-   strCond.toLowerCase();
-
-   uint8_t nValue = TKTOINT(tkArgs, 2, 0);
-
-   if (strCond == "on" && nValue) {
-      _bBreakBatch = true;
-   } else if (strCond.length() == 0) {  // simple break
-      _bBreakBatch = true;
-   } else {
-      _bBreakBatch = false;
-   }
+   _bBreakBatch = true;
 }
 
 // Command man
@@ -764,8 +752,8 @@ uint8_t executeBatch(const char* path, const char* label, const char* arg) {
       label = "default";
    };
 
-   _CONSOLE_INFO(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
-   if (arg) _CONSOLE_INFO(F("Arguments: %s"), arg);
+   _CONSOLE_DEBUG(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
+   if (arg) _CONSOLE_DEBUG(F("Arguments: %s"), arg);
 
    uint8_t nExitValue = EXIT_FAILURE;
 
@@ -822,11 +810,16 @@ uint8_t executeBatch(const char* path, const char* label, const char* arg) {
             continue;
          }
 
+         // Handle local variables
+         // Local variable are defined without the set command. 
+         // Example:
+         //    myVar = 42
+
          // Check if the line is a variable definition
          char* equalsSign = strchr(buffer, '=');
          if (equalsSign) {
-            static String varName;
-            static String varValue;
+            String varName;
+            String varValue;
 
             // Ensure the equal sign is in the first word
             varName = String(buffer).substring(0, equalsSign - buffer);
@@ -850,21 +843,22 @@ uint8_t executeBatch(const char* path, const char* label, const char* arg) {
          }
 
          // Handle variables in the batch file
-         static String command;
+         String command;
          uint32_t extra_size = 50;  // FIXME: max. length of a variable length (to be determined actually)
 
          command.reserve(strlen(buffer) + extra_size);  // Reserve enough space for the command and potential longer label
          command = buffer;
 
-         // Substitue command with local variables first
+         // Substitue command with local variables
          __console.substituteVariables(command, mapTempVariables, false);
 
          // Substitue command with global variables
-         //__console.substituteVariables(command);
+         //__console.substituteVariables(command);  // (already done at this stage)
 
          if (command.endsWith(":")) {
-            // Check for labels
-            processCommands = ((command == String(label) + ":") || command == "all:");
+            // Check if the command is a label and matches with label argument or with "all:". In case of a match, set processCommands to true
+            // and continue to process the batch file.
+            processCommands = ((command.substring(0, command.length() - 1) == label) || command == "all:");
             continue;
          }
 
@@ -878,9 +872,7 @@ uint8_t executeBatch(const char* path, const char* label, const char* arg) {
                // recursively call executeBatch and not go deeper by calling processCmd, this shall safe stack usage
                nExitValue = executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
             } else {
-               g_Stack.DEBUGPrint(getIoStream(), +1, "processCmd-A");
                nExitValue = __console.processCmd(*__console.getStream(), command.c_str(), 0);  // MARK: getStream needed here?
-               g_Stack.DEBUGPrint(getIoStream(), -1, "processCmd-B");
             }
 
             if (_bBreakBatch) break;

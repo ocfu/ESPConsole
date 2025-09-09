@@ -404,7 +404,7 @@ public:
       if (bClient && !isClientPromptEnabled()) return;
       
       print(ESC_CLEAR_LINE);
-      String strPrompt = _strPrompt;
+      String& strPrompt = _strPrompt;
 
       if (isWiFiClient() || bClient) {
          strPrompt = _strPromptClient;
@@ -648,7 +648,7 @@ public:
    
    void printVariables(Stream& stream) {
       CxTablePrinter table(stream);
-      table.printHeader({"Name", "Value"}, {10, 40});
+      table.printHeader({"Name", "Value"}, {32, 40});
       
       for (const auto& entry : _mapSetVariables) {
          table.printRow({entry.first.c_str(), entry.second.c_str()});
@@ -661,18 +661,17 @@ public:
    }
    
    void substituteVariables(String& str, std::map<String, String>& mapVariables, bool bReplaceIfNotSet = true) {
+      // use of String for readability and minimize code
       int32_t start = 0;
 
       // Perform variable substitution for variables using parenthesis
       while ((start = str.indexOf("$(", start)) != -1) {
          int end = str.indexOf(")", start + 2);
          if (end == -1) break;
-         String varName = str.substring(start + 2, end);
-         auto it = mapVariables.find(varName);
+         auto it = mapVariables.find(str.substring(start + 2, end));
          if (it != mapVariables.end()) {
-            String value = it->second;
-            str = str.substring(0, start) + value + str.substring(end + 1);
-            start += value.length();
+            str = str.substring(0, start) + it->second + str.substring(end + 1);
+            start += it->second.length();
          } else {
             if (bReplaceIfNotSet) {
                str = str.substring(0, start) + str.substring(end + 1);

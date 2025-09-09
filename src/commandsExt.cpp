@@ -70,7 +70,7 @@ void loopExt() {
    /// update led indications, if any
    ledAction();
 
-//   _sensorManager.update();
+   __sensorManager.update();
 
    /// check gpio events
    gpioAction();
@@ -78,12 +78,10 @@ void loopExt() {
 
 // Command gpio
 void cmd_gpio(CxStrToken& tkArgs) {
-   String strSubCmd = TKTOCHAR(tkArgs, 1);
-   uint8_t nPin = TKTOINT(tkArgs, 2, INVALID_PIN);
+   uint8_t nPin = (TKTOINT(tkArgs, 2, INVALID_PIN) < INVALID_PIN) ? TKTOINT(tkArgs, 2, INVALID_PIN) : INVALID_PIN;
    int16_t nValue = TKTOINT(tkArgs, 3, -1);
-   String strValue = TKTOCHAR(tkArgs, 3);
 
-   if (strSubCmd == "state") {
+   if (tkArgs.indexOf("state") == 1) {
       CxTablePrinter table(getIoStream());
 #ifndef MINIMAL_COMMAND_SET
       table.printHeader({F("Pin"), F("Mode"), F("inv"), F("State"), F("PWM"), F("Value")}, {3, 10, 3, 5, 8, 6});
@@ -116,23 +114,23 @@ void cmd_gpio(CxStrToken& tkArgs) {
 #endif
          }
       }
-   } else if (strSubCmd == "set") {
+   } else if (tkArgs.indexOf("set") == 1) {
       if (__gpioTracker.isValidPin(nPin)) {
          CxGPIO gpio(nPin);
          if (nValue < 0) {  // setting the pin mode
-            if (strValue == "in") {
+            if (tkArgs.indexOf("in") == 3) {
                gpio.setPinMode(INPUT);
-            } else if (strValue == "out") {
+            } else if (tkArgs.indexOf("out") == 3) {
                gpio.setPinMode(OUTPUT);
-            } else if (strValue == "pwm") {
+            } else if (tkArgs.indexOf("pwm") == 3) {
                // todo
                __console.println(F("feature is not yet implemented!"));
-            } else if (strValue == "inverted") {
+            } else if (tkArgs.indexOf("inverted") == 3) {
                gpio.setInverted(true);
-            } else if (strValue == "non-inverted") {
+            } else if (tkArgs.indexOf("non-inverted") == 3) {
                gpio.setInverted(false);
-            } else if (strValue == "analog") {
-            } else if (strValue == "virtual") {
+            } else if (tkArgs.indexOf("analog") == 3) {
+            } else if (tkArgs.indexOf("virtual") == 3) {
             } else {
                __console.printf(F("invalid pin mode!"));
                __console.setExitValue(EXIT_FAILURE);
@@ -149,7 +147,7 @@ void cmd_gpio(CxStrToken& tkArgs) {
          __gpioTracker.printInvalidReason(getIoStream(), nPin);
          __console.setExitValue(EXIT_FAILURE);
       }
-   } else if (strSubCmd == "get") {
+   } else if (tkArgs.indexOf("get") == 1) {
       if (__gpioTracker.isValidPin(nPin)) {
          CxGPIO gpio(nPin);
          gpio.printState(getIoStream());
@@ -157,124 +155,123 @@ void cmd_gpio(CxStrToken& tkArgs) {
          __gpioTracker.printInvalidReason(getIoStream(), nPin);
          __console.setExitValue(EXIT_FAILURE);
       }
-   } else if (strSubCmd == "list") {
-      __gpioDeviceManager.printList();      
-   } else if (strSubCmd == "add") {
+   } else if (tkArgs.indexOf("list") == 1) {
+      __gpioDeviceManager.printList();
+   } else if (tkArgs.indexOf("add") == 1) {
       if (nPin != INVALID_PIN) {
-         String strType = TKTOCHAR(tkArgs, 3);
-         String strName = TKTOCHAR(tkArgs, 4);
+         const char* szName = tkArgs.count() > 4 ? TKTOCHAR(tkArgs, 4) : "";
+         const char* szGpioCmd = tkArgs.count() > 6 ? TKTOCHAR(tkArgs, 6) : "";
          bool bInverted = TKTOINT(tkArgs, 5, false);
-         String strGpioCmd = TKTOCHAR(tkArgs, 6);
          bool bPullup = TKTOINT(tkArgs, 7, false);
-         if (strType == "button") {
+         if (tkArgs.indexOf("button") == 3) {
             // FIXME: pointer without proper deletion? even if managed internally? maybe container as for the bme?
             /// TODO: consider dyanmic cast to ensure correct type
             CxButton* pButton = static_cast<CxButton*>(__gpioDeviceManager.getDeviceByPin(nPin));
             if (pButton) {
-               pButton->setName(strName.c_str());
+               pButton->setName(szName);
                pButton->setInverted(bInverted);
-               pButton->setCmd(strGpioCmd.c_str());
+               pButton->setCmd(szGpioCmd);
                pButton->begin();
             } else {
-               if (strGpioCmd == "reset") {
-                  CxButtonReset* p = new CxButtonReset(nPin, strName.c_str(), bInverted, bPullup);
+               if (tkArgs.indexOf("reset") == 6) {
+                  CxButtonReset* p = new CxButtonReset(nPin, szName, bInverted, bPullup);
                   if (p) {
                      p->begin();
                   }
                } else {
-                  CxButton* p = new CxButton(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
+                  CxButton* p = new CxButton(nPin, szName, bInverted, bPullup, szGpioCmd);
                   if (p) {
                      p->begin();
                   }
                }
             }
-         } else if (strType == "led") {
-            if (strName == "led1") {
+         } else if (tkArgs.indexOf("led") == 3) {
+            if (tkArgs.indexOf("led1") == 4) {
                Led1.setPin(nPin);
                Led1.setPinMode(OUTPUT);
-               Led1.setName(strName.c_str());
+               Led1.setName(szName);
                Led1.setInverted(bInverted);
-               Led1.setCmd(strGpioCmd.c_str());
+               Led1.setCmd(szGpioCmd);
                Led1.off();
             } else {
                CxLed* p = static_cast<CxLed*>(__gpioDeviceManager.getDeviceByPin(nPin));
                if (p) {
-                  p->setName(strName.c_str());
+                  p->setName(szName);
                   p->setInverted(bInverted);
-                  p->setCmd(strGpioCmd.c_str());
+                  p->setCmd(szGpioCmd);
                   p->begin();
                   p->off();
                } else {
-                  CxLed* p = new CxLed(nPin, strName.c_str(), bInverted);
+                  CxLed* p = new CxLed(nPin, szName, bInverted);
                   if (p) {
                      // p->setFriendlyName();
                      p->begin();
                   }
                }
             }
-         } else if (strType == "relay") {
+         } else if (tkArgs.indexOf("relay") == 3) {
             /// TODO: consider dyanmic cast to ensure correct type
             CxRelay* pRelay = static_cast<CxRelay*>(__gpioDeviceManager.getDeviceByPin(nPin));
             if (pRelay) {
-               pRelay->setName(strName.c_str());
+               pRelay->setName(szName);
                pRelay->setInverted(bInverted);
-               pRelay->setCmd(strGpioCmd.c_str());
+               pRelay->setCmd(szGpioCmd);
                pRelay->begin();
             } else {
-               CxRelay* p = new CxRelay(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+               CxRelay* p = new CxRelay(nPin, szName, bInverted, szGpioCmd);
                if (p) {
                   p->begin();
                }
             }
-         } else if (strType == "contact") {
+         } else if (tkArgs.indexOf("contact") == 3) {
             CxContact* pContact = static_cast<CxContact*>(__gpioDeviceManager.getDeviceByPin(nPin));
             if (pContact) {
-               pContact->setName(strName.c_str());
+               pContact->setName(szName);
                pContact->setInverted(bInverted);
-               pContact->setCmd(strGpioCmd.c_str());
+               pContact->setCmd(szGpioCmd);
                pContact->begin();
             } else {
-               CxContact* p = new CxContact(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
+               CxContact* p = new CxContact(nPin, szName, bInverted, bPullup, szGpioCmd);
                if (p) {
                   p->begin();
                }
             }
-         } else if (strType == "counter") {
+         } else if (tkArgs.indexOf("counter") == 3) {
             CxCounter* pCounter = static_cast<CxCounter*>(__gpioDeviceManager.getDeviceByPin(nPin));
             if (pCounter) {
-               pCounter->setName(strName.c_str());
+               pCounter->setName(szName);
                pCounter->setInverted(bInverted);
-               pCounter->setCmd(strGpioCmd.c_str());
+               pCounter->setCmd(szGpioCmd);
                pCounter->begin();
             } else {
-               CxCounter* p = new CxCounter(nPin, strName.c_str(), bInverted, bPullup, strGpioCmd.c_str());
+               CxCounter* p = new CxCounter(nPin, szName, bInverted, bPullup, szGpioCmd);
                if (p) {
                   p->begin();
                }
             }
-         } else if (strType == "analog") {
+         } else if (tkArgs.indexOf("analog") == 3) {
             CxAnalog* pAnalog = static_cast<CxAnalog*>(__gpioDeviceManager.getDeviceByPin(nPin));
             if (pAnalog) {
-               pAnalog->setName(strName.c_str());
+               pAnalog->setName(szName);
                pAnalog->setInverted(bInverted);
-               pAnalog->setCmd(strGpioCmd.c_str());
+               pAnalog->setCmd(szGpioCmd);
                pAnalog->setTimer(TKTOINT(tkArgs, 7, 1000));  // default update rate 1s
                pAnalog->begin();
             } else {
-               CxAnalog* p = new CxAnalog(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+               CxAnalog* p = new CxAnalog(nPin, szName, bInverted, szGpioCmd);
                if (p) {
                   p->begin();
                }
             }
-         } else if (strType == "virtual") {
-            CxGPIOVirtual* pVirtual = static_cast<CxGPIOVirtual*>(__gpioDeviceManager.getDeviceByName(strName.c_str()));
+         } else if (tkArgs.indexOf("virtual") == 3) {
+            CxGPIOVirtual* pVirtual = static_cast<CxGPIOVirtual*>(__gpioDeviceManager.getDeviceByName(szName));
             if (pVirtual) {
-               pVirtual->setName(strName.c_str());
+               pVirtual->setName(szName);
                pVirtual->setInverted(bInverted);
-               pVirtual->setCmd(strGpioCmd.c_str());
+               pVirtual->setCmd(szGpioCmd);
                pVirtual->begin();
             } else {
-               CxGPIOVirtual* p = new CxGPIOVirtual(nPin, strName.c_str(), bInverted, strGpioCmd.c_str());
+               CxGPIOVirtual* p = new CxGPIOVirtual(nPin, szName, bInverted, szGpioCmd);
                if (p) {
                   p->begin();
                }
@@ -287,28 +284,28 @@ void cmd_gpio(CxStrToken& tkArgs) {
          __console.println(F("invalid pin!"));
          __console.setExitValue(EXIT_FAILURE);
       }
-   } else if (strSubCmd == "del") {
+   } else if (tkArgs.indexOf("del") == 1) {
       // FIXME: delete command crashes the system
-      String strName = TKTOCHAR(tkArgs, 2);
-      if (strName == "led1") {
+      const char* strName = TKTOCHAR(tkArgs, 2) ? TKTOCHAR(tkArgs, 2) : "";
+      if (tkArgs.indexOf("led1") == 2) {
          Led1.setPin(INVALID_PIN);
          Led1.setName("");
       } else {
-         CxGPIODevice* p = __gpioDeviceManager.getDevice(strName.c_str());
+         CxGPIODevice* p = __gpioDeviceManager.getDevice(strName);
          if (p) {
             delete p;
          } else {
             __console.println(F("device not found!"));
             __console.setExitValue(EXIT_FAILURE);
          }
-         __gpioDeviceManager.removeDevice(strName.c_str());
+         __gpioDeviceManager.removeDevice(strName);
       }
-   } else if (strSubCmd == "name") {
+   } else if (tkArgs.indexOf("name") == 1) {
       if (__gpioTracker.isValidPin(nPin)) {
          CxGPIODevice* p = __gpioDeviceManager.getDeviceByPin(nPin);
          if (p) {
-            p->setFriendlyName(strValue.c_str());
-            p->setName(strValue.c_str());
+            p->setFriendlyName(tkArgs.count() > 3 ? TKTOCHAR(tkArgs, 3) : "");
+            p->setName(tkArgs.count() > 3 ? TKTOCHAR(tkArgs, 3) : "");
          } else {
             __console.println(F("device not found!"));
             __console.setExitValue(EXIT_FAILURE);
@@ -317,7 +314,7 @@ void cmd_gpio(CxStrToken& tkArgs) {
          __console.println(F("invalid pin!"));
          __console.setExitValue(EXIT_FAILURE);
       }
-   } else if (strSubCmd == "fn") {
+   } else if (tkArgs.indexOf("fn") == 1) {
       CxGPIODevice* p = __gpioDeviceManager.getDeviceByPin(nPin);
 
       if (p) {
@@ -327,7 +324,7 @@ void cmd_gpio(CxStrToken& tkArgs) {
          __console.setExitValue(EXIT_FAILURE);
       }
 
-   } else if (strSubCmd == "deb") {
+   } else if (tkArgs.indexOf("deb") == 1) {
       CxGPIODevice* p = __gpioDeviceManager.getDeviceByPin(nPin);
 
       if (p) {
@@ -336,7 +333,7 @@ void cmd_gpio(CxStrToken& tkArgs) {
          __console.println(F("device not found!"));
          __console.setExitValue(EXIT_FAILURE);
       }
-   } else if (strSubCmd == "isr") {
+   } else if (tkArgs.indexOf("isr") == 1) {
       // isr <pin> <id> [<debounce time>]
       CxGPIODevice* p = __gpioDeviceManager.getDeviceByPin(nPin);
       if (p) {
@@ -350,28 +347,23 @@ void cmd_gpio(CxStrToken& tkArgs) {
             table.printRow({String(i).c_str(), String(g_anEdgeCounter[i]).c_str(), String(g_anDebounceDelay[i]).c_str()});
          }
       }
-   } else if (strSubCmd == "let" && tkArgs.count() > 4) {
-      String strOperator = TKTOCHAR(tkArgs, 3);
+   } else if (tkArgs.indexOf("let") == 1 && tkArgs.count() > 4) {
       CxGPIODevice* dev1 = __gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 2));
       CxGPIODevice* dev2 = __gpioDeviceManager.getDevice(TKTOCHAR(tkArgs, 4));
 
-      if (strOperator == "=") {
+      if (tkArgs.indexOf("=") == 3) {
          if (dev1 && dev2) {
             dev1->set(dev2->get());
          } else if (dev1) {
-            String strValue = TKTOCHAR(tkArgs, 4);
+            const char* szValue = TKTOCHAR(tkArgs, 4);
             uint32_t nValue = INVALID_UINT32;
             char* end = nullptr;
 
-            if (strValue.startsWith("$")) {  // we need this? substitution done on higher level actually
-               __console.substituteVariables(strValue);
-            }
-
-            nValue = (uint32_t)std::strtol(strValue.c_str(), &end, 0);  // return as uint32_t with auto base
+            nValue = (uint32_t)std::strtol(szValue, &end, 0);  // return as uint32_t with auto base
 
             // Check if the conversion failed (no characters processed or out of range)
-            if (!end || end == strValue.c_str() || *end != '\0') {
-               __console.error(F("cannot assign the value %s to %s (not a number)"), strValue.c_str(), dev1->getName());
+            if (!end || end == szValue || *end != '\0') {
+               __console.error(F("cannot assign the value %s to %s (not a number)"), szValue, dev1->getName());
             } else {
                dev1->set((bool)nValue);  // MARK: currently only bool is supported
             }
@@ -396,12 +388,11 @@ void help_gpio() {
    __console.println(F("  fn <pin> <friendly_name> - set friendly name for the pin (alias)"));
    __console.println(F("  deb <pin> <debounce_time> - set debounce time for the pin in ms (default is 100ms)"));
    __console.println(F("  isr <pin> <id> [debounce_time] - set ISR for the pin with id (0-2) and optional debounce time in ms (default is 100ms)"));
-   __console.println(F("  let <var_name> = <value|device_name> - assign value to variable or device state to variable"));
+   __console.println(F("  let <gpio name> = <value|gpio_name|var name> - assign value to variable or device state to variable"));
 }
 
 void cmd_led(CxStrToken& tkArgs) {
-   String strSubCmd = TKTOCHAR(tkArgs, 1);
-   uint8_t nIndexOffset = 0;
+   uint8_t nCmdIndex = 1;
 
    // Default to Led1 if no specific LED is specified by its name (led <name> | <subcommand> ...)
    CxLed* led = &Led1;
@@ -410,62 +401,57 @@ void cmd_led(CxStrToken& tkArgs) {
    CxLed* p = static_cast<CxLed*>(__gpioDeviceManager.getDeviceByName(TKTOCHAR(tkArgs, 1)));
    if (p) {
       led = p;
-      strSubCmd = TKTOCHAR(tkArgs, 2);
-      nIndexOffset = 1;
+      nCmdIndex = 2;
    }
 
-   strSubCmd.toLowerCase();
-
-   if (strSubCmd == "on") {
+   if (tkArgs.indexOf("on") == nCmdIndex) {
       led->on();
-   } else if (strSubCmd == "off") {
+   } else if (tkArgs.indexOf("off") == nCmdIndex) {
       led->off();
-   } else if (strSubCmd == "blink") {
-      String strPattern = TKTOCHAR(tkArgs, 2 + nIndexOffset);
-      if (strPattern == "ok") {
+   } else if (tkArgs.indexOf("blink") == nCmdIndex) {
+      if (tkArgs.indexOf("ok") == nCmdIndex + 1) {
          led->blinkOk();
-      } else if (strPattern == "error") {
+      } else if (tkArgs.indexOf("error") == nCmdIndex + 1) {
          led->blinkError();
-      } else if (strPattern == "busy") {
+      } else if (tkArgs.indexOf("busy") == nCmdIndex + 1) {
          led->blinkBusy();
-      } else if (strPattern == "flash") {
+      } else if (tkArgs.indexOf("flash") == nCmdIndex + 1) {
          led->blinkFlash();
-      } else if (strPattern == "data") {
+      } else if (tkArgs.indexOf("data") == nCmdIndex + 1) {
          led->blinkData();
-      } else if (strPattern == "wait") {
+      } else if (tkArgs.indexOf("wait") == nCmdIndex + 1) {
          led->blinkWait();
-      } else if (strPattern == "connect") {
+      } else if (tkArgs.indexOf("connect") == nCmdIndex + 1) {
          led->blinkConnect();
       } else {
-         led->setBlink(TKTOINT(tkArgs, 2 + nIndexOffset, 1000), TKTOINT(tkArgs, 3 + nIndexOffset, 128));
+         led->setBlink(TKTOINT(tkArgs, nCmdIndex + 1, 1000), TKTOINT(tkArgs, nCmdIndex + 2, 128));
       }
-   } else if (strSubCmd == "flash") {
-      String strPattern = TKTOCHAR(tkArgs, 2 + nIndexOffset);
-      if (strPattern == "ok") {
+   } else if (tkArgs.indexOf("flash") == nCmdIndex) {
+      if (tkArgs.indexOf("ok") == nCmdIndex + 1) {
          led->flashOk();
-      } else if (strPattern == "error") {
+      } else if (tkArgs.indexOf("error") == nCmdIndex + 1) {
          led->flashError();
-      } else if (strPattern == "busy") {
+      } else if (tkArgs.indexOf("busy") == nCmdIndex + 1) {
          led->flashBusy();
-      } else if (strPattern == "flash") {
+      } else if (tkArgs.indexOf("flash") == nCmdIndex + 1) {
          led->flashFlash();
-      } else if (strPattern == "data") {
+      } else if (tkArgs.indexOf("data") == nCmdIndex + 1) {
          led->flashData();
-      } else if (strPattern == "wait") {
+      } else if (tkArgs.indexOf("wait") == nCmdIndex + 1) {
          led->flashWait();
-      } else if (strPattern == "connect") {
+      } else if (tkArgs.indexOf("connect") == nCmdIndex + 1) {
          led->flashConnect();
       } else {
-         led->setFlash(TKTOINT(tkArgs, 2 + nIndexOffset, 250), TKTOINT(tkArgs, 3 + nIndexOffset, 128), TKTOINT(tkArgs, 4 + nIndexOffset, 1));
+         led->setFlash(TKTOINT(tkArgs, nCmdIndex + 1, 250), TKTOINT(tkArgs, nCmdIndex + 2, 128), TKTOINT(tkArgs, nCmdIndex + 3, 1));
       }
-   } else if (strSubCmd == "invert") {
-      if (tkArgs.count() > 2 + nIndexOffset) {
-         led->setInverted(TKTOINT(tkArgs, 2 + nIndexOffset, false));
+   } else if (tkArgs.indexOf("invert") == nCmdIndex) {
+      if (tkArgs.count() > nCmdIndex + 1) {
+         led->setInverted(TKTOINT(tkArgs, nCmdIndex + 1, false));
       } else {
          led->setInverted(!led->isInverted());
          led->toggle();
       }
-   } else if (strSubCmd == "toggle") {
+   } else if (tkArgs.indexOf("toggle") == nCmdIndex) {
       led->toggle();
    } 
 }
@@ -483,10 +469,9 @@ void help_led() {
 
 // Command sensor
 void cmd_sensor(CxStrToken& tkArgs) {
-   String strSubCmd = TKTOCHAR(tkArgs, 1);
-   if (strSubCmd == "list") {
+   if (tkArgs.indexOf("list") == 1) {
       __sensorManager.printList();
-   } else if (strSubCmd == "name") {
+   } else if (tkArgs.indexOf("name") == 1) {
       uint8_t nId = TKTOINT(tkArgs, 2, INVALID_UINT8);
       if (nId != INVALID_UINT8) {
          __sensorManager.setSensorName(nId, TKTOCHAR(tkArgs, 3));
@@ -494,27 +479,26 @@ void cmd_sensor(CxStrToken& tkArgs) {
          __console.println(F("usage: sensor name <id> <name>"));
          __console.setExitValue(EXIT_FAILURE);
       }
-   } else if (strSubCmd == "get") {
+   } else if (tkArgs.indexOf("get") == 1) {
       float f = __sensorManager.getSensorValueFloat(TKTOFLOAT(tkArgs, 2, INVALID_FLOAT));
       if (!std::isnan(f)) {
          __console.println(f);
          __console.setOutputVariable(f);
       } else {
-         __console.println(F("invalid sensor id!"));
+         __console.println(F("invalid sensor id or value!"));
       }
-   } else if (strSubCmd == "add" && tkArgs.count() > 5) {
-      // sensor add <name> <type> <unit> <variable>
-      String strVar = TKTOCHAR(tkArgs, 5);
+   } else if (tkArgs.indexOf("add") == 1 && tkArgs.count() > 5) {
+      // sensor add <name> <type> <unit> <variable> [friendly nama]
       CxSensor* pSensor = __sensorManager.getSensor(TKTOCHAR(tkArgs, 2));
 
       if (pSensor) {
       } else {
-         String strType = TKTOCHAR(tkArgs, 3);
-         pSensor = new CxSensorGeneric(TKTOCHAR(tkArgs, 2), ECSensorType::other, TKTOCHAR(tkArgs, 4), [strVar]() -> float {
-            if (strVar.length() > 0) {
+         pSensor = new CxSensorGeneric(TKTOCHAR(tkArgs, 2), ECSensorType::other, TKTOCHAR(tkArgs, 4), [](String& strParam) -> float {
+            // Generic sensor callback. Value is read from a variable.
+            if (strParam.length() > 0) {
                float fValue = 0.0F;
                char* end = nullptr;
-               const char* szValue = __console.getVariable(strVar.c_str());
+               const char* szValue = __console.getVariable(strParam.c_str());
                if (szValue) {
                   fValue = std::strtod(szValue, &end);  // return as uint32_t with auto base
                }
@@ -524,14 +508,13 @@ void cmd_sensor(CxStrToken& tkArgs) {
                   return fValue;
                }
             }
-            return INVALID_FLOAT;
-         });
+            return INVALID_FLOAT; }, TKTOCHAR(tkArgs, 5));
          if (pSensor) {
-            pSensor->setTypeSz(strType.c_str());
+            pSensor->setTypeSz(TKTOCHAR(tkArgs, 3));
             pSensor->setFriendlyName(TKTOCHAR(tkArgs, 6));
          }
       }
-   } else if (strSubCmd == "del") {
+   } else if (tkArgs.indexOf("del") == 1) {
       __sensorManager.removeSensor(TKTOCHAR(tkArgs, 2));
    }
 }
@@ -547,31 +530,26 @@ void help_sensor() {
 
 // Command relay
 void cmd_relay(CxStrToken& tkArgs) {
-   String strName = TKTOCHAR(tkArgs, 1);
-   String strSubCmd = TKTOCHAR(tkArgs, 2);
-   strSubCmd.toLowerCase();
 
-   CxGPIODevice* pDev = __gpioDeviceManager.getDevice(strName.c_str());
+   CxGPIODevice* pDev = __gpioDeviceManager.getDevice(tkArgs.count() > 1 ? TKTOCHAR(tkArgs, 1) : "");
 
-   if (strName == "list") {
+   if (tkArgs.indexOf("list") == 1) {
       __gpioDeviceManager.printList("relay");
    } else if (pDev) {
-      String strType = pDev->getTypeSz();
-
-      if (strType != "relay") {
+      if (pDev->getTypeSz() && strcmp(pDev->getTypeSz(), "relay") != 0) {
          __console.println(F("device is not a relay!"));
       } else {
-         CxRelay* p = static_cast<CxRelay*>(__gpioDeviceManager.getDevice(strName.c_str()));
+         CxRelay* p = static_cast<CxRelay*>(pDev);
 
-         if (strSubCmd == "on") {
+         if (tkArgs.indexOf("on") == 2) {
             p->on();
-         } else if (strSubCmd == "off") {
+         } else if (tkArgs.indexOf("off") == 2) {
             p->off();
-         } else if (strSubCmd == "toggle") {
+         } else if (tkArgs.indexOf("toggle") == 2) {
             p->toggle();
-         } else if (strSubCmd == "offtimer") {
+         } else if (tkArgs.indexOf("offtimer") == 2) {
             p->setOffTimer(TKTOINT(tkArgs, 3, 0));
-         } else if (strSubCmd == "default") {
+         } else if (tkArgs.indexOf("default") == 2) {
             p->setDefaultOn(TKTOINT(tkArgs, 3, 0));
          } else {
             __console.println(F("invalid relay command"));
@@ -667,8 +645,7 @@ void cmd_min(CxStrToken& tkArgs) {
 
 // Command processdata
 void cmd_processdata(CxStrToken& tkArgs) {
-   String strType = TKTOCHAR(tkArgs, 1);
-   if (strType == "json" && tkArgs.count() > 3) {
+   if (tkArgs.indexOf("json") == 1 && tkArgs.count() > 3) {
       if (!__mapProcessJsonDataItems.size()) {
          // register processdata method with the first set data item
          __console.setFuncProcessData([](const char* data) -> bool {
@@ -711,7 +688,7 @@ void cmd_processdata(CxStrToken& tkArgs) {
          });
       }
       __mapProcessJsonDataItems[TKTOCHAR(tkArgs, 2)] = TKTOCHAR(tkArgs, 3);
-   } else if (strType == "list") {
+   } else if (tkArgs.indexOf("list") == 1) {
       CxTablePrinter table(getIoStream());
       table.printHeader({F("Json Path"), F("Command")}, {20, 40});
       for (const auto& pair : __mapProcessJsonDataItems) {

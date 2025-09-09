@@ -1,13 +1,15 @@
 #include "commands.h"
 
+// Note: The help_ functions provide usage information for each command.
+// If ESP_CONSOLE_FS is defined, help is available via man pages (file: man.man); otherwise, help_ functions are compiled and used for command help output.
+
 #include "tools/espmath.h"  // for ExprParser
 
 // Command function to reboot the device
 void cmd_reboot(CxStrToken &tkArgs) {
-   String opt = TKTOCHAR(tkArgs, 1);
 
    // force reboot
-   if (opt == "-f") {
+   if (tkArgs.indexOf("-f") != -1) {
       reboot();
    } else {
       // Optionally handle non-force reboot here
@@ -30,32 +32,29 @@ void cmd_prompt(CxStrToken &tkArgs) {
    // prompt [-OFF/ON]
 
    bool bClient = false;
-   if (TKTOCHAR(tkArgs, 1)) {
+   if (tkArgs.count() > 1) {
       String strPrompt;
-      String strOpt = TKTOCHAR(tkArgs, 1);
-      uint8_t i = 1;  // index for the prompt string
-
-      if (strOpt == "-CL") {
-         i++;
+ 
+      if (tkArgs.indexOf("-CL") > -1) {
          bClient = true;
-         strOpt = TKTOCHAR(tkArgs, i);
       }
 
-      if (strOpt == "-OFF") {
-         i++;
+      if (tkArgs.indexOf("-OFF") > -1) {
          if (bClient) {
             __console.enableClientPrompt(false);
          } else {
             __console.enablePrompt(false);
          }
-      } else if (strOpt == "-ON") {
-         i++;
+      } else if (tkArgs.indexOf("-ON") > -1) {
          if (bClient) {
             __console.enableClientPrompt(true);
          } else {
             __console.enablePrompt(true);
          }
       }
+
+      // take the last token as the prompt string
+      uint8_t i = tkArgs.count() - 1;
 
       if (TKTOCHAR(tkArgs, i)) {
          strPrompt.reserve(50);
@@ -73,7 +72,7 @@ void cmd_prompt(CxStrToken &tkArgs) {
          } else {
             __console.setPrompt(strPrompt.c_str());
          }
-      }
+      } 
    }
    __console.prompt(bClient);
 }
@@ -96,11 +95,10 @@ void cmd_wlcm(CxStrToken &tkArgs) {
 void cmd_info(CxStrToken &tkArgs) {
    // Print system information
    if (tkArgs.count() > 1) {
-      String strSubCmd = TKTOCHAR(tkArgs, 1);
-      if (strSubCmd == "reason") {
+      if (tkArgs.indexOf("reason") == 1) {
          __console.println(::getResetInfo());
          __console.setOutputVariable(::getResetInfo());
-      } else if (strSubCmd == "last") {
+      } else if (tkArgs.indexOf("last") == 1) {
          if (!isQuiet()) {  // FIXME: workaroung as the
                             // print function ignores @echo
                             // off
@@ -108,7 +106,7 @@ void cmd_info(CxStrToken &tkArgs) {
             __console.println();
          }
          __console.setOutputVariable(__console.getStartTime());
-      } else if (strSubCmd == "up") {
+      } else if (tkArgs.indexOf("up") == 1) {
          __console.println((int32_t)__console.getUpTimeSeconds());
          __console.setOutputVariable((int32_t)__console.getUpTimeSeconds());
       }
@@ -137,9 +135,18 @@ void cmd_uptime(CxStrToken &tkArgs) {
 
 // Command set
 void cmd_set(CxStrToken &tkArgs) {
+   // set <name>[[/<prec>] [<value>] | [ = <expr>]
+   // examples:
+   // set foo/2 42.12
+   // set foo = 42
+   // set foo/1 = 42.5 * $x
+   // set foo "hello world"
+   // Use of the equal sign expects a numeric expression. Strings are set without the equal sign.
+
+   // MARK: room for improvement of mem usage here using standard c-strings vs. readability of the code
+
    String strVar = TKTOCHAR(tkArgs, 1);
    uint8_t prec = 0;
-   String strOp1 = TKTOCHAR(tkArgs, 2);
    bool bIsExpr = false;
 
    String strValue;
@@ -150,23 +157,27 @@ void cmd_set(CxStrToken &tkArgs) {
 
    bool bSuccess = false;
 
-   if (strOp1 != "=") {
-      strValue = TKTOCHARAFTER(tkArgs, 2);
-   } else {
+   // Check if the operation is an assignment
+   if (tkArgs.indexOf("=") == 2) {
       strValue = TKTOCHARAFTER(tkArgs, 3);
       bIsExpr = true;
+   } else {
+      strValue = TKTOCHARAFTER(tkArgs, 2);
    }
+
+   // Check for precision
    int32_t nPrecIndex = strVar.indexOf("/");
    if (nPrecIndex > 0) {
       prec = strVar.substring(nPrecIndex + 1).toInt();
       strVar = strVar.substring(0, nPrecIndex);
    }
 
-   if (strVar == "TZ") {
+   // Check for system variables
+   if (strVar == "TZ") {  // Time Zone
       __console.setTimeZone(strValue.c_str());
       __console.addVariable(strVar.c_str(), strValue.c_str());
       bSuccess = true;
-   } else if (strVar == "BUF") {
+   } else if (strVar == "BUF") { // Input Buffer Size for the console
       uint32_t nBufLen = (uint32_t)strValue.toInt();
       if (nBufLen >= 64) {
          __console.setCmdBufferLen(nBufLen);
@@ -174,8 +185,10 @@ void cmd_set(CxStrToken &tkArgs) {
          bSuccess = true;
       }
    } else if (strVar.length() > 0) {
+      // user defined variables
       bool bValid = true;
 
+      // Evaluate the expression
       if (bIsExpr) {
          ExprParser parser;
          float fValue = 0.0F;
@@ -191,16 +204,18 @@ void cmd_set(CxStrToken &tkArgs) {
 
       strValue.trim();
 
+      // Add or remove the variable to the variable list
       if (strValue.length() > 0) {
          __console.addVariable(strVar.c_str(), strValue.c_str());
       } else {
          __console.removeVariable(strVar.c_str());
       }
+      // "?" is the exit variable and shall not be set by the user
       if (strVar != "?") {
          bSuccess = bValid;
       }
    } else {
-      /// print all variables
+      // print all variables
       __console.printVariables(getIoStream());
       bSuccess = true;
    }
@@ -257,18 +272,23 @@ void cmd_frag(CxStrToken &tkArgs) {
 
 // Command stack
 void cmd_stack(CxStrToken &tkArgs) {
-   String strSubCmd = TKTOCHAR(tkArgs, 1);
-   strSubCmd.toLowerCase();
-
-   if (strSubCmd == "on") {
-      g_Stack.enableDebugPrint(true);
-   } else if (strSubCmd == "off") {
-      g_Stack.enableDebugPrint(false);
-   } else if (strSubCmd == "low") {
-      __console.setOutputVariable((uint32_t)g_Stack.getLow());
-   } else if (strSubCmd == "high") {
-      __console.setOutputVariable((uint32_t)g_Stack.getHigh());
+   
+   if (tkArgs.count() > 1) {
+      if (tkArgs.indexOf("on") == 1) {
+         g_Stack.enableDebugPrint(true);
+         return;
+      } else if (tkArgs.indexOf("off") == 1) {
+         g_Stack.enableDebugPrint(false);
+         return;
+      } else if (tkArgs.indexOf("low") == 1) {
+         __console.setOutputVariable((uint32_t)g_Stack.getLow());
+         return;
+      } else if (tkArgs.indexOf("high") == 1) {
+         __console.setOutputVariable((uint32_t)g_Stack.getHigh());
+         return;
+      }
    } else {
+      // No specific sub-command given, print stack info and set output variable
       if (!isQuiet()) {  // FIXME: workaround, as the print
                          // function ignores
                          // @echo off
@@ -383,63 +403,66 @@ void cmd_echo(CxStrToken &tkArgs) {
 
 // Command @echo
 void cmd_echo_off(CxStrToken &tkArgs) {
-   if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
-      __console.setEcho(false);
-   } else if (strncmp(TKTOCHAR(tkArgs, 1), "on", 2) == 0) {
-      __console.setEcho(true);
+   if (tkArgs.count() > 1) {
+      if (strncmp(TKTOCHAR(tkArgs, 1), "off", 3) == 0) {
+         __console.setEcho(false);
+      } else if (strncmp(TKTOCHAR(tkArgs, 1), "on", 2) == 0) {
+         __console.setEcho(true);
+      }
    }
 }
 
 // Command timer
 void cmd_timer(CxStrToken &tkArgs) {
-   // timer add <period>|<cron> <cmd> [<id> [<mode>]]
+   // timer add <period>[unit]|<cron> <cmd> [<id> [<mode>]]
    // timer del [id]
    // cmd: command to execute
    // id: id of the timer. without id the timer runs one
    // time, with id the timer repeats
-   String strSubCmd = TKTOCHAR(tkArgs, 1);
+   // cron example: "0 0 * * *"
+   // time example: "1000", "1s", "1d"
 
-   if (strSubCmd == "add") {
-      // add a timer
-      if (tkArgs.count() > 3) {
-         String strTime = TKTOCHAR(tkArgs, 2);
-         bool bCron = (strTime.indexOf(' ') != -1);
-         uint32_t nPeriod = __console.convertToMilliseconds(strTime.c_str());
-         uint8_t nMode = 0;  // once
-         if (bCron || (nPeriod > 100 && nPeriod <= 7 * 24 * 3600 * 1000)) {
-            CxTimer *pTimer;
-            if (bCron) {
-               pTimer = new CxTimerCron(strTime.c_str());
-            } else {
-               pTimer = new CxTimer();
-            }
-            if (pTimer) {
-               if (TKTOCHAR(tkArgs, 4)) {  // id
-                  pTimer->setId(TKTOCHAR(tkArgs, 4));
-                  nMode = bCron ? 2 : 1;  // id is set -> repeat timer
+   if (tkArgs.count() > 1) {
+      if (tkArgs.indexOf("add") == 1) {
+         // add a timer
+         if (tkArgs.count() > 3) {
+            String strTime = TKTOCHAR(tkArgs, 2);
+            bool bCron = (strTime.indexOf(' ') != -1);
+            uint32_t nPeriod = __console.convertToMilliseconds(strTime.c_str());
+            uint8_t nMode = 0;  // once
+            if (bCron || (nPeriod > 100 && nPeriod <= 7 * 24 * 3600 * 1000)) {
+               CxTimer *pTimer;
+               if (bCron) {
+                  pTimer = new CxTimerCron(strTime.c_str());
+               } else {
+                  pTimer = new CxTimer();
                }
+               if (pTimer) {
+                  if (TKTOCHAR(tkArgs, 4)) {  // id
+                     pTimer->setId(TKTOCHAR(tkArgs, 4));
+                     nMode = bCron ? 2 : 1;  // id is set -> repeat timer
+                  }
 
-               if (TKTOCHAR(tkArgs, 5)) {  // mode
-                  String strMode = TKTOCHAR(tkArgs, 5);
-                  if (strMode == "once") nMode = 0;
-                  if (strMode == "repeat") nMode = 1;
-                  if (strMode == "replace") {
-                     CxTimer *p = __console.getTimer(TKTOCHAR(tkArgs, 4));
-                     if (p) {
-                        nMode = p->getMode();
-                        __console.delTimer(TKTOCHAR(tkArgs, 4));
+                  if (TKTOCHAR(tkArgs, 5)) {  // mode
+                     if (tkArgs.indexOf("once") == 5) nMode = 0;
+                     if (tkArgs.indexOf("repeat") == 5) nMode = 1;
+                     if (tkArgs.indexOf("replace") == 5) {
+                        CxTimer *p = __console.getTimer(TKTOCHAR(tkArgs, 4));
+                        if (p) {
+                           nMode = p->getMode();
+                           __console.delTimer(TKTOCHAR(tkArgs, 4));
+                        }
                      }
                   }
-               }
 
-               if (__console.addTimer(pTimer)) {
-                  if (bCron) {
-                     __console.info(F("add timer %s, at %s, cmd %s"), pTimer->getId(), strTime.c_str(), TKTOCHAR(tkArgs, 3));
-                  } else {
-                     __console.info(F("add timer %s, period %d ms, mode %d, cmd %s"), pTimer->getId(), nPeriod, nMode, TKTOCHAR(tkArgs, 3));
-                  }
-                  pTimer->setCmd(TKTOCHAR(tkArgs, 3));
-                  pTimer->start(nPeriod, [pTimer](const char *szCmd) {
+                  if (__console.addTimer(pTimer)) {
+                     if (bCron) {
+                        __console.info(F("add timer %s, at %s, cmd %s"), pTimer->getId(), strTime.c_str(), TKTOCHAR(tkArgs, 3));
+                     } else {
+                        __console.info(F("add timer %s, period %d ms, mode %d, cmd %s"), pTimer->getId(), nPeriod, nMode, TKTOCHAR(tkArgs, 3));
+                     }
+                     pTimer->setCmd(TKTOCHAR(tkArgs, 3));
+                     pTimer->start(nPeriod, [pTimer](const char *szCmd) {
                          __console.processCmd(szCmd);
                          // if the timer is set to once,
                          // remove it
@@ -449,29 +472,33 @@ void cmd_timer(CxStrToken &tkArgs) {
                                            pTimer->getId());
                             __console.delTimer(pTimer->getId());
                          } }, (nMode == 0));
-               } else {
-                  __console.error(F("could not add timer %s! (existing or too many timers)"), pTimer->getId());
-                  delete pTimer;
-                  __console.setExitValue(EXIT_FAILURE);
+                  } else {
+                     __console.error(F("could not add timer %s! (existing or too many timers)"), pTimer->getId());
+                     delete pTimer;
+                     __console.setExitValue(EXIT_FAILURE);
+                  }
                }
+            } else {
+               __console.error(F("invalid time for timer"));
+               __console.setExitValue(EXIT_FAILURE);
             }
          } else {
-            __console.error(F("invalid time for timer"));
+            __console.error(F("not enough arguments for timer add!"));
             __console.setExitValue(EXIT_FAILURE);
-         }
-      } else {
-         __console.error(F("not enough arguments for timer add!"));
-         __console.setExitValue(EXIT_FAILURE);
-      }  // count
-   } else if (strSubCmd == "del") {
-      __console.delTimer(TKTOCHAR(tkArgs, 2));
-   } else if (strSubCmd == "stop") {
-      __console.stopTimer(TKTOCHAR(tkArgs, 2));
-   } else if (strSubCmd == "start") {
-      __console.startTimer(TKTOCHAR(tkArgs, 2));
-   } else if (strSubCmd == "list") {
-      // list all timers
-      __console.printTimers(getIoStream());
+         }  // count
+      } else if (tkArgs.indexOf("del") == 1) {
+         // Handle del sub-command
+         __console.delTimer(TKTOCHAR(tkArgs, 2));
+      } else if (tkArgs.indexOf("stop") == 1) {
+         // Handle stop sub-command
+         __console.stopTimer(TKTOCHAR(tkArgs, 2));
+      } else if (tkArgs.indexOf("start") == 1) {
+         // Handle start sub-command
+         __console.startTimer(TKTOCHAR(tkArgs, 2));
+      } else if (tkArgs.indexOf("list") == 1) {
+         // Handle list sub-command
+         __console.printTimers(getIoStream());
+      }
    }
 }
 
@@ -815,8 +842,7 @@ bool executeInTable(const char *cmd, CxStrToken &tkArgs, const CommandEntry *cmd
       strcpy(entryName, cmds[i].name);
 #endif
       if (strcmp(cmd, entryName) == 0) {
-         String strArg1 = TKTOCHAR(tkArgs, 1);
-         if (strArg1 == "-h") {
+         if (tkArgs.indexOf("-h") != -1) {
             printHelp(entryName, cmds, numCmds);
             return true;
          }
@@ -841,16 +867,13 @@ bool execute(const char *szCmd, uint8_t nClient) {
    CxStrToken tkArgs(szCmd, " ");
 
    // we have a command, find the action to take
-   String cmd = TKTOCHAR(tkArgs, 0);
+   const char* cmd = TKTOCHAR(tkArgs, 0);
 
-   // removes heading and trailing white spaces
-   cmd.trim();
-
-   if (cmd.length() == 0) {
+   if (!cmd || cmd[0] == '\0') {
       return true;
    }
 
-   if (cmd == "?" || cmd == "help" || cmd == "commands") {
+   if (tkArgs.indexOf("?") != -1 || tkArgs.indexOf("help") != -1) {
       __console.println(F(ESC_ATTR_BOLD "Available commands:" ESC_ATTR_RESET));
       printCommands(commands, NUM_COMMANDS, " Core");
 #ifdef ESP_CONSOLE_WIFI
@@ -866,24 +889,24 @@ bool execute(const char *szCmd, uint8_t nClient) {
    }
 
    // Try core commands
-   if (executeInTable(cmd.c_str(), tkArgs, commands, NUM_COMMANDS)) {
+   if (executeInTable(cmd, tkArgs, commands, NUM_COMMANDS)) {
       return true;
    }
 #ifdef ESP_CONSOLE_WIFI
    // Try WiFi commands
-   if (executeInTable(cmd.c_str(), tkArgs, commandsWiFi, NUM_COMMANDS_WIFI)) {
+   if (executeInTable(cmd, tkArgs, commandsWiFi, NUM_COMMANDS_WIFI)) {
       return true;
    }
 #endif /* ESP_CONSOLE_WIFI */
 #ifdef ESP_CONSOLE_EXT
    // Try extended commands
-   if (executeInTable(cmd.c_str(), tkArgs, commandsExt, NUM_COMMANDS_EXT)) {
+   if (executeInTable(cmd, tkArgs, commandsExt, NUM_COMMANDS_EXT)) {
       return true;
    }
 #endif /* ESP_CONSOLE_EXT */
 #ifdef ESP_CONSOLE_FS
    // Try filesystem commands
-   if (executeInTable(cmd.c_str(), tkArgs, commandsFS, NUM_COMMANDS_FS)) {
+   if (executeInTable(cmd, tkArgs, commandsFS, NUM_COMMANDS_FS)) {
       return true;
    }
 #endif /* ESP_CONSOLE_FS */

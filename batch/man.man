@@ -227,15 +227,33 @@ echo
 #
 timer:
 echo "$(USAGE) <command> [<parameters>]"
-echo "  Sets the exit value $? to 0 (true) or 1 (false) if the command fails."
+echo "Timer utility. It manages multiple timers."
+echo "Max. 8 timers, max. 7 days are allowed"
+echo "The exit value $? will be set to 0 (true) or 1 (false) if the command fails."
 echo
 echo "$(COMMANDS)"
-echo "  add <period>|<cron> <cmd> [<id> [<mode>]]  | max. 8 timers, max. 7 days, mode: once, repeat, replace"
+echo "  add <period>[unit]|<cron> <cmd> [<id> [<mode>]]"
 echo "  del <id>"
 echo "  start <id>"
 echo "  stop <id>"
 echo "  list"
-
+echo 
+echo "Unit:"
+echo "  s    seconds"
+echo "  m    minutes"
+echo "  h    hours"
+echo "  d    days"
+echo "  default is milliseconds"
+echo
+echo "Cron:"
+echo "  <minute> <hour> <day of month> <month> <day of week>"
+echo "  The cron format is based on the standard crontab format and need to be set in quotes."
+echo "  Example: 0 12 * * 1-5"
+echo
+echo "Mode (ignored for cron timers):"
+echo "  once      Execute the command once"
+echo "  repeat    Execute the command repeatedly"
+echo "  replace   Replace the existing timer"
 
 #
 # test

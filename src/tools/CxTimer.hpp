@@ -72,7 +72,7 @@ public:
 
    void setCmd(const char* cmd) {__strCmd = cmd;}
    const char* getCmd() {return __strCmd.c_str();}
-   const char* getModeSz() {return _bHoldAfterDue ? "once" : "repeat";}
+   const char* getModeSz() {return __isCron ? "cron" : (_bHoldAfterDue ? "once" : "repeat");}
    uint8_t getMode() {return _bHoldAfterDue ? 0 : 1;}
    uint32_t getRemain() {return _nPeriod - ((uint32_t)millis() - _last);}
    

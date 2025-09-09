@@ -252,6 +252,18 @@ class CxStrToken {
    void reset() const {
       _currentIndex = 0;
    }
+
+   // Returns the index of the token matching 'needle', or -1 if not found
+   int8_t indexOf(const char* needle) const {
+      if (!needle) return -1;
+      for (uint8_t i = 0; i < _nCount; ++i) {
+         if (_aszTokens[i] && strcmp(_aszTokens[i], needle) == 0) {
+            return i;
+         }
+      }
+      return -1;
+   }
+
 };
 
 #define MAX_DELIMITERS 3

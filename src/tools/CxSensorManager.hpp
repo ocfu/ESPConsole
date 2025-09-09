@@ -260,10 +260,11 @@ public:
  * It uses a callback function to read sensor values.
  */
 class CxSensorGeneric : public CxSensor {
-   std::function<float()> _cb;
+   std::function<float(String& strParam)> _cb;
+   String _strParam;
    
 public:
-      CxSensorGeneric(const char* szName, ECSensorType eType, const char* unit = "", std::function<float()> cb = nullptr) : _cb(cb) {
+   CxSensorGeneric(const char* szName, ECSensorType eType, const char* unit = "", std::function<float(String& strParam)> cb = nullptr, const char* szParam = nullptr) : _cb(cb), _strParam(szParam) {
       setType(eType);
       setResolution(12);
       __strUnit = unit; //"\x09\x43"  for °C;
@@ -283,7 +284,7 @@ public:
    
    bool read() {
       if (_cb) {
-         float fValue = _cb();
+         float fValue = _cb(_strParam);
          
          if (fValue >= __fMinValue && fValue <= __fMaxValue) {
             __fValue = fValue;
@@ -509,12 +510,12 @@ public:
     */
    void printList() {
       CxTablePrinter table(*__console.getStream());
-      
-      table.printHeader({F("Id"), F("Name"), F("Type"), F("Model"), F("Value"), F("Unit")}, {2,11,15,8,8,8});
+
+      table.printHeader({F("Id"), F("Name"), F("Type"), F("Model"), F("Value"), F("Unit"), F("Friendly Name")}, {2,11,15,8,8,8,15});
 
       /// iterate over all sensors and print formated sensor information
       for (const auto& [nId, pSensor] : _mapSensors) {
-         table.printRow({String(nId).c_str(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() , String(pSensor->getFloatValue()).c_str(), pSensor->getUnit()});
+         table.printRow({String(nId).c_str(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() , String(pSensor->getFloatValue()).c_str(), pSensor->getUnit(), pSensor->getFriendlyName()});
       }
    }
    
