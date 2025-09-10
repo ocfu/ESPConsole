@@ -28,19 +28,23 @@
 ###############################
 # General Setup at Start
 #
-# Batch execution begins with the 'fs' label, which is called during initialization.
+# Batch execution begins with the 'start' label, which is called during initialization.
 #
-fs:
+start:
 
 #
 # Environment Variables
 # (Naming convention: system variables in capital letters, user variables in small)
 #
-#   TZ   - Timezone
-#   NTP  - NTP Server
-#   BUF  - Input buffer for console (default: 128)
-#   URL  - Device URL, used for Home Assistant (HA) setup
+#   SYSLOG_SERVER    - Syslog server address
+#   SYSLOG_PORT      - Syslog server port
+#   TZ               - Timezone
+#   NTP              - NTP Server
+#   BUF              - Input buffer for console (default: 128)
+#   URL              - Device URL
 #
+set SYSLOG_SERVER 
+set SYSLOG_PORT    5514
 set TZ CET-1CEST,M3.5.0,M10.5.0/3
 set URL http://$(HOSTNAME)
 set NTP fritz.box
@@ -49,8 +53,9 @@ set BUF 128
 #
 # Logging Configuration
 #
-log server mac 8880
-log level 1
+set SYSLOG_SERVER ocdk
+set SYSLOG_PORT 5514
+
 
 #
 # Built-in LED Setup

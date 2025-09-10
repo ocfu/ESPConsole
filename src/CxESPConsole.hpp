@@ -631,15 +631,15 @@ public:
       addVariable(">", set);
    }
 
-   const char* getVariable(const char* szName) {
+   const char* getVariable(const char* szName, const char* szDefault = nullptr) {
       if (szName == nullptr || szName[0] == '\0') {
-         return nullptr; // No name provided
+         return szDefault; // No name provided
       }
       auto it = _mapSetVariables.find(szName);
       if (it != _mapSetVariables.end()) {
          return it->second.c_str();
       }
-      return nullptr;
+      return szDefault;
    }
    
    void removeVariable(const char* szName) {

@@ -90,7 +90,7 @@ void cmd_cat(CxStrToken& tkArgs) {
 
 // Command cp
 void cmd_cp(CxStrToken& tkArgs) {
-   __console.setExitValue(cp(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 1)));
+   __console.setExitValue(cp(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2)));
 }
 
 // Command rm
@@ -100,7 +100,7 @@ void cmd_rm(CxStrToken& tkArgs) {
 
 // Command mv
 void cmd_mv(CxStrToken& tkArgs) {
-   __console.setExitValue(mv(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 1)));
+   __console.setExitValue(mv(TKTOCHAR(tkArgs, 1), TKTOCHAR(tkArgs, 2)));
 }
 
 // Command touch

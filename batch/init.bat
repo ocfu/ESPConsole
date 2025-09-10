@@ -15,6 +15,8 @@ test -f $(userscript) || test -f init.user.bat     && cp init.user.bat $(userscr
 final:
 timer add 15s "wifi connect;prompt" tiRecon
 timer add 1m "wifi check -q" tiWifi
+timer add 1m "syslog Metrics -M" tMetrics
+
 wifi connect
 stack off
 usr 0
@@ -57,6 +59,9 @@ timer start tiRecon
 # wifi is online
 wifi-online:
 timer stop tiRecon
+ntp sync
+syslog "$(HOSTNAME) online" 
+
 
 # wifi is offline
 wifi-offline:
@@ -75,6 +80,5 @@ timer start tiRecon
 #############################
 # more commands for all labels
 all:
-break on $(SAFEMODE)
-
-test -f $(userscript) exec $(userscript) $(LABEL) # calls the user script if it exists
+test 1 -eq $(SAFEMODE) && break
+test -f $(userscript) && exec $(userscript) $(LABEL) # calls the user script if it exists

@@ -154,11 +154,9 @@ void cmd_ssid(CxStrToken &tkArgs) {
 
 // Command ntp
 void cmd_ntp(CxStrToken &tkArgs) {
-   String strSubCmd = TKTOCHAR(tkArgs, 1);
-
-   if (strSubCmd == "server" && tkArgs.count() > 2) {
+   if (tkArgs.indexOf("server") == 1 && tkArgs.count() > 2) {
       __console.addVariable("NTP", TKTOCHAR(tkArgs, 2));
-   } else if (strSubCmd == "sync") {
+   } else if (tkArgs.indexOf("sync") == 1) {
    } else {
       __console.print(F(ESC_ATTR_BOLD "NTP Server: " ESC_ATTR_RESET));
       __console.print(__console.getNtpServer());
@@ -205,10 +203,9 @@ void cmd_net(CxStrToken &tkArgs) {
 
 // Command wifi
 void cmd_wifi(CxStrToken &tkArgs) {
-   String strCmd = TKTOCHAR(tkArgs, 1);
    const char *b = TKTOCHAR(tkArgs, 2);
 
-   if (strCmd == "ssid") {
+   if (tkArgs.indexOf("ssid") == 1) {
       if (b) {
          ::writeSSID(TKTOCHAR(tkArgs, 2));
       } else {
@@ -219,7 +216,7 @@ void cmd_wifi(CxStrToken &tkArgs) {
          __console.println();
          __console.setOutputVariable(buf);
       }
-   } else if (strCmd == "password") {
+   } else if (tkArgs.indexOf("password") == 1) {
       if (b) {
          ::writePassword(TKTOCHAR(tkArgs, 2));
       } else {
@@ -229,7 +226,7 @@ void cmd_wifi(CxStrToken &tkArgs) {
          __console.print(buf);
          __console.println();
       }
-   } else if (strCmd == "hostname") {
+   } else if (tkArgs.indexOf("hostname") == 1) {
       if (b) {
          __console.setHostName(TKTOCHAR(tkArgs, 2));
          ::writeHostName(TKTOCHAR(tkArgs, 2));
@@ -241,13 +238,13 @@ void cmd_wifi(CxStrToken &tkArgs) {
          __console.println();
          __console.setOutputVariable(buf);
       }
-   } else if (strCmd == "connect") {
+   } else if (tkArgs.indexOf("connect") == 1) {
       startWiFi(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3));
-   } else if (strCmd == "disconnect") {
+   } else if (tkArgs.indexOf("disconnect") == 1) {
       stopWiFi();
-   } else if (strCmd == "scan") {
+   } else if (tkArgs.indexOf("scan") == 1) {
       ::scanWiFi(getIoStream());
-   } else if (strCmd == "otapw") {
+   } else if (tkArgs.indexOf("otapw") == 1) {
       if (b) {
          ::writeOtaPassword(TKTOCHAR(tkArgs, 2));
       } else {
@@ -257,11 +254,11 @@ void cmd_wifi(CxStrToken &tkArgs) {
          __console.print(buf);
          __console.println();
       }
-   } else if (strCmd == "ap") {
+   } else if (tkArgs.indexOf("ap") == 1) {
       if (__console.isWiFiClient()) __console.println(F("switching to AP mode. Note: this disconnects this console!"));
       delay(500);
       _beginAP();
-   } else if (strCmd == "check") {
+   } else if (tkArgs.indexOf("check") == 1) {
       bool bStatus = checkWifi();
       if (!b) {
          __console.print(F("WiFi is "));
@@ -272,7 +269,7 @@ void cmd_wifi(CxStrToken &tkArgs) {
             __console.setExitValue(EXIT_FAILURE);
          }
       }
-   } else if (strCmd == "rssi") {
+   } else if (tkArgs.indexOf("rssi") == 1) {
 #ifdef ARDUINO
       __console.print(WiFi.RSSI());
       __console.println(F("dBm"));
@@ -328,26 +325,33 @@ void cmd_syslog(CxStrToken &tkArgs) {
    }
 
    const char* szServer = __console.getVariable("SYSLOG_SERVER");
-   uint16_t port = (uint16_t) strtol(__console.getVariable("SYSLOG_PORT"), nullptr, 10);
+   const char *szPort = __console.getVariable("SYSLOG_PORT");
+
+   if (!szServer || szServer[0] == '\0') {
+      __console.error(F("No syslog server defined!"));
+      __console.setExitValue(EXIT_FAILURE);
+      return;
+   }
+
+   uint16_t port = (szPort) ? (uint16_t)strtol(szPort, nullptr, 10) : SYSLOG_DEFAULT_PORT;
    uint8_t severity = SYSLOG_DEFAULT_SEVERITY;
    uint8_t facility = SYSLOG_DEFAULT_FACILITY;
    bool bMetrics = false;
 
    for (int8_t i = 2; i < tkArgs.count(); i++) {
-      String opt = TKTOCHAR(tkArgs, i);
-      if (opt == "-n" && (i + 1) < tkArgs.count()) {
+      if (tkArgs.indexOf("-n") == i && (i + 1) < tkArgs.count()) {
          i++;
          szServer = TKTOCHAR(tkArgs, i);
-      } else if (opt == "-P" && (i + 1) < tkArgs.count()) {
+      } else if (tkArgs.indexOf("-P") == i && (i + 1) < tkArgs.count()) {
          i++;
          port = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_PORT);
-      } else if (opt == "-f" && (i + 1) < tkArgs.count()) {
+      } else if (tkArgs.indexOf("-f") == i && (i + 1) < tkArgs.count()) {
          i++;
          facility = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_FACILITY);
-      } else if (opt == "-s" && (i + 1) < tkArgs.count()) {
+      } else if (tkArgs.indexOf("-s") == i && (i + 1) < tkArgs.count()) {
          i++;
          severity = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_SEVERITY);
-      } else if (opt == "-M") {
+      } else if (tkArgs.indexOf("-M") == i) {
          i++;
          // enable metrics
          bMetrics = true;
@@ -749,11 +753,15 @@ void syslog(const char *syslogServer, uint16_t port, const char *szMessage, uint
    WiFiUDP udp;
    int pri = facility * 8 + severity;
 
-   // RFC5424 timestamp: "YYYY-MM-DDTHH:MM:SSZ"
-   char timestamp[32];
-   time_t now = time(nullptr);
-   struct tm *tm_info = gmtime(&now);  // RFC5424 uses UTC
-   strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%SZ", tm_info);
+   // RFC5424 timestamp: "YYYY-MM-DDTHH:MM:SS.sssZ"
+   // Example: "2023-03-15T12:34:56.789Z"
+   // Use one buffer.
+   char timestamp[40];
+   struct timeval tv;
+   gettimeofday(&tv, nullptr);
+   int millisec = tv.tv_usec / 1000;
+   strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", gmtime(&tv.tv_sec));
+   snprintf(timestamp + strlen(timestamp), sizeof(timestamp) - strlen(timestamp), ".%03dZ", millisec);
 
    // Version is always 1 for RFC5424
    const char *version = "1";
