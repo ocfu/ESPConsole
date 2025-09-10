@@ -572,6 +572,7 @@ void cmd_app(CxStrToken &tkArgs) {
 // Command esp
 void cmd_esp(CxStrToken &tkArgs) {
    // Print ESP specific information
+#ifdef DEBUG
 #ifdef ARDUINO
 #ifdef ESP32
    // TODO: get real flash size for esp32
@@ -670,11 +671,13 @@ void cmd_esp(CxStrToken &tkArgs) {
    __console.setOutputVariable(ESP.getCoreVersion().c_str());
 #endif
 #endif /* ARDUINO */
+#endif /* DEBUG */
 }
 
 // Command flash
 void cmd_flash(CxStrToken &tkArgs) {
    // Print flash information
+#ifdef DEBUG
 #ifdef ARDUINO
    __console.printf(F("-FLASHMAP---------------\n"));
 #ifdef ESP32
@@ -721,6 +724,7 @@ void cmd_flash(CxStrToken &tkArgs) {
    __console.printf(F("------------------------\n"));
    __console.setOutputVariable(ESP.getFlashChipSize() / 1024);
 #endif  // ARDUINO
+#endif /* DEBUG */
 }
 
 // Command eeprom

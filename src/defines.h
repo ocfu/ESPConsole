@@ -104,7 +104,7 @@
 
 
 // logging
-#ifdef DEBUG_BUILD
+#ifdef DEBUG
 #  define _LOG_DEBUG(...) debug(__VA_ARGS__)
 #  define _LOG_DEBUG_EXT(...) debug_ext(__VA_ARGS__)
 #else
@@ -113,7 +113,7 @@
 #endif
 
 #ifndef debug
-#ifdef DEBUG_BUILD
+#ifdef DEBUG
 #define _CONSOLE_DEBUG(...) __console.debug(__VA_ARGS__)
 #else
 #define _CONSOLE_DEBUG(...) ((void)0)
@@ -121,7 +121,7 @@
 #endif
 
 #ifndef debug_ext
-#ifdef DEBUG_BUILD
+#ifdef DEBUG
 #define _CONSOLE_DEBUG_EXT(...) __console.debug_ext(__VA_ARGS__)
 #else
 #define _CONSOLE_DEBUG_EXT(...) ((void)0)

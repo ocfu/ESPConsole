@@ -29,7 +29,7 @@ public:
    void DEBUGPrint(Stream &stream, uint8_t levelinc = 0, const char* label = "") {
       _nLevel += levelinc;
       _nMaxLevel = (_nLevel > _nMaxLevel) ? _nLevel : _nMaxLevel;
-#ifdef DEBUG_BUILD
+#ifdef DEBUG
       if (!_bDebugPrint) return;
       stream.printf("=== %s %03d ", label, _nDebugPrintCnt++);
       stream.print(F("STACK: "));
@@ -121,19 +121,6 @@ public:
       Serial.print(F("STACK HIGH "));
       Serial.println(getHigh());
    }
-   
-#ifdef DEBUG_BUILD
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
-   
-   void test(int len) {
-      char a[len];
-      if (len > 0) a[0] = '\0';
-      printSize();
-   }
-   
-#pragma GCC pop_options  // Restore optimizations
-#endif
 };
 
 
