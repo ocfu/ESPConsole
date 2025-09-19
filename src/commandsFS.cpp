@@ -34,10 +34,10 @@ void setupFS() {
    }
 
    // implement specific fs functions
-   __console.setFuncExecuteBatch([](const char *sz, const char *label) { executeBatch(sz, label); });
-   __console.setFuncMan([](const char *sz, const char *param) {man(sz, param); });
+   __console.setFuncExecuteBatch([](const char* sz, const char* label) { executeBatch(sz, label); });
+   __console.setFuncMan([](const char* sz, const char* param) { man(sz, param); });
 
-   //CxPersistentImpl::getInstance().setImplementation(ESPConsole);
+   // CxPersistentImpl::getInstance().setImplementation(ESPConsole);
 
    __console.executeBatch("init", "start");
 }
@@ -49,12 +49,12 @@ void loopFS() {
 void cmd_du(CxStrToken& tkArgs) {
    bool bResult = true;
    if (TKTOCHAR(tkArgs, 1)) {
-    bResult = (printDu(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
+      bResult = (printDu(TKTOCHAR(tkArgs, 1)) == EXIT_SUCCESS);
       __console.println();
    } else {
       __console.println(".");
    }
-   if(!bResult) __console.setExitValue(EXIT_FAILURE);
+   if (!bResult) __console.setExitValue(EXIT_FAILURE);
 }
 
 // Command df
@@ -177,29 +177,29 @@ void cmd_test(CxStrToken& tkArgs) {
 
 // Command table in PROGMEM
 const CommandEntry commandsFS[] PROGMEM = {
-   {"du", cmd_du, nullptr},
-   {"df", cmd_df, nullptr},
-   {"size", cmd_size, nullptr},
-   {"ls", cmd_ls, nullptr},
-   {"la", cmd_la, nullptr},
-   {"cat", cmd_cat, nullptr},
-   {"cp", cmd_cp, nullptr},
-   {"rm", cmd_rm, nullptr},
-   {"mv", cmd_mv, nullptr},
-   {"touch", cmd_touch, nullptr},
-   {"mount", cmd_mount, nullptr},
-   {"umount", cmd_umount, nullptr},
-   {"format", cmd_format, nullptr},
-   {"hasfs", cmd_hasfs, nullptr},
-   {"fs", cmd_fs, nullptr},
-   {"$UPLOAD$", cmd_upload, nullptr},
-   {"$DOWNLOAD$", cmd_download, nullptr},
-   {"exec", cmd_exec, nullptr},
-   {"break", cmd_break, nullptr},
-   {"man", cmd_man, nullptr},
-   {"test", cmd_test, nullptr},
-   
-   // Add more filesystem commands here
+    {"du", cmd_du, nullptr},
+    {"df", cmd_df, nullptr},
+    {"size", cmd_size, nullptr},
+    {"ls", cmd_ls, nullptr},
+    {"la", cmd_la, nullptr},
+    {"cat", cmd_cat, nullptr},
+    {"cp", cmd_cp, nullptr},
+    {"rm", cmd_rm, nullptr},
+    {"mv", cmd_mv, nullptr},
+    {"touch", cmd_touch, nullptr},
+    {"mount", cmd_mount, nullptr},
+    {"umount", cmd_umount, nullptr},
+    {"format", cmd_format, nullptr},
+    {"hasfs", cmd_hasfs, nullptr},
+    {"fs", cmd_fs, nullptr},
+    {"$UPLOAD$", cmd_upload, nullptr},
+    {"$DOWNLOAD$", cmd_download, nullptr},
+    {"exec", cmd_exec, nullptr},
+    {"break", cmd_break, nullptr},
+    {"man", cmd_man, nullptr},
+    {"test", cmd_test, nullptr},
+
+    // Add more filesystem commands here
 };
 
 const size_t NUM_COMMANDS_FS = sizeof(commandsFS) / sizeof(CommandEntry);
@@ -693,7 +693,7 @@ uint8_t _sendFile(WiFiClient* client, const char* filename) {
    static char buffer[64];
    size_t bytesRead;
 
-   g_Stack.update();
+   g_Stack.getFree();
 
    // Send file data
    while ((bytesRead = file.readBytes(buffer, sizeof(buffer))) > 0) {
@@ -715,37 +715,29 @@ void _printNoSuchFileOrDir(const char* szCmd, const char* szFn) {
    if (szCmd && !szFn) __console.printf(F("%s: null : No such file or directory\n"), szCmd);
 };
 
-
 uint8_t executeBatch(const char* path, const char* label, const char* arg) {
    if (!path) return EXIT_FAILURE;
 
    g_Stack.DEBUGPrint(getIoStream(), 0, label);
 
-   String strBatchFile;
-
-   std::map<String, String> mapTempVariables;
-
-   mapTempVariables[F("0")] = label ? label : "?";
+   // Local buffer for local (temporary) batch variables
+   std::map<String, String> mapTempVariables;  // Trade-off. Stack consume is ~100 bytes. As global variable it would increase fragmentation.
 
    if (label) {
       mapTempVariables[F("LABEL")] = label;
    }
-   if (arg) __console.setArgVariables(mapTempVariables, arg);
 
-   strBatchFile = "";
+   // set the standard variables $*, $@, $#, $0...
+   __console.setArgVariables(mapTempVariables, arg, label);
 
+   String strBatchFile;
    strBatchFile.reserve((uint32_t)strlen(path) + 5);  // +4 for ".bat" and +1 for null terminator
    strBatchFile = path;
 
-   // veryfy if the file name ends with .bat and if it exists
-   if (strBatchFile.length() > 4 && (strBatchFile.endsWith(".bat") || strBatchFile.endsWith(".man"))) {
-      // file name is ok
-   } else if (strBatchFile.length() > 0) {
+   // verify if the file name (ends with .bat or .man)
+   if (!strBatchFile.endsWith(".bat") && !strBatchFile.endsWith(".man")) {
       // add extension, presume it is a batch file
       strBatchFile += ".bat";
-   } else {
-      __console.error(F("Invalid batch/man file name '%s'. Must end with .bat or .man"), path);
-      return EXIT_FAILURE;
    }
 
    if (label == nullptr) {
@@ -769,91 +761,118 @@ uint8_t executeBatch(const char* path, const char* label, const char* arg) {
       return EXIT_FAILURE;
    }
 
-   bool processCommands = true;  // Start processing commands immediately
+   bool processCommands = true;  // Start processing commands
    _bBreakBatch = false;
-   _nBatchDepth++;  // executeBatch will be called recursively, note the depth
+   _nBatchDepth++;  // executeBatch could be called recursively, record the depth
 
+   // reserve memory for the line buffer
    const size_t LINE_BUFFER_SIZE = 256;
+   char* szLineBuffer = new char[LINE_BUFFER_SIZE];
 
-   char* buffer = new char[LINE_BUFFER_SIZE];
-
-   if (buffer) {
+   if (szLineBuffer) {
       g_Stack.DEBUGPrint(getIoStream(), 0, "buffer");
 
       while (file.available()) {
-         size_t len = file.readBytesUntil('\n', buffer, LINE_BUFFER_SIZE - 1);
-         buffer[len] = '\0';  // Null-terminate the string
-         trim(buffer);        // Remove any leading/trailing whitespace
+         size_t len = file.readBytesUntil('\n', szLineBuffer, LINE_BUFFER_SIZE - 1);
+         szLineBuffer[len] = '\0';  // Null-terminate the string
+         trim(szLineBuffer);        // Remove any leading/trailing whitespace
 
          // If the buffer filled up and no newline was found, discard the rest of the line
-         if (len == LINE_BUFFER_SIZE - 1 && buffer[len - 1] != '\n') {
+         if (len == LINE_BUFFER_SIZE - 1 && szLineBuffer[len - 1] != '\n') {
             char c;
             while (file.available() && (c = file.read()) != '\n') {
                // Discard characters
             }
          }
 
-         if (strlen(buffer) == 0 || buffer[0] == '#') {
+         if (strlen(szLineBuffer) == 0 || szLineBuffer[0] == '#') {
             // Ignore empty lines and comments
             continue;
          }
 
-         // Remove inline comments starting with #
-         char* commentStart = strchr(buffer, '#');
-         if (commentStart && *(commentStart - 1) != '$' && (len > 2 && *(commentStart - 2) != '$' && *(commentStart - 1) != '(')) {  // $# and $(#) are not comments
-            *commentStart = '\0';                                                                                                    // Truncate the line at the # character
-            trim(buffer);                                                                                                            // Remove any trailing whitespace after truncation
+         // Remove inline comments
+         char* commentStart = strchr(szLineBuffer, '#');
+         if (commentStart) {
+            // check, if # is within quotes and ignore them
+            bool inQuotes = false;
+            for (char* p = szLineBuffer; p < commentStart; p++) {
+               if (*p == '"') {
+                  inQuotes = !inQuotes;
+               }
+            }
+
+            // $# and $(#) are no comments
+            if (!inQuotes && *(commentStart - 1) != '$' && (len > 2 && *(commentStart - 2) != '$' && *(commentStart - 1) != '(')) {
+               *commentStart = '\0';
+               trim(szLineBuffer);
+            }
          }
 
-         if (strlen(buffer) == 0) {
+         if (strlen(szLineBuffer) == 0) {
             // If the line becomes empty after removing the comment, skip it
             continue;
          }
 
-         // Handle local variables
-         // Local variable are defined without the set command. 
-         // Example:
-         //    myVar = 42
-
-         // Check if the line is a variable definition
-         char* equalsSign = strchr(buffer, '=');
+         const uint8_t nMaxVariableNameLength = 32;
+         
+         char* equalsSign = strchr(szLineBuffer, '=');
          if (equalsSign) {
+            // Identify and store defined local variables
+            // Local variable are defined without the set command and assigned with =.
+            // Syntax: <variable_name> = <value>
+            // Valid assignments are
+            //    myVar = 42
+            //    myVar = "Hello World"
+            // Before the variable name there shall be no other words.
+            // Invalid assignments are
+            //    myVar=42                      // <--- Invalid: no spaces around '='
+            //    myVar = 42 extra              // <--- Invalid: extra text after assignment
+            //    myVar = "Hello World" extra   // <--- Invalid: extra text after valid assignment in quotes
+            //    "myVar = 42"                  // <--- Invalid: assignment in quotes
+            //    echo "myVar = 34"             // <--- That's a command with a quoted text, will not be treated as a variable assignment
+            //
             String varName;
             String varValue;
 
-            // Ensure the equal sign is in the first word
-            varName = String(buffer).substring(0, equalsSign - buffer);
+            // Extract the variable name, respect max length
+            varName = String(szLineBuffer).substring(0, MIN(equalsSign - szLineBuffer, nMaxVariableNameLength));
             varName.trim();
 
-            // Ensure the equal sign is part of the first word (no spaces in the variable name), otherwise treat it as a command
-            if (!varName.isEmpty() && varName.indexOf(' ') == -1) {
-               varValue = String(buffer).substring(equalsSign - buffer + 1);
+            // Variable names may contain letters, numbers, and underscores but no spaces and special characters.
+            for (char c : varName) {
+               if (!isalnum(c) && c != '_') {
+                  // Invalid character found
+                  varName.clear();
+                  break;
+               }
+            }
+
+            if (!varName.isEmpty()) {
+               varValue = String(szLineBuffer).substring(equalsSign - szLineBuffer + 1);
                varValue.trim();
 
-               // Substitue value with local variables first
-               __console.substituteVariables(varValue, mapTempVariables, false);
+               // Substitute value with local variables first
+               __console.substituteVariables(varValue, mapTempVariables, false);  // set to false, if the variable name shall remain in the line if not set. If true and the variable is not set, the variable name will be replaced by ""
 
-               // Substitue value with global variables
+               // Substitute value with global variables
                __console.substituteVariables(varValue);
 
                mapTempVariables[varName] = varValue;  // Store the variable
                continue;
             }
-            g_Stack.DEBUGPrint(getIoStream(), 0, "Variables");
          }
 
-         // Handle variables in the batch file
          String command;
-         uint32_t extra_size = 50;  // FIXME: max. length of a variable length (to be determined actually)
 
-         command.reserve(strlen(buffer) + extra_size);  // Reserve enough space for the command and potential longer label
-         command = buffer;
+         command.reserve(strlen(szLineBuffer) + 128);  // Reserve enough space for the command and potential variable substitutions
+         command = szLineBuffer;
+         command.trim();
 
-         // Substitue command with local variables
-         __console.substituteVariables(command, mapTempVariables, false);
+         // Substitute command with local variables
+         __console.substituteVariables(command, mapTempVariables, false);  // keep un-assigned variable names in the line
 
-         // Substitue command with global variables
-         //__console.substituteVariables(command);  // (already done at this stage)
+         // Substitute command with global variables
+         __console.substituteVariables(command);
 
          if (command.endsWith(":")) {
             // Check if the command is a label and matches with label argument or with "all:". In case of a match, set processCommands to true
@@ -865,11 +884,11 @@ uint8_t executeBatch(const char* path, const char* label, const char* arg) {
          if (processCommands) {
             _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
 
+            // Check if the command is an exec command
             if (command.startsWith("exec")) {
-               __console.substituteVariables(command);  // needed ?
                CxStrToken tkExecCmd(command.c_str(), " ");
                _CONSOLE_DEBUG(F("exec command found: %s"), command.c_str());
-               // recursively call executeBatch and not go deeper by calling processCmd, this shall safe stack usage
+               // recursively call executeBatch
                nExitValue = executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
             } else {
                nExitValue = __console.processCmd(*__console.getStream(), command.c_str(), 0);  // MARK: getStream needed here?
@@ -881,7 +900,7 @@ uint8_t executeBatch(const char* path, const char* label, const char* arg) {
 
       _bBreakBatch = false;  // limits the break for the current batch, not for the upper one in nested calls
 
-      delete[] buffer;
+      delete[] szLineBuffer;
    }
 
    file.close();
@@ -984,4 +1003,4 @@ bool test(std::vector<const char*>& vExpression) {
    return false;
 }
 
-#endif // ESP_CONSOLE_FS
+#endif  // ESP_CONSOLE_FS

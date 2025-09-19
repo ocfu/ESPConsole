@@ -801,7 +801,7 @@ void syslog(const char *syslogServer, uint16_t port, const char *szMessage, uint
    if (bMetrics) {
       char structured_data[96];
       snprintf(structured_data, sizeof(structured_data), "[metrics@%s looptime=\"%d\" free=\"%d\" fragm=\"%u\" stack=\"%d\"]",
-               procid, __console.avglooptime(), g_Heap.available(), g_Heap.fragmentation(), g_Stack.getSize());
+               procid, __console.avglooptime(), g_Heap.available(), g_Heap.fragmentation(), g_Stack.getFree());
       udp.write((const uint8_t *)structured_data, strlen(structured_data));
    } else {
       udp.write((const uint8_t *)"-", 1);

@@ -105,6 +105,7 @@ uint8_t CxESPConsole::processCmd(const char *cmd, uint8_t nClient) {
 void CxESPConsoleMaster::begin() {
    info(F("==== MASTER ===="));
 
+
 #ifdef ESP_CONSOLE_WIFI
    setupWifi();
 #endif
@@ -114,7 +115,9 @@ void CxESPConsoleMaster::begin() {
 #ifdef ESP_CONSOLE_FS
    setupFS();
 #endif
-
+#ifdef ESP_CONSOLE_I2C
+   setupI2C();
+#endif
 
    ::readSettings(_settings);
 

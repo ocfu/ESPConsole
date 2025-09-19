@@ -287,12 +287,12 @@ public:
    }
 };
 
-void CxGPIODevice::registerDevice() {
+inline void CxGPIODevice::registerDevice() {
    CxGPIODeviceManagerManager::getInstance().addDevice(this);
    
 }
 
-void CxGPIODevice::unregisterDevice() {
+inline void CxGPIODevice::unregisterDevice() {
    CxGPIODeviceManagerManager::getInstance().removeDevice(getName());
 }
 

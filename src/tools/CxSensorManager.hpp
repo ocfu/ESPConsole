@@ -521,13 +521,13 @@ public:
    
 };
 
-void CxSensor::registerSensors() {
+inline void CxSensor::registerSensors() {
    CxSensorManager& manager = CxSensorManager::getInstance();
    manager.addSensor(this);
 }
 
 /// Unregister the sensor from the manager
-void CxSensor::unregisterSensors() {
+inline void CxSensor::unregisterSensors() {
    CxSensorManager& manager = CxSensorManager::getInstance();
    manager.removeSensor(this);
 }

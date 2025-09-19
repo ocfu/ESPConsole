@@ -117,3 +117,12 @@ bool test(std::vector<const char*> & vExpression);
 
 #endif
 
+#ifdef ESP_CONSOLE_I2C
+extern const CommandEntry commandsI2C[] PROGMEM;
+extern const size_t NUM_COMMANDS_I2C;
+
+void setupI2C();
+void loopI2C();
+
+#endif /* ESP_CONSOLE_I2C */
+

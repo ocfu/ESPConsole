@@ -20,39 +20,36 @@
 #include "tools/CxESPHeapTracker.hpp"
 #include "tools/CxESPStackTracker.hpp"
 #include "tools/CxESPTime.hpp"
-#include "tools/CxStrToken.hpp"
-#include "tools/CxTimer.hpp"
 #include "tools/CxPersistentBase.hpp"
-#include "tools/CxTablePrinter.hpp"
 #include "tools/CxProcessStatistic.hpp"
+#include "tools/CxStrToken.hpp"
+#include "tools/CxTablePrinter.hpp"
+#include "tools/CxTimer.hpp"
 
 #ifdef ARDUINO
 #ifdef ESP_CONSOLE_WIFI
-  #include <WiFiClient.h>
-  #ifdef ESP32
-    #include <WiFi.h>
-  #else  // not ESP32
-    #include <ESP8266WiFi.h>
-  #endif // end ESP32
+#include <WiFiClient.h>
+#ifdef ESP32
+#include <WiFi.h>
+#else  // not ESP32
+#include <ESP8266WiFi.h>
+#endif  // end ESP32
 #endif
-  #define FLASHSTRINGHELPER __FlashStringHelper
+#define FLASHSTRINGHELPER __FlashStringHelper
 
-#else //  not ARDUINO
- #include "devenv.h"
-#endif // end ARDUINO
+#else  //  not ARDUINO
+#include "devenv.h"
+#endif  // end ARDUINO
 
+#include <functional>
 #include <map>
 #include <vector>
-#include <functional>
 
 class CxESPConsoleMaster;
 
 extern CxESPConsoleMaster& __console;
 
-extern std::map<String, String> _mapSetVariables; // Map to store static variables added by the command set
-
-
-
+extern std::map<String, String> _mapSetVariables;  // Map to store static variables added by the command set
 
 ///
 /// CxESPConsoleBase class
@@ -61,28 +58,27 @@ extern std::map<String, String> _mapSetVariables; // Map to store static variabl
 /// and to implement print methods.
 ///
 class CxESPConsoleBase : public Print, public CxPersistentBase {
-   
    bool _bEchoOn = true;
-   
+
    std::function<void(uint8_t level, const char*)> _funcPrint2logServer;
    std::function<void(const char*, const char*)> _funcExecuteBatch;
    std::function<void(const char*, const char*)> _funcMan;
    std::function<uint8_t(const char*)> _funcProcessData;
 
-protected:
+  protected:
    bool __bIsWiFiClient = false;
    bool __bIsSafeMode = false;
-   
-   Stream* __ioStream;                   // Pointer to the stream object (serial or WiFiClient)
-   
-public:
+
+   Stream* __ioStream;  // Pointer to the stream object (serial or WiFiClient)
+
+  public:
    explicit CxESPConsoleBase(Stream& stream) : __ioStream(&stream) {}
    CxESPConsoleBase() : __ioStream(nullptr) {}
-   
+
    virtual ~CxESPConsoleBase() {}
 
    // Universal printf() that supports both Flash and RAM strings
-   void printf(const char *format, ...) {
+   void printf(const char* format, ...) {
       char buffer[128];  // Temporary buffer for formatted string
       va_list args;
       va_start(args, format);
@@ -90,9 +86,9 @@ public:
       va_end(args);
       print(buffer);  // Use Print's built-in print()
    }
-   
+
    // Overloaded printf() for Flash (PROGMEM) strings
-   void printf(const __FlashStringHelper *format, ...) {
+   void printf(const __FlashStringHelper* format, ...) {
       char buffer[128];  // Temporary buffer for formatted string
       va_list args;
       va_start(args, format);
@@ -101,33 +97,36 @@ public:
       print(buffer);  // Use Print's built-in print()
    }
 
-   
-   void setStream(Stream& stream) {__ioStream = &stream;}
-   Stream* getStream() {return __ioStream;}
-      
-   void flush() override {__ioStream->flush();}
+   void setStream(Stream& stream) { __ioStream = &stream; }
+   Stream* getStream() { return __ioStream; }
+
+   void flush() override { __ioStream->flush(); }
 
    // Implement the required write function
    virtual size_t write(uint8_t c) override {
-      if(__ioStream && isEcho()) {
+      if (__ioStream && isEcho()) {
          __ioStream->write(c);
          return 1;
       } else {
          return 0;
       }
    }
-   
+
    // Optional: Override write() for string buffers (better efficiency)
-   virtual size_t write(const uint8_t *buffer, size_t size) override {
+   virtual size_t write(const uint8_t* buffer, size_t size) override {
       if (__ioStream && isEcho()) {
          return __ioStream->write(buffer, size);
       } else {
          return 0;
       }
    }
-   
-   void print2LogServer(uint8_t level, const char* sz) {if (_funcPrint2logServer) _funcPrint2logServer(level, sz);}
-   void executeBatch(const char* sz, const char* label) {if (_funcExecuteBatch) _funcExecuteBatch(sz, label);}
+
+   void print2LogServer(uint8_t level, const char* sz) {
+      if (_funcPrint2logServer) _funcPrint2logServer(level, sz);
+   }
+   void executeBatch(const char* sz, const char* label) {
+      if (_funcExecuteBatch) _funcExecuteBatch(sz, label);
+   }
    void executeBatch(Stream& stream, const char* sz, const char* label) {
       if (_funcExecuteBatch) {
          Stream* pStream = __ioStream;
@@ -136,59 +135,63 @@ public:
          __ioStream = pStream;
       }
    }
-   void man(const char* sz, const char* param = nullptr) {if (_funcMan) _funcMan(sz, param);}
-   uint8_t processData(const char* data) {if (_funcProcessData) return _funcProcessData(data); else return EXIT_FAILURE;}
-   
-   void setFuncPrintLog2Server(std::function<void(uint8_t, const char*)> f) {_funcPrint2logServer = f;}
-   void clearFuncPrintLog2Server() {_funcPrint2logServer = nullptr;}
-   
-   void setFuncExecuteBatch(std::function<void(const char*, const char*)> f) {_funcExecuteBatch = f;}
-   void clearFuncExecuteBatch() {_funcExecuteBatch = nullptr;}
-   void setFuncMan(std::function<void(const char*, const char*)> f) {_funcMan = f;}
-   void clearFuncMan() {_funcMan = nullptr;}
-   void setFuncProcessData(std::function<uint8_t(const char*)> f) {_funcProcessData = f;}
-   void clearFuncProcessData() {_funcProcessData = nullptr;}
-   
-   void setEcho(bool set) {_bEchoOn = set;}
-   bool isEcho() {return _bEchoOn;}
+   void man(const char* sz, const char* param = nullptr) {
+      if (_funcMan) _funcMan(sz, param);
+   }
+   uint8_t processData(const char* data) {
+      if (_funcProcessData)
+         return _funcProcessData(data);
+      else
+         return EXIT_FAILURE;
+   }
 
+   void setFuncPrintLog2Server(std::function<void(uint8_t, const char*)> f) { _funcPrint2logServer = f; }
+   void clearFuncPrintLog2Server() { _funcPrint2logServer = nullptr; }
+
+   void setFuncExecuteBatch(std::function<void(const char*, const char*)> f) { _funcExecuteBatch = f; }
+   void clearFuncExecuteBatch() { _funcExecuteBatch = nullptr; }
+   void setFuncMan(std::function<void(const char*, const char*)> f) { _funcMan = f; }
+   void clearFuncMan() { _funcMan = nullptr; }
+   void setFuncProcessData(std::function<uint8_t(const char*)> f) { _funcProcessData = f; }
+   void clearFuncProcessData() { _funcProcessData = nullptr; }
+
+   void setEcho(bool set) { _bEchoOn = set; }
+   bool isEcho() { return _bEchoOn; }
 };
 
 class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcessStatistic {
-         
-   String _strHostName; // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
-   String _strPrompt = ""; // Prompt string
-   String _strPromptClient; // Prompt string for WiFiClient
+   String _strHostName;      // WiFi.hostname() seems to be a messy workaround, even unable to find where it is defined in github... its return is a String and we can't trust that its c_str() remains valid. So we take a copy here.
+   String _strPrompt = "";   // Prompt string
+   String _strPromptClient;  // Prompt string for WiFiClient
    bool _bPromptEnabled = true;
    bool _bClientPromptEnabled = true;
-   
+
    const char* _szUserName = "";
    const char* _szAppName = "";
    const char* _szAppVer = "";
    const char* _szModel = "";
-   
-   
+
    uint32_t _nCmdBufferLen = 64;
-   char* _pszCmdBuffer = nullptr;                 // Command line buffer
-   uint32_t _iCmdBufferIndex = 0;            // Actual cursor position in command line (always at the last char of input, cur left/right not supported)
-   
-   char** _aszCmdHistory = nullptr;               // Command line history buffer
-   uint32_t _nCmdHistorySize = 4;                // History size (max. number of command lines in the buffer)
-   uint32_t _nCmdHistoryCount = 0;           // Actual number of command lines in the buffer
-   int32_t _iCmdHistoryIndex = -1;          // Acutal index of the command line buffer
-   uint32_t _nStateEscSequence = 0;          // Actual ESC sequence state during input
-   
-   bool _bWaitingForUsrResponseYN = false;   // Indicates an active (pending) user response
-   void (*_cbUsrResponse)(bool) = nullptr; // Callback for the response answer
-    
+   char* _pszCmdBuffer = nullptr;  // Command line buffer
+   uint32_t _iCmdBufferIndex = 0;  // Actual cursor position in command line (always at the last char of input, cur left/right not supported)
+
+   char** _aszCmdHistory = nullptr;  // Command line history buffer
+   uint32_t _nCmdHistorySize = 4;    // History size (max. number of command lines in the buffer)
+   uint32_t _nCmdHistoryCount = 0;   // Actual number of command lines in the buffer
+   int32_t _iCmdHistoryIndex = -1;   // Acutal index of the command line buffer
+   uint32_t _nStateEscSequence = 0;  // Actual ESC sequence state during input
+
+   bool _bWaitingForUsrResponseYN = false;  // Indicates an active (pending) user response
+   void (*_cbUsrResponse)(bool) = nullptr;  // Callback for the response answer
+
    void _clearCmdBuffer() {
       *_pszCmdBuffer = '\0';
       _iCmdBufferIndex = 0;
    }
-   
+
    void _storeCmd(const char* command) {
-      if (strlen(command) == 0) return; // No storage of empty commands
-      
+      if (strlen(command) == 0) return;  // No storage of empty commands
+
       // Check, if the command is the same as the previous, than do not store it in the command buffer
       if (_nCmdHistoryCount > 0) {
          int lastCommandIndex = (_nCmdHistoryCount - 1) % _nCmdHistorySize;
@@ -196,28 +199,28 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
             return;
          }
       }
-      
+
       // Store the new command in command history buffer
       strncpy(_aszCmdHistory[_nCmdHistoryCount % _nCmdHistorySize], command, _nCmdBufferLen);
       _nCmdHistoryCount++;
    }
-   
+
    void _navigateCmdHistory(int direction) {
-      if (_nCmdHistoryCount == 0) return; // no history of commands yet
-      
+      if (_nCmdHistoryCount == 0) return;  // no history of commands yet
+
       // calc the next index for the command history buffer
       int newIndex = _iCmdHistoryIndex + direction;
       int maxValidIndex = std::min(_nCmdHistoryCount, _nCmdHistorySize) - 1;
-      
+
       // check boundaries
       if (newIndex < -1 || newIndex > maxValidIndex) {
-         return; // out of boundary
+         return;  // out of boundary
       }
-      
+
       _iCmdHistoryIndex = newIndex;
-      
+
       if (_iCmdHistoryIndex == -1) {
-         _clearCmdBuffer(); // clear current command, nothing left in the history and show prompt
+         _clearCmdBuffer();  // clear current command, nothing left in the history and show prompt
          prompt();
       } else {
          // restore command from command history buffer
@@ -226,13 +229,13 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
          _redrawCmd();
       }
    }
-   
+
    void _redrawCmd() {
       prompt();
-      print(_pszCmdBuffer); // output the command from the buffer
-      print(" \b");        // position the cursor behind the command
+      print(_pszCmdBuffer);  // output the command from the buffer
+      print(" \b");          // position the cursor behind the command
    }
-   
+
    void _handleUserResponse(char c) {
       if (_bWaitingForUsrResponseYN) {
          if (c == 'y' || c == 'Y') {
@@ -251,26 +254,24 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    }
    // logging functions
    uint32_t _addPrefix(char c, char* buf, uint32_t lenmax);
-   
+
 #ifdef ESP_CONSOLE_WIFI
-   void _abortClient(); // aborts (ends) the (WiFi) client
+   void _abortClient();  // aborts (ends) the (WiFi) client
 #endif
-   
-protected:
-   
+
+  protected:
    CxESPConsole* __espConsoleWiFiClient = nullptr;
-   
+
    static uint8_t __nUsers;
-   uint8_t __nMaxUsers = 2; // 1 serial, 1 wifi
+   uint8_t __nMaxUsers = 2;  // 1 serial, 1 wifi
    CxProcessStatistic __totalCPU;
    CxProcessStatistic __sysCPU;
 
-   
-   const char* __szConsoleName = ""; // appears at the start message
+   const char* __szConsoleName = "";  // appears at the start message
    void setConsoleName(const char* sz) {
-      if (!__szConsoleName[0]) __szConsoleName = sz; // set only, if not set by calling class already
+      if (!__szConsoleName[0]) __szConsoleName = sz;  // set only, if not set by calling class already
    }
-   
+
    ///
    /// log levels
    ///  0: off
@@ -280,43 +281,39 @@ protected:
    ///  4: debug
    ///  5: ext. debug (controlled by _nDebugFlag)
    ///
-   uint32_t __nLogLevel  = 4;
+   uint32_t __nLogLevel = 4;
    uint32_t __nUsrLogLevel = 4;
-   
+
    ///
    /// debug flags 32 bits 0xfffffffe (except: -1)
    /// 0x0: off
    ///
    ///
    uint32_t __nExtDebugFlag = 0x0;
-   
+
    void __handleConsoleInputs();
-   
-   
-   
+
    ///
    /// protected virtual methods
    ///
-   protected:
-      
-public:
+  protected:
+  public:
    ///
    /// Constructor needed to differenciate between serial and wifi clients to abort the the session, if needed, properly.
    ///
 #ifdef ESP_CONSOLE_WIFI
-   explicit CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;}
+   explicit CxESPConsole(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) { __bIsWiFiClient = true; }
 #endif
    explicit CxESPConsole(Stream& stream, const char* app = "", const char* ver = "")
-   : CxESPConsoleBase(stream), CxESPTime() {
-
+       : CxESPConsoleBase(stream), CxESPTime() {
       _szAppName = app;
       _szAppVer = ver;
 
       setCmdBufferLen(64);
-      
+
       char buf[80];
       ::readHostName(buf, sizeof(buf));
-      
+
       if (!buf[0]) {
          // set default hostname
          String strHostname;
@@ -331,12 +328,11 @@ public:
 #endif
       }
    }
-   
+
    // virtual destructor as the object might be created by a inherited class
    virtual ~CxESPConsole() {
-      
       if (__nUsers) __nUsers--;
-      
+
       ///
       /// release the allocated space for the command history buffer
       ///
@@ -345,16 +341,16 @@ public:
       }
       delete[] _aszCmdHistory;
    }
-   
+
    void setCmdBufferLen(uint32_t len) {
       _nCmdBufferLen = len;
-      
+
       if (_pszCmdBuffer) {
          delete _pszCmdBuffer;
       }
-      
+
       _pszCmdBuffer = new char[len];
-      
+
       if (_aszCmdHistory) {
          ///
          /// release the allocated space for the command history buffer
@@ -365,7 +361,7 @@ public:
          delete[] _aszCmdHistory;
          _aszCmdHistory = nullptr;
       }
-      
+
       ///
       /// allocate space for the command history buffer with a history up to <size>
       /// the max. length of each command line is determined by _nMAXLENGTH
@@ -375,10 +371,10 @@ public:
          _aszCmdHistory[i] = new char[_nCmdBufferLen]();
       }
    }
-   
-   uint32_t getCmdBufferLen() { return _nCmdBufferLen;}
-   
-   bool isSafeMode() {return __bIsSafeMode;}
+
+   uint32_t getCmdBufferLen() { return _nCmdBufferLen; }
+
+   bool isSafeMode() { return __bIsSafeMode; }
    void setSafeMode(bool b) {
       if (b) {
          addVariable("SAFEMODE", "1");
@@ -388,9 +384,8 @@ public:
       __bIsSafeMode = b;
    }
 
-      
    uint8_t processCmd(const char* cmd, uint8_t nClient = 0);
-   
+
    uint8_t processCmd(Stream& stream, const char* cmd, uint8_t nClient) {
       Stream* pStream = __ioStream;
       __ioStream = &stream;
@@ -402,7 +397,7 @@ public:
    void prompt(bool bClient = false) {
       if (!bClient && !isPromptEnabled()) return;
       if (bClient && !isClientPromptEnabled()) return;
-      
+
       print(ESC_CLEAR_LINE);
       String& strPrompt = _strPrompt;
 
@@ -416,35 +411,35 @@ public:
          printf(strPrompt.c_str());
       }
    }
-   
+
    void setPrompt(const char* set) {
       _strPrompt = set;
       _bPromptEnabled = true;
    }
-   
+
    void setPromptClient(const char* set) {
       _strPromptClient = set;
       _bClientPromptEnabled = true;
    }
-   
-   void enablePrompt(bool set) { _bPromptEnabled = set;}
-   bool isPromptEnabled() {return _bPromptEnabled;}
-   
-   void enableClientPrompt(bool set) { _bClientPromptEnabled = set;}
-   bool isClientPromptEnabled() { return _bClientPromptEnabled;}
-   
-   const char* getPrompt() { return _strPrompt.c_str();}
-   const char* getPromptClient() { return _strPromptClient.c_str();}
 
-   bool isWiFiClient() {return __bIsWiFiClient;}
+   void enablePrompt(bool set) { _bPromptEnabled = set; }
+   bool isPromptEnabled() { return _bPromptEnabled; }
+
+   void enableClientPrompt(bool set) { _bClientPromptEnabled = set; }
+   bool isClientPromptEnabled() { return _bClientPromptEnabled; }
+
+   const char* getPrompt() { return _strPrompt.c_str(); }
+   const char* getPromptClient() { return _strPromptClient.c_str(); }
+
+   bool isWiFiClient() { return __bIsWiFiClient; }
 
    void setHostName(const char* sz) {
       _strHostName = sz;
       addVariable("HOSTNAME", sz);
    }
-   const char* getHostNameForPrompt() {return isWiFiClient() ? (_strHostName.length() ? _strHostName.c_str() : "host") : "serial";}
-   const char* getHostName() {return _strHostName.c_str();}
-   const char* getUserName() {return _szUserName[0] ? _szUserName : "esp";}
+   const char* getHostNameForPrompt() { return isWiFiClient() ? (_strHostName.length() ? _strHostName.c_str() : "host") : "serial"; }
+   const char* getHostName() { return _strHostName.c_str(); }
+   const char* getUserName() { return _szUserName[0] ? _szUserName : "esp"; }
    void setUserName(const char* sz) {
       _szUserName = sz;
       addVariable("USER", sz);
@@ -456,76 +451,76 @@ public:
       addVariable("APPNAME", szName);
       addVariable("APPVER", szVer);
    }
-   const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
-   const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
-   
-   uint8_t users() {return __nUsers;}
+   const char* getAppName() { return _szAppName[0] ? _szAppName : "Arduino"; }
+   const char* getAppVer() { return _szAppVer[0] ? _szAppVer : "-"; }
 
-   
+   uint8_t users() { return __nUsers; }
+
    void printProgress(uint32_t actual, uint32_t max, const char* header, const char* unit) {
       uint32_t progress = (actual * 100) / max;
       printf("\r\033[K%16s: %d%% (%d / %d %s)", header, progress, actual, max, unit);
    }
-   
+
    void printProgressBar(uint32_t actual, uint32_t max, const char* header) {
       uint32_t progress = (actual * 100) / max;
-      const uint8_t barWidth = 50; // Breite des Fortschrittsbalkens
+      const uint8_t barWidth = 50;  // Breite des Fortschrittsbalkens
       uint8_t pos = (progress * barWidth) / 100;
-      
+
       printf("\r\033[K%16s: [", header);
       for (int i = 0; i < barWidth; i++) {
-         if (i < pos) print("#");
-         else print("-");
+         if (i < pos)
+            print("#");
+         else
+            print("-");
       }
       printf("] %d%%", progress);
    }
-   
-   void _log(uint8_t level, char prefix, uint32_t flag, bool useProgmem, const char *fmt, va_list args);
-   
+
+   void _log(uint8_t level, char prefix, uint32_t flag, bool useProgmem, const char* fmt, va_list args);
+
    // basic logging functions
    void debug(const char* fmt...);
-   void debug(String& str) {debug(str.c_str());}
-   void debug(const FLASHSTRINGHELPER * fmt...);
-   
+   void debug(String& str) { debug(str.c_str()); }
+   void debug(const FLASHSTRINGHELPER* fmt...);
+
    void debug_ext(uint32_t flag, const char* fmt...);
-   void debug_ext(uint32_t flag, String& str) {debug_ext(flag, str.c_str());}
-   void debug_ext(uint32_t flag, const FLASHSTRINGHELPER * fmt...);
-   
+   void debug_ext(uint32_t flag, String& str) { debug_ext(flag, str.c_str()); }
+   void debug_ext(uint32_t flag, const FLASHSTRINGHELPER* fmt...);
+
    void info(const char* fmt...);
-   void info(String& str) {info(str.c_str());}
-   void info(const FLASHSTRINGHELPER * fmt...);
-   
+   void info(String& str) { info(str.c_str()); }
+   void info(const FLASHSTRINGHELPER* fmt...);
+
    void warn(const char* fmt...);
-   void warn(String& str) {warn(str.c_str());}
-   void warn(const FLASHSTRINGHELPER * szP...);
-   
+   void warn(String& str) { warn(str.c_str()); }
+   void warn(const FLASHSTRINGHELPER* szP...);
+
    void error(const char* fmt...);
-   void error(String& str) {error(str.c_str());}
-   void error(const FLASHSTRINGHELPER * fmt...);
-   
+   void error(String& str) { error(str.c_str()); }
+   void error(const FLASHSTRINGHELPER* fmt...);
+
    void printLog(uint8_t level, uint32_t flag, const char* sz);
 
-
    virtual void begin();
-   virtual void end(){}
+   virtual void end() {}
    virtual void wlcm();
    virtual void loop();
    virtual bool hasFS();
-   
-   void cls() {print(F(ESC_CLEAR_SCREEN));}
-      
-   void setLogLevel(uint32_t set) { __nLogLevel = isWiFiClient() ? 0 : set;}
-   uint32_t getLogLevel() {return isWiFiClient() ? 0 : __nLogLevel;}
-   
-   void setUsrLogLevel(uint32_t set) {__nUsrLogLevel = set;}
-   uint32_t getUsrLogLevel() {return __nUsrLogLevel;}
-   
+
+   void cls() { print(F(ESC_CLEAR_SCREEN)); }
+
+   void setLogLevel(uint32_t set) { __nLogLevel = isWiFiClient() ? 0 : set; }
+   uint32_t getLogLevel() { return isWiFiClient() ? 0 : __nLogLevel; }
+
+   void setUsrLogLevel(uint32_t set) { __nUsrLogLevel = set; }
+   uint32_t getUsrLogLevel() { return __nUsrLogLevel; }
+
    void setUsrLogLevelClient(uint32_t set) {
       if (__espConsoleWiFiClient) {
          __espConsoleWiFiClient->setUsrLogLevel(set);
       }
    }
-   
+
    uint32_t getUsrLogLevelClient() {
       if (__espConsoleWiFiClient) {
          return __espConsoleWiFiClient->getUsrLogLevel();
@@ -533,7 +528,7 @@ public:
          return __nUsrLogLevel;
       }
    }
-   
+
    CxESPConsole& getConsole(uint8_t nClient = 0) {
       if (nClient && __espConsoleWiFiClient) {
          return *__espConsoleWiFiClient;
@@ -542,9 +537,9 @@ public:
       }
    }
 
-   void setDebugFlag(uint32_t set) {__nExtDebugFlag = set;}
-   void resetDebugFlag(uint32_t set) {__nExtDebugFlag &= ~set;}
-   uint32_t getDebugFlag() {return __nExtDebugFlag;}
+   void setDebugFlag(uint32_t set) { __nExtDebugFlag = set; }
+   void resetDebugFlag(uint32_t set) { __nExtDebugFlag &= ~set; }
+   uint32_t getDebugFlag() { return __nExtDebugFlag; }
 
    ///
    /// Yes/No user response query
@@ -553,14 +548,14 @@ public:
    void __promptUserYN(const char* message, void (*responseCallback)(bool)) {
       print(ESC_CLEAR_LINE);
       printf(FMT_PROMPT_USER_YN, message);
-      print(" \b");        // position the cursor behind the command
+      print(" \b");  // position the cursor behind the command
       _bWaitingForUsrResponseYN = true;
       _cbUsrResponse = responseCallback;
    }
-   
+
    void printUptimeExt() {
       // should be "hh:mm:ss up <days> days, hh:mm,  <users> user,  load average: <load>"
-      uint32_t seconds = uint32_t (millis() / 1000);
+      uint32_t seconds = uint32_t(millis() / 1000);
       uint32_t days = seconds / 86400;
       seconds %= 86400;
       uint32_t hours = seconds / 3600;
@@ -571,23 +566,23 @@ public:
       printf(F(" up %d days, %02d:%02d,"), days, hours, minutes);
       printf(F(" %d user, load: %.2f average: %.2f, loop time: %d"), users(), load(), avgload(), avglooptime());
    }
-   
+
    void addVariable(const char* szName, float fValue, uint8_t prec = 2) {
       if (fValue != INVALID_FLOAT) {
          char szValue[10];
-         snprintf(szValue, sizeof(szValue), "%.4f", fValue); // TODO: use precision
+         snprintf(szValue, sizeof(szValue), "%.4f", fValue);  // TODO: use precision
          addVariable(szName, szValue);
       }
    }
 
    void addVariable(const char* szName, int32_t nValue) {
       if (nValue != (int32_t)INVALID_INT32) {
-         char szValue[12]; // Enough for -2147483648\0
+         char szValue[12];  // Enough for -2147483648\0
          snprintf(szValue, sizeof(szValue), "%d", nValue);
          addVariable(szName, szValue);
       }
    }
-   
+
    void addVariable(const char* szName, uint32_t nValue) {
       if (nValue != INVALID_UINT32) {
          char szValue[10];
@@ -598,42 +593,42 @@ public:
 
    void addVariable(const char* szName, const char* szValue) {
       if (szName == nullptr || szName[0] == '\0' || szValue == nullptr) {
-         return; // No name or value provided
+         return;  // No name or value provided
       }
       _mapSetVariables[szName] = szValue;
    }
-   
+
    void setExitValue(uint8_t set) {
       addVariable("?", set);
    }
-   
+
    uint32_t getExitValue() {
       auto it = _mapSetVariables.find("?");
       if (it != _mapSetVariables.end()) {
          return (uint32_t)it->second.toInt();
       }
-      return 99; // Default exit value
+      return 99;  // Default exit value
    }
-   
+
    void setOutputVariable(const char* set) {
       addVariable(">", set);
    }
-   
+
    void setOutputVariable(float set) {
       addVariable(">", set);
    }
-   
+
    void setOutputVariable(int32_t set) {
       addVariable(">", set);
    }
-   
+
    void setOutputVariable(uint32_t set) {
       addVariable(">", set);
    }
 
    const char* getVariable(const char* szName, const char* szDefault = nullptr) {
       if (szName == nullptr || szName[0] == '\0') {
-         return szDefault; // No name provided
+         return szDefault;  // No name provided
       }
       auto it = _mapSetVariables.find(szName);
       if (it != _mapSetVariables.end()) {
@@ -641,30 +636,30 @@ public:
       }
       return szDefault;
    }
-   
+
    void removeVariable(const char* szName) {
       _mapSetVariables.erase(szName);
    }
-   
+
    void printVariables(Stream& stream) {
       CxTablePrinter table(stream);
       table.printHeader({"Name", "Value"}, {32, 40});
-      
+
       for (const auto& entry : _mapSetVariables) {
          table.printRow({entry.first.c_str(), entry.second.c_str()});
       }
-      
    }
-   
+
    std::map<String, String>& getVariables() {
       return _mapSetVariables;
    }
-   
+
    void substituteVariables(String& str, std::map<String, String>& mapVariables, bool bReplaceIfNotSet = true) {
       // use of String for readability and minimize code
       int32_t start = 0;
 
-      // Perform variable substitution for variables using parenthesis
+      // Perform variable substitution for variables using parenthesis. If a variable was defined with parenthesis,
+      // it will be replaced with its value (if found) or replaced with "". Without parenthesis, the variable will be replaced with its value (if found) or kept with its variable name.
       while ((start = str.indexOf("$(", start)) != -1) {
          int end = str.indexOf(")", start + 2);
          if (end == -1) break;
@@ -680,103 +675,123 @@ public:
             }
          }
       }
-      
-      // Perform variable substitution for variables not using parenthesis
+
+      // Perform variable substitution for variables not using parenthesis, keep un-assigned variable names in the line
       if (str.indexOf("$") != -1) {
          for (const auto& var : mapVariables) {
             str.replace("$" + var.first, var.second);
          }
       }
-
    }
-   
+
    void substituteVariables(String& str) {
       substituteVariables(str, _mapSetVariables);
    }
-   
-   void setArgVariables(std::map<String, String>& mapVariables, const char* szArgs) {
+
+   void setArgVariables(std::map<String, String>& mapVariables, const char* szArgs, const char* szArg0 = "") {
+      // Assigns standard variable to the arguments, POSIX like. Quotes in the args are not treated.
+      // The max. number of arguments depends on the max. defined tokens of CxStrToken (default MAX_TOKENS: 8)
+      // $# - number of arguments
+      // $@ - all arguments including szArg0 as a single string (not posix compliant!)
+      // $* - all arguments excluding szArg0 as a single string (not posix compliant!)
+      // $0 - first argument. If szArg0 is not empty, use it as the first argument.
+      // $1 - second argument
+      // ...
+      // $n - nth argument
+      
+      uint32_t iStart = 0;
+
+      // set the all arguments variable @
+      if (szArg0 && szArg0[0]) {
+         mapVariables[F("0")] = szArg0;  // store the first argument as $0
+         iStart = 1;
+         mapVariables[F("@")] = szArg0;
+         mapVariables[F("@")] += " ";
+      }
+
       if (szArgs) {
          // split the arguments by space and store them in the map
          CxStrToken tkArgs(szArgs, " ");
-         mapVariables[F("@")] = mapVariables[F("0")] + " ";    // adds the calling name to $0, 0 should be set by the caller
-         mapVariables[F("@")] = mapVariables[F("@")] + szArgs; // complete the $@, add the the whole original arguments string
-         mapVariables[F("#")] = String(tkArgs.count());        // store the number of arguments
-         mapVariables[F("*")] = szArgs;                        // store only the arguments (not posix compliant!)
+
+         mapVariables[F("@")] += szArgs;  // complete the $@, add the the whole original arguments string
+
+         mapVariables[F("#")] = String(tkArgs.count());  // store the number of arguments
+         mapVariables[F("*")] = szArgs;                  // store only the arguments
 
          const char* szArg = tkArgs.get().as<const char*>();
-         
-         // Iterate through the arguments and store them in the map
-         uint32_t i = 1; // Start from 1
+
+         // Iterate through the arguments and store them in the map as 0 1 2 3 ... variables
          while (szArg) {
-            mapVariables[String(i++)] = szArg; // store the argument with its index
+            mapVariables[String(iStart++)] = szArg;  // store the argument with its index
             szArg = tkArgs.next().as<const char*>();
          }
       }
    }
-
 };
 
 #ifdef ESP_CONSOLE_WIFI
 class CxESPConsoleClient : public CxESPConsole {
-public:
-   explicit CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;setUsrLogLevel(0);}
+  public:
+   explicit CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {
+      __bIsWiFiClient = true;
+      setUsrLogLevel(0);
+   }
 
    virtual void begin() override;
-   
+
    virtual void loop() override {
       CxESPConsole::loop();
    };
-   
 };
-#endif // ESP_CONSOLE_NOWIFI
+#endif  // ESP_CONSOLE_NOWIFI
 
 class CxESPConsoleMaster : public CxESPConsole {
    /// timer for updating stack info and sensor data
    CxTimer10s _timerUpdate;
-      
+
 #ifdef ESP_CONSOLE_WIFI
    WiFiServer* _pWiFiServer = nullptr;
    WiFiClient _activeClient;
-   
+
    bool _bAPMode = false;
 #endif
-   
+
 #ifdef ESP_CONSOLE_WIFI
-    CxESPConsoleClient* _createClientInstance(WiFiClient& wifiClient, const char* app = "", const char* ver = "") const {
+   CxESPConsoleClient* _createClientInstance(WiFiClient& wifiClient, const char* app = "", const char* ver = "") const {
       return new CxESPConsoleClient(wifiClient, app, ver);
    }
 #endif
-   
-   ~CxESPConsoleMaster() = default;// enforce singleton pattern
-   
+
+   ~CxESPConsoleMaster() = default;  // enforce singleton pattern
+
    Settings_t _settings;
-   
-public:
+
+  public:
    CxESPConsoleMaster() : CxESPConsole(Serial) {}
-   
+
    // singleton pattern
    static CxESPConsoleMaster& getInstance() {
       static CxESPConsoleMaster instance;
       return instance;
    }
-   
+
    // Disable copying and assignment
    CxESPConsoleMaster(const CxESPConsoleMaster&) = delete;
    CxESPConsoleMaster& operator=(const CxESPConsoleMaster&) = delete;
 
    virtual void begin() override;
    virtual void loop() override;
-   
+
    // process (loop) statistics
    void printPs() {
       println(F(ESC_ATTR_BOLD "Name     Cmd  Time Load Avg" ESC_ATTR_RESET));
-      printf( "%-8s ", "sys");
+      printf("%-8s ", "sys");
       print(F("*    "));
       printf("%4d ", __sysCPU.looptime());
       printf("%1.2f ", __sysCPU.load());
       printf("%1.2f", __sysCPU.avgload());
       println();
-      
+
       printf("%-8s ", "cons");
       print(F("loop "));
       printf("%4d ", looptime());
@@ -790,11 +805,10 @@ public:
       printf("%1.2f ", __totalCPU.load());
       printf("%1.2f", __totalCPU.avgload());
       println(ESC_ATTR_RESET);
-      
+
       setOutputVariable(__totalCPU.looptime());
    }
 
-   
 #ifdef ESP_CONSOLE_WIFI
    bool isConnected() {
 #ifdef ARDUINO
@@ -804,10 +818,10 @@ public:
 #endif
    }
    bool isHostAvailable(const char* szHost, int nPort);
-   bool isAPMode() {return _bAPMode;}
-   void setAPMode(bool set) {_bAPMode = set;}
+   bool isAPMode() { return _bAPMode; }
+   void setAPMode(bool set) { _bAPMode = set; }
 #endif
-   
+
 #ifdef ESP_CONSOLE_WIFI
    void begin(WiFiServer& server) {
       _pWiFiServer = &server;
@@ -815,16 +829,16 @@ public:
       begin();
    };
 #endif
-   
+
    void setLoopDelay(uint32_t delay) {
-      if ( delay < 1000) {
+      if (delay < 1000) {
          _settings._loopDelay = delay;
          ::writeSettings(_settings);
       } else {
          println(F("Loop delay must be less than 1000 ms."));
       }
    }
-   
+
    uint32_t getLoopDelay() {
       if (_settings._loopDelay < 1000) {
          return _settings._loopDelay;
@@ -832,7 +846,7 @@ public:
          return 0;
       }
    }
-   
+
    static String makeNameIdStr(const char* sz) {
       String id;
       id.reserve((uint32_t)(strlen(sz) + 1));
@@ -846,10 +860,13 @@ public:
       }
       return id;
    }
-
 };
 
+class CxInitializer {
+  public:
+   virtual void init() {};
+};
 
-
+typedef std::vector<CxInitializer*> tInitializerVector;
 
 #endif /* CxESPConsole_hpp */

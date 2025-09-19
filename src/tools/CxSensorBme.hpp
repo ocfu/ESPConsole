@@ -64,7 +64,7 @@
 #ifndef CxSensorBme_hpp
 #define CxSensorBme_hpp
 
-#include "../capabilities/CxCapabilityI2C.hpp"
+#include "CxI2C.hpp"
 #include "CxSensorManager.hpp"
 
 #ifdef ARDUINO
@@ -279,7 +279,7 @@ class CxBmeSensorContainer : public CxInitializer {
    /// Vector of BME sensors
    std::vector<std::unique_ptr<CxSensorBme>> _vBmeSensors; /// vector of BME sensors
    
-   CxBmeSensorContainer() {VI2CInitializers.push_back(this);} /// register this instance in the vector of initializers. Will be called in the setup() of the I2C capability.
+   CxBmeSensorContainer() {} 
 
 protected:
    
@@ -302,16 +302,20 @@ public:
    }
    
    /// Begin sensor manager
+   void begin() {
+      VI2CInitializers.push_back(this);
+   }
+
+   /// Initialise BME sensors. Will be called through the CxInitializer interface
    /// @details Initialise BME sensors using I2C device
    virtual void init() override {
-      CxCapabilityI2C* pI2C = CxCapabilityI2C::getInstance();
-      
-      if (pI2C) {
+
+      if (_i2cManager.getBmeDevice()) {
          _CONSOLE_DEBUG(F("initialise BME sensors..."));
          /// Creates and add a BME sensors to the vector using std::make_unique for save memory management
-         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::temperature));
-         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::humidity));
-         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(pI2C->getBmeDevice(), ECSensorType::pressure));
+         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(_i2cManager.getBmeDevice(), ECSensorType::temperature));
+         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(_i2cManager.getBmeDevice(), ECSensorType::humidity));
+         _vBmeSensors.push_back(std::make_unique<CxSensorBme>(_i2cManager.getBmeDevice(), ECSensorType::pressure));
       }
       printSensors();
    }
@@ -325,7 +329,7 @@ public:
    void printSensors() {
       _CONSOLE_INFO(F("Registered BME sensors:"));
       for (auto& sensor : _vBmeSensors) {
-         __console.printf(F("%s %s %.2f %s\n"), sensor->getName(), sensor->getModel(), sensor->getFloatValue(), sensor->getUnit());
+         _CONSOLE_INFO(F("%s %s %.2f %s\n"), sensor->getName(), sensor->getModel(), sensor->getFloatValue(), sensor->getUnit());
       }
    }
    

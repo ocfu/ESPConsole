@@ -7,7 +7,6 @@
 
 // Command function to reboot the device
 void cmd_reboot(CxStrToken &tkArgs) {
-
    // force reboot
    if (tkArgs.indexOf("-f") != -1) {
       reboot();
@@ -34,7 +33,7 @@ void cmd_prompt(CxStrToken &tkArgs) {
    bool bClient = false;
    if (tkArgs.count() > 1) {
       String strPrompt;
- 
+
       if (tkArgs.indexOf("-CL") > -1) {
          bClient = true;
       }
@@ -72,7 +71,7 @@ void cmd_prompt(CxStrToken &tkArgs) {
          } else {
             __console.setPrompt(strPrompt.c_str());
          }
-      } 
+      }
    }
    __console.prompt(bClient);
 }
@@ -177,7 +176,7 @@ void cmd_set(CxStrToken &tkArgs) {
       __console.setTimeZone(strValue.c_str());
       __console.addVariable(strVar.c_str(), strValue.c_str());
       bSuccess = true;
-   } else if (strVar == "BUF") { // Input Buffer Size for the console
+   } else if (strVar == "BUF") {  // Input Buffer Size for the console
       uint32_t nBufLen = (uint32_t)strValue.toInt();
       if (nBufLen >= 64) {
          __console.setCmdBufferLen(nBufLen);
@@ -272,7 +271,6 @@ void cmd_frag(CxStrToken &tkArgs) {
 
 // Command stack
 void cmd_stack(CxStrToken &tkArgs) {
-   
    if (tkArgs.count() > 1) {
       if (tkArgs.indexOf("on") == 1) {
          g_Stack.enableDebugPrint(true);
@@ -280,11 +278,8 @@ void cmd_stack(CxStrToken &tkArgs) {
       } else if (tkArgs.indexOf("off") == 1) {
          g_Stack.enableDebugPrint(false);
          return;
-      } else if (tkArgs.indexOf("low") == 1) {
-         __console.setOutputVariable((uint32_t)g_Stack.getLow());
-         return;
-      } else if (tkArgs.indexOf("high") == 1) {
-         __console.setOutputVariable((uint32_t)g_Stack.getHigh());
+      } else if (tkArgs.indexOf("free") == 1) {
+         __console.setOutputVariable((uint32_t)g_Stack.getFree());
          return;
       }
    } else {
@@ -294,7 +289,7 @@ void cmd_stack(CxStrToken &tkArgs) {
                          // @echo off
          g_Stack.print(getIoStream());
       }
-      __console.setOutputVariable((uint32_t)g_Stack.getSize());
+      __console.setOutputVariable((uint32_t)g_Stack.getFree());
    }
 }
 
@@ -724,7 +719,7 @@ void cmd_flash(CxStrToken &tkArgs) {
    __console.printf(F("------------------------\n"));
    __console.setOutputVariable(ESP.getFlashChipSize() / 1024);
 #endif  // ARDUINO
-#endif /* DEBUG */
+#endif  /* DEBUG */
 }
 
 // Command eeprom
@@ -791,7 +786,7 @@ void printCommands(const CommandEntry *cmds, const size_t numCmds, const char *t
       strncpy(cmdName, cmds[i].name, sizeof(cmdName) - 1);
       cmdName[sizeof(cmdName) - 1] = '\0';
 #endif
-      if (cmdName[0] != '\0' && cmdName[0] != '$') { // Skip empty or special commands
+      if (cmdName[0] != '\0' && cmdName[0] != '$') {  // Skip empty or special commands
          if (i > 0) {
             __console.print(F(","));
          }
@@ -855,9 +850,9 @@ bool executeInTable(const char *cmd, CxStrToken &tkArgs, const CommandEntry *cmd
 #else
          CommandFunc func = cmds[i].func;
 #endif
-         __console.setExitValue(EXIT_SUCCESS); // set exit value to success by default
-         func(tkArgs);  // Call the command function, a failed exit value will be set by the command function
-         return true;  // Command found and executed
+         __console.setExitValue(EXIT_SUCCESS);  // set exit value to success by default
+         func(tkArgs);                          // Call the command function, a failed exit value will be set by the command function
+         return true;                           // Command found and executed
       }
    }
    return false;
@@ -871,7 +866,7 @@ bool execute(const char *szCmd, uint8_t nClient) {
    CxStrToken tkArgs(szCmd, " ");
 
    // we have a command, find the action to take
-   const char* cmd = TKTOCHAR(tkArgs, 0);
+   const char *cmd = TKTOCHAR(tkArgs, 0);
 
    if (!cmd || cmd[0] == '\0') {
       return true;
@@ -889,6 +884,10 @@ bool execute(const char *szCmd, uint8_t nClient) {
 #ifdef ESP_CONSOLE_FS
       printCommands(commandsFS, NUM_COMMANDS_FS, " Filesystem");
 #endif /* ESP_CONSOLE_FS */
+#ifdef ESP_CONSOLE_I2C
+      printCommands(commandsI2C, NUM_COMMANDS_I2C, " I2C");
+#endif /* ESP_CONSOLE_I2C */
+
       return true;
    }
 
@@ -914,6 +913,12 @@ bool execute(const char *szCmd, uint8_t nClient) {
       return true;
    }
 #endif /* ESP_CONSOLE_FS */
+#ifdef ESP_CONSOLE_I2C
+   // Try I2C commands
+   if (executeInTable(cmd, tkArgs, commandsI2C, NUM_COMMANDS_I2C)) {
+      return true;
+   }
+#endif /* ESP_CONSOLE_I2C */
    return false;
 }
 
