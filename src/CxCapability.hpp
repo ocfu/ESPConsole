@@ -44,11 +44,13 @@ public: \
 
 #define CAPREG(_cap_class_) ESPConsole.regCap(_cap_class_::getName(), _cap_class_::construct);
 #define CAPLOAD(_cap_class_) ESPConsole.createCapInstance(_cap_class_::getName(), "");
+#define CAPLOCK(_cap_class_) ESPConsole.getCapInstance(_cap_class_::getName())->lock();
 
 
 class CxCapability : public Print, public CxProcessStatistic {
    Stream* _ioStream = nullptr;
    bool _bQuiet = false;
+   uint8_t _nPriority = 3; // Priority for execution order (lower number = higher priority)
 
 protected:
    bool __bLocked;
@@ -64,8 +66,13 @@ public:
    explicit CxCapability(const char* setName, const std::vector<const char*>& cmds) : name(setName?setName:"unknown"), commands(cmds), __bLocked(false) {
    }
    virtual ~CxCapability() {}
+
+   void setPriority(uint8_t priority) {_nPriority = priority;}
+   uint8_t getPriority() {return _nPriority;}
    
    bool isLocked() {return __bLocked;}
+   void lock() {__bLocked = true;}
+   void unlock() {__bLocked = false;}
    size_t getMemAllocation() {return __nMemAllocation;}
    void setMemAllocation(size_t set) {__nMemAllocation = set;}
    uint32_t getCommandsCount() {return (uint32_t)commands.size();}

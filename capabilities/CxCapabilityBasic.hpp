@@ -124,6 +124,9 @@ public:
                nExitValue = EXIT_SUCCESS;
             } else if (strSubCmd == "list") {
                __console.listCap();
+            } else if (strSubCmd == "prio") {
+               __console.setPriority(TKTOCHAR(tkArgs, 2), TKTOINT(tkArgs, 3, 3));
+               nExitValue = EXIT_SUCCESS; 
             }
          } else {
             if (__console.hasFS()) {

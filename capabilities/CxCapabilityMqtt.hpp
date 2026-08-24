@@ -314,12 +314,13 @@ public:
       }
    }
 
-
-   static void loadCap() {
+   static void loadCap(bool bLock = false) {
       CAPREG(CxCapabilityMqtt);
       CAPLOAD(CxCapabilityMqtt);
-  };
-
+      if (bLock) {
+         CAPLOCK(CxCapabilityMqtt);
+      }
+   };
 };
 
 #endif /* CxCapabilityMqtt_hpp */

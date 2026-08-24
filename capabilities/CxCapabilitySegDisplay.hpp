@@ -1071,12 +1071,14 @@ public:
       std::cout << "7SEG: show level " << level << "\n";
 #endif
    }
-   
-   static void loadCap() {
+
+   static void loadCap(bool bLock = false) {
       CAPREG(CxCapabilitySegDisplay);
       CAPLOAD(CxCapabilitySegDisplay);
+      if (bLock) {
+         CAPLOCK(CxCapabilitySegDisplay);
+      }
    };
-
 };
 
 

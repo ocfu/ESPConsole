@@ -46,6 +46,10 @@ set URL http://$(HOSTNAME)
 set NTP fritz.box
 set BUF 128
 
+# If called in safemode, break execution here. This prevents the execution of commands that may cause issues in safemode.
+break on $(SAFEMODE)
+
+
 #
 # Logging Configuration
 #
@@ -229,6 +233,27 @@ seg slideshow on
 # Note: Not called if system starts in safemode.
 #
 final:
+
+################################
+# Safemode init. Will be called in safemode
+# Start minimal services to allow user to fix the system.
+#
+sm:
+seg setpins 5 4
+seg init
+seg enable 1
+seg br 100
+seg screen add sm static
+seg show 0
+seg print SAFE
+seg blink 32761     # endless blink
+
+timer add 15s "wifi connect;prompt" tiRecon
+timer add 1m "wifi check -q" tiWifi
+wifi connect
+stack off
+usr 0
+break on $(SAFEMODE)
 
 ################################
 # WiFi Connected

@@ -855,21 +855,42 @@ public:
          print(F("Capability '")); print(name); println(F("' not found."));
       }
    }
+
+   void setPriority(const char* name, uint8_t prio) {
+      if (prio > 3) {
+         print(F("Priority must be between 0 and 3."));
+         return;
+      }
+      auto it = _mapCapInstances.find(name);
+      if (it != _mapCapInstances.end()) {
+         it->second.get()->setPriority(prio);
+         print(F("Capability '")); print(name); print(F("' priority set to ")); println(prio);
+      } else {
+         print(F("Capability '")); print(name); println(F("' not found."));
+      }
+   }
    
    // Print all registered constructors
    void listCap() {
       CxTablePrinter table(*__ioStream);
-      table.printHeader({F("Cap"), F("Loaded"), F("Locked"), F("Memory"), F("Commands")}, {6, 6, 6, 6, 8});
+      table.printHeader({F("Name"), F("Loaded"), F("Prio"), F("Locked"), F("Memory"), F("Commands")}, {6, 6, 6, 6, 6, 8});
+      
       for (const auto& entry : _mapCapRegistry) {
-         table.printRow({entry.first.c_str(), _mapCapInstances.find(entry.first) != _mapCapInstances.end() ? "yes" : "no", _mapCapInstances[entry.first].get()->isLocked() ? "yes" : "no", _mapCapInstances[entry.first].get()->getMemAllocation() != INVALID_INT32 ? String(_mapCapInstances[entry.first].get()->getMemAllocation()).c_str() : "", String(_mapCapInstances[entry.first].get()->getCommandsCount()).c_str()});
+         // Check if the capability is loaded
+         if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
+            table.printRow({entry.first.c_str(), "yes", String(_mapCapInstances[entry.first].get()->getPriority()).c_str(), _mapCapInstances[entry.first].get()->isLocked() ? "yes" : "no", _mapCapInstances[entry.first].get()->getMemAllocation() != INVALID_INT32 ? String(_mapCapInstances[entry.first].get()->getMemAllocation()).c_str() : "", String(_mapCapInstances[entry.first].get()->getCommandsCount()).c_str()});
+         } else {
+            table.printRow({entry.first.c_str(), "no", "-", "-", "-", "-"});
+         }
       }
    }
    
    // process (loop) statistics
    void printPs() {
-      println(F(ESC_ATTR_BOLD "Name     Cmd  Time Load Avg" ESC_ATTR_RESET));
+      println(F(ESC_ATTR_BOLD "Name     Cmd  Prio Time Load Avg" ESC_ATTR_RESET));
       printf( "%-8s ", "sys");
       print(F("*    "));
+      printf("0 "); // Priority for system
       printf("%4d ", __sysCPU.looptime());
       printf("%1.2f ", __sysCPU.load());
       printf("%1.2f", __sysCPU.avgload());
@@ -877,6 +898,7 @@ public:
       
       printf("%-8s ", "cons");
       print(F("loop "));
+      printf("0 "); // Priority for console
       printf("%4d ", looptime());
       printf("%1.2f ", load());
       printf("%1.2f", avgload());
@@ -886,6 +908,7 @@ public:
          if (_mapCapInstances.find(entry.first) != _mapCapInstances.end()) {
             printf("%-8s ", entry.first.c_str());
             print(F("loop "));
+            printf("%1d ", _mapCapInstances[entry.first].get()->getPriority());
             printf("%4d ", _mapCapInstances[entry.first].get()->looptime());
             printf("%1.2f ", _mapCapInstances[entry.first].get()->load());
             printf("%1.2f", _mapCapInstances[entry.first].get()->avgload());

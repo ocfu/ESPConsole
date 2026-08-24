@@ -617,10 +617,12 @@ public:
       return EXIT_FAILURE;
    }
 
-
-   static void loadCap() {
+   static void loadCap(bool bLock = false) {
       CAPREG(CxCapabilityMqttHA);
       CAPLOAD(CxCapabilityMqttHA);
+      if (bLock) {
+         CAPLOCK(CxCapabilityMqttHA);
+      }
    };
 };
 

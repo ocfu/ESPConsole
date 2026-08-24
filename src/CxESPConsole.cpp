@@ -232,6 +232,8 @@ void CxESPConsole::loop() {
 }
 
 void CxESPConsoleMaster::loop() {
+   static uint8_t nPriorityCycle = 0;
+
    __sysCPU.stopMeasure();
    startMeasure();
    CxESPConsole::loop();
@@ -310,13 +312,15 @@ void CxESPConsoleMaster::loop() {
 #endif
    stopMeasure();
    for (auto& entry : _mapCapInstances) {
-      entry.second->setIoStream(*__ioStream);
-      entry.second->startMeasure();
-      entry.second->loop();
-      entry.second->stopMeasure();
-      
+      if (entry.second->getPriority() <= nPriorityCycle) {
+         entry.second->setIoStream(*__ioStream);
+         entry.second->startMeasure();
+         entry.second->loop();
+         entry.second->stopMeasure();
+      }      
       if (getLoopDelay()) delay(getLoopDelay());
    }
+   nPriorityCycle = (nPriorityCycle + 1) % 4; // Cycle through priorities 0-3
    __sysCPU.startMeasure();
 }
 

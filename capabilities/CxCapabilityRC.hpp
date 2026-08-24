@@ -451,12 +451,13 @@ public:
       return EXIT_SUCCESS;
    }
 
-     
-   static void loadCap() {
+   static void loadCap(bool bLock = false) {
       CAPREG(CxCapabilityRC);
       CAPLOAD(CxCapabilityRC);
+      if (bLock) {
+         CAPLOCK(CxCapabilityRC);
+      }
    };
-
 };
 
 

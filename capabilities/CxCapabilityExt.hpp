@@ -1705,9 +1705,12 @@ private:
 #endif /* ESP_CONSOLE_NOWIFI */
 
 public:
-   static void loadCap() {
+   static void loadCap(bool bLock = false) {
       CAPREG(CxCapabilityExt);
       CAPLOAD(CxCapabilityExt);
+      if (bLock) {
+         CAPLOCK(CxCapabilityExt);
+      }
    };
 };
 
