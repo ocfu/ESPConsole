@@ -102,7 +102,7 @@ protected:
    CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
    
    unsigned long __nLastUpdate = 0;  /// Timestamp of the last update
-   uint8_t __nResolution = 12;  /// Resolution of the sensor (9-12 bits)
+   uint8_t __nResolution = 32;  /// Resolution of the sensor
    unsigned long __nTimeToConvert = 100;  /// Time required for the sensor to convert/read the measurement
    
    String __strName;  /// Name of the sensor
@@ -111,8 +111,8 @@ protected:
    String __strModel;  /// Model of the sensor
    uint64_t __nId = 0;  /// Unique ID of the sensor
    
-   float __fMaxValue = 9999.999;  /// Maximum value the sensor can read
-   float __fMinValue = -9999.999;  /// Minimum value the sensor can read
+   float __fMaxValue = __FLT_MAX__ ;  /// set the max. float value.
+   float __fMinValue = -__FLT_MAX__ ;  /// set the min. float value.
    float __fResolution = 0.0;  /// Resolution of the sensor value
    
    float __fValue = INVALID_FLOAT;  /// Current value of the sensor
@@ -269,8 +269,8 @@ public:
       setResolution(12);
       __strUnit = unit; //"\x09\x43"  for °C;
       __bValid = true;
-      __fMaxValue = 9999.999;
-      __fMinValue = -9999.999;
+      __fMaxValue = __FLT_MAX__;
+      __fMinValue = -__FLT_MAX__;
       __nId = 0;
       __strName = szName;
       __strModel = "generic";
