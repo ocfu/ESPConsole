@@ -511,24 +511,24 @@ public:
     */
    void printList() {
       CxTablePrinter table(*__console.getStream());
-      
-      table.printHeader({F("Id"), F("Name"), F("Type"), F("Model"), F("Value"), F("Unit")}, {2,11,15,8,8,8});
+
+      table.printHeader({F("Id"), F("Name"), F("Type"), F("Model"), F("Value"), F("Unit"), F("Friendly Name")}, {2,11,15,8,8,8,15});
 
       /// iterate over all sensors and print formated sensor information
       for (const auto& [nId, pSensor] : _mapSensors) {
-         table.printRow({String(nId).c_str(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() , String(pSensor->getFloatValue()).c_str(), pSensor->getUnit()});
+         table.printRow({String(nId).c_str(), pSensor->getName(), pSensor->getTypeSz(), pSensor->getModel() , String(pSensor->getFloatValue()).c_str(), pSensor->getUnit(), pSensor->getFriendlyName()});
       }
    }
    
 };
 
-void CxSensor::registerSensors() {
+inline void CxSensor::registerSensors() {
    CxSensorManager& manager = CxSensorManager::getInstance();
    manager.addSensor(this);
 }
 
 /// Unregister the sensor from the manager
-void CxSensor::unregisterSensors() {
+inline void CxSensor::unregisterSensors() {
    CxSensorManager& manager = CxSensorManager::getInstance();
    manager.removeSensor(this);
 }

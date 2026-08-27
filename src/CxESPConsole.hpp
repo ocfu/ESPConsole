@@ -446,13 +446,17 @@ public:
       addVariable("USER", sz);
    }
 
-   void setAppNameVer(const char* szName, const char* szVer) {_szAppName = szName;_szAppVer = szVer;}
-   const char* getAppName() {return _szAppName[0] ? _szAppName : "Arduino";}
-   const char* getAppVer() {return _szAppVer[0] ? _szAppVer : "-";}
-   
-   uint8_t users() {return __nUsers;}
+   void setAppNameVer(const char* szName, const char* szVer) {
+      _szAppName = szName;
+      _szAppVer = szVer;
+      addVariable("APPNAME", szName);
+      addVariable("APPVER", szVer);
+   }
+   const char* getAppName() { return _szAppName[0] ? _szAppName : "Arduino"; }
+   const char* getAppVer() { return _szAppVer[0] ? _szAppVer : "-"; }
 
-   
+   uint8_t users() { return __nUsers; }
+
    void printProgress(uint32_t actual, uint32_t max, const char* header, const char* unit) {
       uint32_t progress = (actual * 100) / max;
       printf("\r\033[K%16s: %d%% (%d / %d %s)", header, progress, actual, max, unit);
@@ -572,8 +576,8 @@ public:
    }
 
    void addVariable(const char* szName, int32_t nValue) {
-      if (nValue != INVALID_INT32) {
-         char szValue[10];
+      if (nValue != (int32_t)INVALID_INT32) {
+         char szValue[12];  // Enough for -2147483648\0
          snprintf(szValue, sizeof(szValue), "%d", nValue);
          addVariable(szName, szValue);
       }
@@ -622,15 +626,15 @@ public:
       addVariable(">", set);
    }
 
-   const char* getVariable(const char* szName) {
+   const char* getVariable(const char* szName, const char* szDefault = nullptr) {
       if (szName == nullptr || szName[0] == '\0') {
-         return nullptr; // No name provided
+         return szDefault;  // No name provided
       }
       auto it = _mapSetVariables.find(szName);
       if (it != _mapSetVariables.end()) {
          return it->second.c_str();
       }
-      return nullptr;
+      return szDefault;
    }
    
    void removeVariable(const char* szName) {
@@ -639,8 +643,8 @@ public:
    
    void printVariables(Stream& stream) {
       CxTablePrinter table(stream);
-      table.printHeader({"Name", "Value"}, {10, 40});
-      
+      table.printHeader({"Name", "Value"}, {32, 40});
+
       for (const auto& entry : _mapSetVariables) {
          table.printRow({entry.first.c_str(), entry.second.c_str()});
       }
@@ -654,16 +658,15 @@ public:
    void substituteVariables(String& str, std::map<String, String>& mapVariables, bool bReplaceIfNotSet = true) {
       int32_t start = 0;
 
-      // Perform variable substitution for variables using parenthesis
+      // Perform variable substitution for variables using parenthesis. If a variable was defined with parenthesis,
+      // it will be replaced with its value (if found) or replaced with "". Without parenthesis, the variable will be replaced with its value (if found) or kept with its variable name.
       while ((start = str.indexOf("$(", start)) != -1) {
          int end = str.indexOf(")", start + 2);
          if (end == -1) break;
-         String varName = str.substring(start + 2, end);
-         auto it = mapVariables.find(varName);
+         auto it = mapVariables.find(str.substring(start + 2, end));
          if (it != mapVariables.end()) {
-            String value = it->second;
-            str = str.substring(0, start) + value + str.substring(end + 1);
-            start += value.length();
+            str = str.substring(0, start) + it->second + str.substring(end + 1);
+            start += it->second.length();
          } else {
             if (bReplaceIfNotSet) {
                str = str.substring(0, start) + str.substring(end + 1);
@@ -672,8 +675,8 @@ public:
             }
          }
       }
-      
-      // Perform variable substitution for variables not using parenthesis
+
+      // Perform variable substitution for variables not using parenthesis, keep un-assigned variable names in the line
       if (str.indexOf("$") != -1) {
          for (const auto& var : mapVariables) {
             str.replace("$" + var.first, var.second);
@@ -685,22 +688,42 @@ public:
    void substituteVariables(String& str) {
       substituteVariables(str, _mapSetVariables);
    }
-   
-   void setArgVariables(std::map<String, String>& mapVariables, const char* szArgs) {
+
+   void setArgVariables(std::map<String, String>& mapVariables, const char* szArgs, const char* szArg0 = "") {
+      // Assigns standard variable to the arguments, POSIX like. Quotes in the args are not treated.
+      // The max. number of arguments depends on the max. defined tokens of CxStrToken (default MAX_TOKENS: 8)
+      // $# - number of arguments
+      // $@ - all arguments including szArg0 as a single string (not posix compliant!)
+      // $* - all arguments excluding szArg0 as a single string (not posix compliant!)
+      // $0 - first argument. If szArg0 is not empty, use it as the first argument.
+      // $1 - second argument
+      // ...
+      // $n - nth argument
+      
+      uint32_t iStart = 0;
+
+      // set the all arguments variable @
+      if (szArg0 && szArg0[0]) {
+         mapVariables[F("0")] = szArg0;  // store the first argument as $0
+         iStart = 1;
+         mapVariables[F("@")] = szArg0;
+         mapVariables[F("@")] += " ";
+      }
+
       if (szArgs) {
          // split the arguments by space and store them in the map
          CxStrToken tkArgs(szArgs, " ");
-         mapVariables[F("@")] = mapVariables[F("0")] + " ";    // adds the calling name to $0, 0 should be set by the caller
-         mapVariables[F("@")] = mapVariables[F("@")] + szArgs; // complete the $@, add the the whole original arguments string
-         mapVariables[F("#")] = String(tkArgs.count());        // store the number of arguments
-         mapVariables[F("*")] = szArgs;                        // store only the arguments (not posix compliant!)
+
+         mapVariables[F("@")] += szArgs;  // complete the $@, add the the whole original arguments string
+
+         mapVariables[F("#")] = String(tkArgs.count());  // store the number of arguments
+         mapVariables[F("*")] = szArgs;                  // store only the arguments
 
          const char* szArg = tkArgs.get().as<const char*>();
-         
-         // Iterate through the arguments and store them in the map
-         uint32_t i = 1; // Start from 1
+
+         // Iterate through the arguments and store them in the map as 0 1 2 3 ... variables
          while (szArg) {
-            mapVariables[String(i++)] = szArg; // store the argument with its index
+            mapVariables[String(iStart++)] = szArg;  // store the argument with its index
             szArg = tkArgs.next().as<const char*>();
          }
       }
@@ -709,8 +732,11 @@ public:
 };
 
 class CxESPConsoleClient : public CxESPConsole {
-public:
-   CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {__bIsWiFiClient = true;setUsrLogLevel(0);}
+  public:
+   explicit CxESPConsoleClient(WiFiClient& wifiClient, const char* app = "", const char* ver = "") : CxESPConsole((Stream&)wifiClient, app, ver) {
+      __bIsWiFiClient = true;
+      setUsrLogLevel(0);
+   }
 
    virtual void begin() override;
    

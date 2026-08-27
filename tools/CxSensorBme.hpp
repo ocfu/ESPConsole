@@ -279,7 +279,7 @@ class CxBmeSensorContainer : public CxInitializer {
    /// Vector of BME sensors
    std::vector<std::unique_ptr<CxSensorBme>> _vBmeSensors; /// vector of BME sensors
    
-   CxBmeSensorContainer() {VI2CInitializers.push_back(this);} /// register this instance in the vector of initializers. Will be called in the setup() of the I2C capability.
+   CxBmeSensorContainer() {} 
 
 protected:
    CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
@@ -303,6 +303,11 @@ public:
    }
    
    /// Begin sensor manager
+   void begin() {
+      VI2CInitializers.push_back(this);
+   }
+
+   /// Initialise BME sensors. Will be called through the CxInitializer interface
    /// @details Initialise BME sensors using I2C device
    virtual void init() override {
       CxCapabilityI2C* pI2C = CxCapabilityI2C::getInstance();

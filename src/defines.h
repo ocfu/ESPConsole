@@ -156,6 +156,7 @@
 
 #define DEBUG_FLAG_SENSOR           0x80
 #define DEBUG_FLAG_DATA_PROC        0x100
+#define DEBUG_FLAG_BATCH            0x200
 
 
 #define DEBUG_FLAG_USER             0x1000
@@ -169,5 +170,48 @@
 #define INVALID_INT32 0x80000000
 
 #define EXIT_NOT_HANDLED 2
+
+// Syslog
+
+// Syslog Facilities
+#define SYSLOG_FACILITY_KERN 0       // kernel messages
+#define SYSLOG_FACILITY_USER 1       // user-level messages
+#define SYSLOG_FACILITY_MAIL 2       // mail system
+#define SYSLOG_FACILITY_DAEMON 3     // system daemons
+#define SYSLOG_FACILITY_AUTH 4       // security/authorization
+#define SYSLOG_FACILITY_SYSLOG 5     // messages generated internally by syslogd
+#define SYSLOG_FACILITY_LPR 6        // line printer subsystem
+#define SYSLOG_FACILITY_NEWS 7       // network news subsystem
+#define SYSLOG_FACILITY_UUCP 8       // UUCP subsystem
+#define SYSLOG_FACILITY_CRON 9       // clock daemon
+#define SYSLOG_FACILITY_AUTHPRIV 10  // security/authorization (private)
+#define SYSLOG_FACILITY_FTP 11       // FTP daemon
+#define SYSLOG_FACILITY_NTP 12       // NTP subsystem
+#define SYSLOG_FACILITY_AUDIT 13     // log audit
+#define SYSLOG_FACILITY_ALERT 14     // log alert
+#define SYSLOG_FACILITY_CLOCK 15     // clock daemon (note 2)
+#define SYSLOG_FACILITY_LOCAL0 16
+#define SYSLOG_FACILITY_LOCAL1 17
+#define SYSLOG_FACILITY_LOCAL2 18
+#define SYSLOG_FACILITY_LOCAL3 19
+#define SYSLOG_FACILITY_LOCAL4 20
+#define SYSLOG_FACILITY_LOCAL5 21
+#define SYSLOG_FACILITY_LOCAL6 22
+#define SYSLOG_FACILITY_LOCAL7 23
+
+// Syslog Severities
+#define SYSLOG_SEVERITY_EMERG 0    // system is unusable
+#define SYSLOG_SEVERITY_ALERT 1    // action must be taken immediately
+#define SYSLOG_SEVERITY_CRIT 2     // critical conditions
+#define SYSLOG_SEVERITY_ERR 3      // error conditions
+#define SYSLOG_SEVERITY_WARNING 4  // warning conditions
+#define SYSLOG_SEVERITY_NOTICE 5   // normal but significant condition
+#define SYSLOG_SEVERITY_INFO 6     // informational
+#define SYSLOG_SEVERITY_DEBUG 7    // debug-level messages
+
+// Syslog defaults
+#define SYSLOG_DEFAULT_PORT 514
+#define SYSLOG_DEFAULT_FACILITY SYSLOG_FACILITY_LOCAL0
+#define SYSLOG_DEFAULT_SEVERITY SYSLOG_SEVERITY_INFO
 
 #endif /* defines_h */

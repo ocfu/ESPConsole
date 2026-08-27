@@ -39,10 +39,17 @@ protected:
    
 
 public:
-   CxTimer(uint32_t period, bool hold = false) : _nPeriod(period), _last(0), _bOnHold(hold||(period == 0)), _isDue(false), _bHoldAfterDue(false), __cb(nullptr) {if (!hold) start();}
+   explicit CxTimer(uint32_t period, bool hold = false) : _nPeriod(period), _last(0), _bOnHold(hold||(period == 0)), _isDue(false), _bHoldAfterDue(false), __cb(nullptr) {if (!hold) start();}
    CxTimer() : CxTimer(0) {}
    CxTimer(uint32_t period, std::function<void(const char*)> cb, bool bHoldAfterDue = false) : _nPeriod(period), _last(0), _bOnHold(false), _isDue(false), _bHoldAfterDue(bHoldAfterDue), __cb(cb) {if (!bHoldAfterDue) start();}
 
+
+   // add a virtual destructor to allow derived classes to clean up properly
+   virtual ~CxTimer() {
+      // clear the callback to avoid dangling pointers
+      __cb = nullptr;
+   }
+   
    void setId(const char* set) {_strId = set;}
    const char* getId() {return _strId.c_str();}
    
@@ -65,7 +72,7 @@ public:
 
    void setCmd(const char* cmd) {__strCmd = cmd;}
    const char* getCmd() {return __strCmd.c_str();}
-   const char* getModeSz() {return _bHoldAfterDue ? "once" : "repeat";}
+   const char* getModeSz() {return __isCron ? "cron" : (_bHoldAfterDue ? "once" : "repeat");}
    uint8_t getMode() {return _bHoldAfterDue ? 0 : 1;}
    uint32_t getRemain() {return _nPeriod - ((uint32_t)millis() - _last);}
    
@@ -95,17 +102,17 @@ public:
 
 class CxTimer1s : public CxTimer {
 public:
-   CxTimer1s(bool bHold = false) : CxTimer(1000, bHold) {}
+   explicit CxTimer1s(bool bHold = false) : CxTimer(1000, bHold) {}
 };
 
 class CxTimer10s : public CxTimer {
 public:
-   CxTimer10s(bool bHold = false) : CxTimer(10000, bHold) {}
+ explicit CxTimer10s(bool bHold = false) : CxTimer(10000, bHold) {}
 };
 
 class CxTimer60s : public CxTimer {
 public:
-   CxTimer60s(bool bHold = false) : CxTimer(60000, bHold) {}
+ explicit CxTimer60s(bool bHold = false) : CxTimer(60000, bHold) {}
 };
 
 // Supported cron expression features:
@@ -192,14 +199,14 @@ class CxTimerCron : public CxTimer {
    }
    
 public:
-   CxTimerCron(const char* cronExpr, std::function<void(const char*)> cb = nullptr)
-   : CxTimer(0, cb), _strCronExpr(cronExpr), _isValid(false) {
-      __isCron = true;
-      parseCron(cronExpr);
-      time_t now = time(nullptr);
-      _lastCronTrigger = now / 60; // Initialize to current minute to avoid immediate trigger
-   }
-   
+ explicit CxTimerCron(const char* cronExpr, std::function<void(const char*)> cb = nullptr)
+     : CxTimer(0, cb), _strCronExpr(cronExpr), _isValid(false) {
+    __isCron = true;
+    parseCron(cronExpr);
+    time_t now = time(nullptr);
+    _lastCronTrigger = now / 60;  // Initialize to current minute to avoid immediate trigger
+ }
+
    virtual void loop() override {
       time_t now = time(nullptr);
       struct tm t;

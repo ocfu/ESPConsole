@@ -319,7 +319,8 @@ uint32_t getChipId() {
 char* remove8BitChars(const char *mess) {
    static char __buffer[80];
    
-   int i = 0, decmp = 0;
+   int i = 0;
+   size_t decmp = 0;
    
    for (; mess[i] && decmp < (sizeof(__buffer)-1); i++ )
       if ((unsigned char)mess[i] <= 127 || (unsigned char)mess[i] == 176 /*degree sign*/)
@@ -345,20 +346,20 @@ bool utf8_check_is_valid(const char* sz)
    int c,i,n,j;
    size_t ix;
    
-   for (i=0, ix=strlen(sz); i < ix; i++)
+   for (i=0, ix=strlen(sz); i < (int)ix; i++)
    {
       c = (unsigned char) sz[i];
       //if (c==0x09 || c==0x0a || c==0x0d || (0x20 <= c && c <= 0x7e) ) n = 0; // is_printable_ascii
       if (0x00 <= c && c <= 0x7f) n=0; // 0bbbbbbb
       else if ((c & 0xE0) == 0xC0) n=1; // 110bbbbb
-      else if ( c==0xed && i<(ix-1) && ((unsigned char)sz[i+1] & 0xa0)==0xa0) return false; //U+d800 to U+dfff
+      else if ( c==0xed && i<(int)(ix-1) && ((unsigned char)sz[i+1] & 0xa0)==0xa0) return false; //U+d800 to U+dfff
       else if ((c & 0xF0) == 0xE0) n=2; // 1110bbbb
       else if ((c & 0xF8) == 0xF0) n=3; // 11110bbb
       //else if (($c & 0xFC) == 0xF8) n=4; // 111110bb //byte 5, unnecessary in 4 byte UTF-8
       //else if (($c & 0xFE) == 0xFC) n=5; // 1111110b //byte 6, unnecessary in 4 byte UTF-8
       else return false;
-      for (j=0; j<n && i<ix; j++) { // n bytes matching 10bbbbbb follow ?
-         if ((++i == ix) || (( (unsigned char)sz[i] & 0xC0) != 0x80))
+      for (j=0; j<n && i<(int)ix; j++) { // n bytes matching 10bbbbbb follow ?
+         if ((++i == (int)ix) || (( (unsigned char)sz[i] & 0xC0) != 0x80))
             return false;
       }
    }
@@ -584,12 +585,12 @@ void printEEPROM(Stream& stream, uint32_t nStartAddr, uint32_t nLength) {
    EEPROM.begin(eepromSize);
    
    stream.println("EEPROM Contents:");
-   for (int i = nStartAddr; i < eepromSize; i += 8) {
+   for (uint32_t i = nStartAddr; i < eepromSize; i += 8) {
       // Print the base address for the line
       stream.printf("%04X:", i);
       
       // Print 8 values for the line
-      for (int j = 0; j < 8; j++) {
+      for (uint32_t j = 0; j < 8; j++) {
          if (i + j < eepromSize) {  // Ensure we don't read beyond the EEPROM size
             byte value = EEPROM.read(i + j);
             
@@ -819,7 +820,7 @@ const char* getHeapFragmentation() {
 #ifdef ESP32
    //TODO: implement getHeapFragmentation for esp32
 #else
-   snprintf(__nst_buffer, sizeof(__nst_buffer), "%lu", ESP.getHeapFragmentation());
+   snprintf(__nst_buffer, sizeof(__nst_buffer), "%lu", (unsigned long)ESP.getHeapFragmentation());
 #endif
 #else
    __nst_buffer[0] = '\0';
@@ -830,7 +831,7 @@ const char* getHeapFragmentation() {
 
 const char* getFreeHeap() {
 #ifdef ARDUINO
-   snprintf(__nst_buffer, sizeof(__nst_buffer), "%lu", ESP.getFreeHeap());
+   snprintf(__nst_buffer, sizeof(__nst_buffer), "%lu", (unsigned long)ESP.getFreeHeap());
 #else
    __nst_buffer[0] = '\0';
 #endif

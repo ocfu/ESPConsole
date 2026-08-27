@@ -20,7 +20,7 @@ class CxESPHeapTracker {
    size_t _nFragPeak = 0;
    
 public:
-   CxESPHeapTracker(size_t init = 0) {
+   explicit CxESPHeapTracker(size_t init = 0) {
       if (init) {
          _nInitialHeap = init;
       } else {

@@ -838,7 +838,7 @@ private:
       if (label) {
          mapTempVariables[F("LABEL")] = label;
       }
-      if (arg) __console.setArgVariables(mapTempVariables, arg);
+      if (arg) __console.setArgVariables(mapTempVariables, arg, label);
 
       strBatchFile = "";
       
@@ -881,58 +881,91 @@ private:
       _bBreakBatch = false;
       _nBatchDepth++;  // executeBatch will be called recursively, note the depth
       
+      // reserve a buffer for reading lines from the file
       const size_t LINE_BUFFER_SIZE = 256;
+      char* szLineBuffer = new char[LINE_BUFFER_SIZE];
 
-      char* buffer = new char[LINE_BUFFER_SIZE];
-
-      if (buffer) {
+      if (szLineBuffer) {
          
-         g_Stack.DEBUGPrint(getIoStream(), 0, "buffer");
-
          while (file.available()) {
-            size_t len = file.readBytesUntil('\n', buffer, LINE_BUFFER_SIZE - 1);
-            buffer[len] = '\0'; // Null-terminate the string
-            trim(buffer); // Remove any leading/trailing whitespace
+            size_t len = file.readBytesUntil('\n', szLineBuffer, LINE_BUFFER_SIZE - 1);
+            szLineBuffer[len] = '\0'; // Null-terminate the string
+            trim(szLineBuffer); // Remove any leading/trailing whitespace
             
             // If the buffer filled up and no newline was found, discard the rest of the line
-            if (len == LINE_BUFFER_SIZE - 1 && buffer[len - 1] != '\n') {
+            if (len == LINE_BUFFER_SIZE - 1 && szLineBuffer[len - 1] != '\n') {
                char c;
                while (file.available() && (c = file.read()) != '\n') {
                   // Discard characters
                }
             }
 
-            if (strlen(buffer) == 0 || buffer[0] == '#') {
+            if (strlen(szLineBuffer) == 0 || szLineBuffer[0] == '#') {
                // Ignore empty lines and comments
                continue;
             }
-            
-            // Remove inline comments starting with #
-            char* commentStart = strchr(buffer, '#');
-            if (commentStart && *(commentStart - 1) != '$' && (len > 2 && *(commentStart - 2 ) != '$' && *(commentStart - 1) != '(')) { // $# and $(#) are not comments
-               *commentStart = '\0'; // Truncate the line at the # character
-               trim(buffer); // Remove any trailing whitespace after truncation
+
+            // Remove inline comments
+            char* commentStart = strchr(szLineBuffer, '#');
+            if (commentStart) {
+               // check, if # is within quotes and ignore them
+               bool inQuotes = false;
+               for (char* p = szLineBuffer; p < commentStart; p++) {
+                  if (*p == '"') {
+                     inQuotes = !inQuotes;
+                  }
+               }
+
+               // $# and $(#) are no comments
+               if (!inQuotes && *(commentStart - 1) != '$' && (len > 2 && *(commentStart - 2) != '$' && *(commentStart - 1) != '(')) {
+                  *commentStart = '\0';
+                  trim(szLineBuffer);
+               }
             }
-            
-            if (strlen(buffer) == 0) {
+
+            if (strlen(szLineBuffer) == 0) {
                // If the line becomes empty after removing the comment, skip it
                continue;
             }
-            
-            
+
+            const uint8_t nMaxVariableNameLength = 32;
+
             // Check if the line is a variable definition
-            char* equalsSign = strchr(buffer, '=');
+            char* equalsSign = strchr(szLineBuffer, '=');
             if (equalsSign) {
+               // Identify and store defined local variables
+               // Local variable are defined without the set command and assigned with =.
+               // Syntax: <variable_name> = <value>
+               // Valid assignments are
+               //    myVar = 42
+               //    myVar = "Hello World"
+               // Before the variable name there shall be no other words.
+               // Invalid assignments are
+               //    myVar=42                      // <--- Invalid: no spaces around '='
+               //    myVar = 42 extra              // <--- Invalid: extra text after assignment
+               //    myVar = "Hello World" extra   // <--- Invalid: extra text after valid assignment in quotes
+               //    "myVar = 42"                  // <--- Invalid: assignment in quotes
+               //    echo "myVar = 34"             // <--- That's a command with a quoted text, will not be treated as a variable assignment
+               //
                static String varName;
                static String varValue;
-               
-               // Ensure the equal sign is in the first word
-               varName = String(buffer).substring(0, equalsSign - buffer);
+
+               // Extract the variable name, respect max length
+               varName = String(szLineBuffer).substring(0, MIN(equalsSign - szLineBuffer, nMaxVariableNameLength));
                varName.trim();
-               
+
+               // Variable names may contain letters, numbers, and underscores but no spaces and special characters.
+               for (char c : varName) {
+                  if (!isalnum(c) && c != '_') {
+                     // Invalid character found
+                     varName.clear();
+                     break;
+                  }
+               }
+
                // Ensure the equal sign is part of the first word (no spaces in the variable name), otherwise treat it as a command
-               if (!varName.isEmpty() && varName.indexOf(' ') == -1) {
-                  varValue = String(buffer).substring(equalsSign - buffer + 1);
+               if (!varName.isEmpty()) {
+                  varValue = String(szLineBuffer).substring(equalsSign - szLineBuffer + 1);
                   varValue.trim();
                   
                   // Substitue value with local variables first
@@ -945,52 +978,50 @@ private:
                   mapTempVariables[varName] = varValue; // Store the variable
                   continue;
                }
-               g_Stack.DEBUGPrint(getIoStream(), 0, "Variables");
             }
             
 
             // Handle variables in the batch file
             static String command;
-            uint32_t extra_size = 50; // FIXME: max. length of a variable length (to be determined actually)
-            
-            command.reserve(strlen(buffer) + extra_size); // Reserve enough space for the command and potential longer label
-            command = buffer;
+
+            command.reserve(strlen(szLineBuffer) + 128);  // // Reserve enough space for the command and potential variable substitutions
+            command = szLineBuffer;
+            command.trim();
                         
             // Substitue command with local variables first
             __console.substituteVariables(command, mapTempVariables, false);
             
             // Substitue command with global variables
             //__console.substituteVariables(command);
-            
 
             if (command.endsWith(":")) {
-               // Check for labels
-               processCommands = ((command == String(label) + ":") || command == "all:");
+               // Check if the command is a label and matches with label argument or with "all:". In case of a match, set processCommands to true
+               // and continue to process the batch file.
+               processCommands = ((command.substring(0, command.length() - 1) == label) || command == "all:");
                continue;
             }
-            
+
             if (processCommands) {
                _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
-               
+
+               // Check if the command is an exec command
                if (command.startsWith("exec")) {
-                  __console.substituteVariables(command); // needed ?
+                  __console.substituteVariables(command); // needed ? yes
                   CxStrToken tkExecCmd(command.c_str(), " ");
                   _CONSOLE_DEBUG(F("exec command found: %s"), command.c_str());
-                  // recursively call executeBatch and not go deeper by calling processCmd, this shall safe stack usage
+                  // recursively call executeBatch
                   nExitValue = executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
                } else {
-                  g_Stack.DEBUGPrint(getIoStream(), +1, "processCmd-A");
-                  nExitValue = __console.processCmd(*__console.getStream(), command.c_str(), 0); // MARK: getStream needed here?
-                  g_Stack.DEBUGPrint(getIoStream(), -1, "processCmd-B");
+                  nExitValue = __console.processCmd(*__console.getStream(), command.c_str(), 0);  // MARK: getStream needed here?
                }
 
                if (_bBreakBatch) break;
             }
-         } // while (file.available())
-         
+         }  // while (file.available())
+
          _bBreakBatch = false; // limits the break for the current batch, not for the upper one in nested calls
          
-         delete[] buffer;
+         delete[] szLineBuffer;  // Free the allocated memory for the line buffer
       }
       
 

@@ -42,6 +42,8 @@ class CxESPTime {
    
 public:
    CxESPTime() : _strNtpServer(F("")), _strTz(F("UTC")) {
+      memset(_buf, 0, sizeof(_buf));
+      memset(&_tmLocal, 0, sizeof(_tmLocal));
       _cbSynced = [this]() {
          if (!_tStart) {
             time(&_tNow);
@@ -105,6 +107,9 @@ public:
    }
     
    void delAllTimers() {
+      for (auto& timer : _timers) {
+         delete timer;
+      }
       _timers.clear();
    }
    

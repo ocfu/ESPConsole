@@ -247,7 +247,7 @@ void CxESPConsoleMaster::loop() {
       bool commandReceived = false;
       int index = 0;
       
-      WiFiClient client = _pWiFiServer->available();
+      WiFiClient client = _pWiFiServer->available(); // better use "accept" here?
       
       // first check, if remote connection has a command
       if (client) {
@@ -441,5 +441,5 @@ void CxESPConsole::printLog(uint8_t level, uint32_t flag, const char *sz) {
    }
    
    if (getUsrLogLevel() >= level) println(sz);
-   if (getLogLevel() >= level) print2LogServer(sz);
+   if (getLogLevel() >= level) print2LogServer(sz);  // suppress time stame here? (sz+17)
 }
