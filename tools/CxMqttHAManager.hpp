@@ -908,6 +908,8 @@ public:
    void addJsonAction(JsonDocument& doc) const {}
    
    void printList(Stream& stream) {
+      __console.printf(F(ESC_ATTR_BOLD "HA Device: %s " ESC_ATTR_RESET ", %d entities\n"), getFriendlyName(), _vecItems.size());
+
       CxTablePrinter table(stream);
       
       std::vector<String> vHeadLine = {F("Nr"),F("Name"),F("Friendly Name"),F("Type"), F("Available"),F("Retained"),F("Topic Base"), F("Has Cb"), F("/cmd"), F("Variable")};

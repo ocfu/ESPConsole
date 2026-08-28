@@ -123,16 +123,12 @@ void CxESPConsole::begin() {
       _abortClient();
    }
    __nUsers++;
-   setConsoleName(""); // shall be set by the last derived class
 }
 
 void CxESPConsole::wlcm() {
    // show the wellcome message
-#ifndef ESP_CONSOLE_NOWIFI
-   printf(F("ESP console %s - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime(*__ioStream);println();
-#else
-   printf(F("ESP console %s + WiFi - " ESC_ATTR_BOLD "%s %s" ESC_ATTR_RESET), __szConsoleName, getAppName(), getAppVer());print(" - ");printDateTime();println();
-#endif
+   const char* szProjectName = getVariable("PN", "ESP Console");
+   printf(F(ESC_ATTR_BOLD "%s" ESC_ATTR_RESET " - %s %s" ), szProjectName, getAppName(), getAppVer());print(" - ");printDateTime(*__ioStream);println();
    println();
 }
 

@@ -263,12 +263,6 @@ protected:
    CxProcessStatistic __totalCPU;
    CxProcessStatistic __sysCPU;
 
-   
-   const char* __szConsoleName = ""; // appears at the start message
-   void setConsoleName(const char* sz) {
-      if (!__szConsoleName[0]) __szConsoleName = sz; // set only, if not set by calling class already
-   }
-   
    ///
    /// log levels
    ///  0: off
