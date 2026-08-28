@@ -111,7 +111,6 @@ public:
       CxCapability::setup();
       
       setIoStream(*__console.getStream());
-      __bLocked = false;
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
@@ -617,13 +616,6 @@ public:
       return EXIT_FAILURE;
    }
 
-   static void loadCap(bool bLock = false) {
-      CAPREG(CxCapabilityMqttHA);
-      CAPLOAD(CxCapabilityMqttHA);
-      if (bLock) {
-         CAPLOCK(CxCapabilityMqttHA);
-      }
-   };
 };
 
 #endif /* CxCapabilityMqttHA_hpp */

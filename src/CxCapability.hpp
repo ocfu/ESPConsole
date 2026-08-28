@@ -43,8 +43,7 @@ public: \
 };
 
 #define CAPREG(_cap_class_) ESPConsole.regCap(_cap_class_::getName(), _cap_class_::construct);
-#define CAPLOAD(_cap_class_) ESPConsole.createCapInstance(_cap_class_::getName(), "");
-#define CAPLOCK(_cap_class_) ESPConsole.getCapInstance(_cap_class_::getName())->lock();
+#define CAPLOAD(_cap_class_, _param_) ESPConsole.createCapInstance(_cap_class_::getName(), _param_);
 
 
 class CxCapability : public Print, public CxProcessStatistic {

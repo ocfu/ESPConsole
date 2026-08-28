@@ -84,7 +84,6 @@ public:
       CxCapability::setup();
       
       setIoStream(*__console.getStream());
-      __bLocked = true;
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
 
@@ -117,7 +116,7 @@ public:
          if (tkArgs.count() > 1) {
             String strSubCmd = TKTOCHAR(tkArgs, 1);
             if (strSubCmd == "load" && tkArgs.count() > 2) {
-               __console.createCapInstance(TKTOCHAR(tkArgs, 2), "");
+               __console.createCapInstance(TKTOCHAR(tkArgs, 2), TKTOCHAR(tkArgs, 3));
                nExitValue = EXIT_SUCCESS;
             } else if (strSubCmd == "unload" && tkArgs.count() > 2) {
                __console.deleteCapInstance(TKTOCHAR(tkArgs, 2));
@@ -687,12 +686,6 @@ public:
 #endif
       __console.setOutputVariable(__console.isConnected() ? "online" : "offline");
    }
-
- 
-   static void loadCap() {
-      CAPREG(CxCapabilityBasic);
-      CAPLOAD(CxCapabilityBasic);
-   };
 };
 
 

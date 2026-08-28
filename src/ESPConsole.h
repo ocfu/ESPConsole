@@ -87,9 +87,9 @@ void initESPConsole(const char* app = _NAME, const char* ver = _VERSION_ID) {
    ESPConsole.setAppNameVer(app, ver);
    
 #ifdef CxCapabilityBasic_hpp
-   CxCapabilityBasic::loadCap();
+   CAPREG(CxCapabilityBasic);
+   CAPLOAD(CxCapabilityBasic, "l:1");
 #endif
-
 }
 
 

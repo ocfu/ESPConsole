@@ -116,7 +116,6 @@ public:
       CxCapability::setup();
       
       setIoStream(*__console.getStream());
-      __bLocked = false;
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
@@ -451,13 +450,6 @@ public:
       return EXIT_SUCCESS;
    }
 
-   static void loadCap(bool bLock = false) {
-      CAPREG(CxCapabilityRC);
-      CAPLOAD(CxCapabilityRC);
-      if (bLock) {
-         CAPLOCK(CxCapabilityRC);
-      }
-   };
 };
 
 

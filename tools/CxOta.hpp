@@ -52,11 +52,11 @@ public:
          Ota1.error(error);
       });
       
-      ArduinoOTA.begin();
-      
+      ArduinoOTA.begin(); // function does not return a value.
       m_bInitialized = true;
+      
 #endif
-      return true;
+      return m_bInitialized;
    }
 
    void loop() {
@@ -75,6 +75,17 @@ public:
    void end() {if(_cbEnd) _cbEnd();}
    void onError(cbErr_t cb){_cbError = cb;}
    void error(ota_error_t error) {if(_cbError) _cbError(error);}
+   bool stop() { // using stop(), end() is reserved for the callback
+      if (m_bInitialized) {
+         m_bInitialized = false;
+#ifdef ARDUINO
+         ArduinoOTA.end();
+#endif
+         return true;
+      }
+      return false;
+   }
+   bool isInitialized() const { return m_bInitialized; }
 };
 
 #endif /* ESP_CONSOLE_NOWIFI */

@@ -840,6 +840,25 @@ public:
          if (instance) {
             _mapCapInstances[name] = std::move(instance); // don't use instance any more after std::move !!
             _mapCapInstances[name]->setIoStream(*__ioStream);
+            // set parameters for the capability instance
+            //   <param>:<value> pairs, separated by commas
+            //   p:<priority> - set priority (0-3)
+            //.  l:<lock> - set lock (0-1)
+            if (param && param[0]) {
+               CxStrToken tkParams(param, ",");               
+               const char* szParam = tkParams.get().as<const char*>();
+               while (szParam) {
+                  // parse the parameter
+                  if (szParam[0] == 'p' && szParam[1] == ':') {
+                     uint8_t priority = atoi(szParam + 2);
+                     _mapCapInstances[name]->setPriority(priority);
+                  } else if (szParam[0] == 'l' && szParam[1] == ':') {
+                     bool lock = (atoi(szParam + 2) == 1);
+                     lock ? _mapCapInstances[name]->lock() : _mapCapInstances[name]->unlock();
+                  }
+                  szParam = tkParams.next().as<const char*>();
+               }
+            }
             _mapCapInstances[name]->setup();
             size_t mem2 = g_Heap.available(true); // force update
             if (mem2 < mem) {

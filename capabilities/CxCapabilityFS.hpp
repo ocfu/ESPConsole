@@ -82,8 +82,6 @@ public:
    void setup() override {
       CxCapability::setup();
       
-      __bLocked = false;
-      
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
 
       // load specific environments for this class
@@ -1199,14 +1197,6 @@ private:
              (value >= min && value <= min + maxDiff);   
    }
 
-public:
-   static void loadCap(bool bLock = false) {
-      CAPREG(CxCapabilityFS);
-      CAPLOAD(CxCapabilityFS);
-      if (bLock) {
-         CAPLOCK(CxCapabilityFS);
-      }
-   };
 };
 
 #endif /* CxCapabilityFS */

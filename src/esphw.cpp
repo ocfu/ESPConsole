@@ -771,7 +771,7 @@ bool readOtaPassword(char* szPassword, uint32_t lenmax) {
    EEPROM_readAnything(0x8A, buf);
    EEPROM.end();
    strncpy(szPassword, buf, lenmax);
-   return true;
+   return szPassword[0] != '\0';  // Return true if the password is not empty
 #else
    return false;
 #endif

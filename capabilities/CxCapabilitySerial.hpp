@@ -90,7 +90,6 @@ class CxCapabilitySerial : public CxCapability {
    void setup() override {
       CxCapability::setup();
       setIoStream(*__console.getStream());
-      __bLocked = false;
 
       _CONSOLE_INFO(F("==== Cap: %s ===="), getName());
 
@@ -358,11 +357,6 @@ class CxCapabilitySerial : public CxCapability {
 
    CxGPIO& getGPIOTx() { return m_gpioTx; }
    CxGPIO& getGPIORx() { return m_gpioRx; }
-
-   static void loadCap() {
-      CAPREG(CxCapabilitySerial);
-      CAPLOAD(CxCapabilitySerial);
-   };
 
    void test() {
       // send a test message to the console every 10 seconds

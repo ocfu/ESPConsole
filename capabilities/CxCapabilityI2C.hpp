@@ -249,7 +249,6 @@ public:
       CxCapability::setup();
       
       setIoStream(*__console.getStream());
-      __bLocked = false;
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
@@ -570,13 +569,6 @@ public:
     */
    tI2CDeviceMap& getDeviceMap() {return _mapDevices;}
 
-   static void loadCap(bool bLock = false) {
-      CAPREG(CxCapabilityI2C);
-      CAPLOAD(CxCapabilityI2C);
-      if (bLock) {
-         CAPLOCK(CxCapabilityI2C);
-      }
-   };
 };
 
 

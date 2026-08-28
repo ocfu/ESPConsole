@@ -178,7 +178,7 @@ public:
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth", "id", "app", "min", "max" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth", "id", "app", "min", "max", "ota" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -187,7 +187,7 @@ public:
    
    /// Destructor to end the capability and stop OTA and Wifi
    ~CxCapabilityExt() {
-      Ota1.end();
+      Ota1.stop();
       stopWiFi();
    }
    
@@ -196,65 +196,19 @@ public:
       CxCapability::setup();
 
       g_Heap.update();
-      
-      __bLocked = false;
-      
+            
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
-    
-     
-      /// setup OTA service
-      _CONSOLE_INFO(F("start OTA service"));
-      char szOtaPassword[25];
-      ::readOtaPassword(szOtaPassword, sizeof(szOtaPassword));
-      
-      Ota1.onStart([](){
-         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
-         con.info(F("OTA start..."));
-         Led1.blinkFlash();
-         g_bOTAinProgress = true;
-      });
-      
-      Ota1.onEnd([](){
-         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
-         con.info(F("OTA end"));
-         if (g_bOTAinProgress) {
-            con.processCmd("reboot -f");
-         }
-         g_bOTAinProgress = false;
-      });
-      
-      Ota1.onProgress([](unsigned int progress, unsigned int total){
-         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
-         int8_t p = (int8_t)round(progress * 100 / total);
-         Led1.action();
-         static int8_t last = 0;
-         if ((p % 10)==0 && p != last) {
-            con.info(F("OTA Progress %u"), p);
-            last = p;
-         }
-      });
-      
-      Ota1.onError([](ota_error_t error){
-         String strErr;
-#ifdef ARDUINO
-         if (error == OTA_AUTH_ERROR) {strErr = F("authorisation failed");}
-         else if (error == OTA_BEGIN_ERROR) {strErr = F("begin failed");}
-         else if (error == OTA_CONNECT_ERROR) {strErr = F("connect failed");}
-         else if (error == OTA_RECEIVE_ERROR) {strErr = F("receive failed");}
-         else if (error == OTA_END_ERROR) {strErr = F("end failed");}
-#endif
-         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
-
-         con.error(F("OTA error: %s [%d]"), strErr.c_str(), error);
-      });
-      
-      Ota1.begin(__console.getHostName(), szOtaPassword);
+         
    }
    
    /// Loop method to update sensor data, handle OTA updates, and manage LED status and web server requests.
    void loop() override {
 #ifndef ESP_CONSOLE_NOWIFI
       Ota1.loop();
+      if (g_bOTAinProgress) {
+         setPriority(0); // Lower the priority of the main loop to prioritize OTA updates         
+         return; // Skip the rest of the loop 
+      }
 #ifdef ARDUINO
       dnsServer.processNextRequest();
       webServer.handleClient();
@@ -442,14 +396,6 @@ public:
             stopWiFi();
          } else if (strCmd == "scan") {
             ::scanWiFi(getIoStream());
-         } else if (strCmd == "otapw") {
-            if (b) {
-               ::writeOtaPassword(TKTOCHAR(tkArgs, 2));
-            } else {
-               char buf[25];
-               ::readOtaPassword(buf, sizeof(buf));
-               print(F(ESC_ATTR_BOLD "Password: " ESC_ATTR_RESET)); print(buf); println();
-            }
          } else if (strCmd == "ap") {
             if (__console.isWiFiClient()) println(F("switching to AP mode. Note: this disconnects this console!"));
             delay(500);
@@ -485,7 +431,6 @@ public:
                println(F("  disconnect"));
                println(F("  status"));
                println(F("  scan"));
-               println(F("  otapw [<password>]"));
                println(F("  ap"));
                println(F("  sensor"));
                println(F("  check [-q]"));
@@ -1187,6 +1132,45 @@ public:
          } else {
             nExitValue = EXIT_FAILURE;
          }
+      } else if (cmd == "ota") {
+         // sub commands: start, stop, pw [<password>], status
+         String strSubCmd = TKTOCHAR(tkArgs, 1);
+         if (strSubCmd == "start") {
+            if (tkArgs.count() > 2) {
+               String strPassword = TKTOCHAR(tkArgs, 2);
+               ::writeOtaPassword(strPassword.c_str());
+            }
+            nExitValue = _startOTA() ? EXIT_SUCCESS : EXIT_FAILURE;
+         } else if (strSubCmd == "stop") {
+            nExitValue = _stopOTA() ? EXIT_SUCCESS : EXIT_FAILURE;
+         } else if (strSubCmd == "pw") {
+            if (tkArgs.count() > 2) {
+               String strPassword = TKTOCHAR(tkArgs, 2);
+               ::writeOtaPassword(strPassword.c_str());
+            } else {
+               char szOtaPassword[25]; // only 25 bytes for the password are reserved in the EEPROM, so we limit the output to 25 bytes, inluding the null terminator
+               if (::readOtaPassword(szOtaPassword, sizeof(szOtaPassword))) {  // function returns false, if no password is set, length is 0 or length is greater than 24 
+                  print(F(ESC_ATTR_BOLD "Password: " ESC_ATTR_RESET)); print(szOtaPassword); println();
+                  nExitValue = EXIT_SUCCESS;
+               } else {
+                  println(F("no password set"));
+               }
+            }
+         } else if (strSubCmd == "status") {
+            if (Ota1.isInitialized()) {
+               println(F("OTA is running"));
+               nExitValue = EXIT_SUCCESS;
+            } else {
+               println(F("OTA is not running"));
+               nExitValue = EXIT_FAILURE;
+            }
+         } else {
+            println(F("ota commands:"));
+            println(F("  start [<password>]"));
+            println(F("  stop"));
+            println(F("  pw [<password>]"));
+            println(F("  status"));
+         }  
       }
       else {
          return EXIT_NOT_HANDLED;
@@ -1701,17 +1685,73 @@ private:
       __console.executeBatch("init", "ap-down");
    }
 
+   /// start ota service
+   bool _startOTA() {
+      Ota1.stop();
+      
+      _CONSOLE_INFO(F("start OTA service"));
+      
+      char szOtaPassword[25];
+      ::readOtaPassword(szOtaPassword, sizeof(szOtaPassword));
+
+      Ota1.onStart([]() {
+         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
+         con.info(F("OTA start..."));
+         Led1.blinkFlash();
+         g_bOTAinProgress = true;
+      });
+
+      Ota1.onEnd([]() {
+         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
+         con.info(F("OTA end"));
+         if (g_bOTAinProgress) {
+            con.processCmd("reboot -f"); // function will not return, as the device will reboot
+         }
+         g_bOTAinProgress = false;
+      });
+
+      Ota1.onProgress([](unsigned int progress, unsigned int total) {
+         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
+         int8_t p = (int8_t)round(progress * 100 / total);
+         Led1.action();
+         static int8_t last = 0;
+         if ((p % 10) == 0 && p != last) {
+            con.info(F("OTA Progress %u"), p);
+            last = p;
+         }
+      });
+
+      Ota1.onError([](ota_error_t error) {
+         String strErr;
+#ifdef ARDUINO
+         if (error == OTA_AUTH_ERROR) {
+            strErr = F("authorisation failed");
+         } else if (error == OTA_BEGIN_ERROR) {
+            strErr = F("begin failed");
+         } else if (error == OTA_CONNECT_ERROR) {
+            strErr = F("connect failed");
+         } else if (error == OTA_RECEIVE_ERROR) {
+            strErr = F("receive failed");
+         } else if (error == OTA_END_ERROR) {
+            strErr = F("end failed");
+         }
+#endif
+         CxESPConsoleMaster& con = CxESPConsoleMaster::getInstance();
+
+         con.error(F("OTA error: %s [%d]"), strErr.c_str(), error);
+      });
+
+      return Ota1.begin(__console.getHostName(), szOtaPassword);
+   }
+
+   /// stop ota service
+   bool _stopOTA() {
+      _CONSOLE_INFO(F("stop OTA service"));
+      return Ota1.stop();
+   }
 
 #endif /* ESP_CONSOLE_NOWIFI */
 
-public:
-   static void loadCap(bool bLock = false) {
-      CAPREG(CxCapabilityExt);
-      CAPLOAD(CxCapabilityExt);
-      if (bLock) {
-         CAPLOCK(CxCapabilityExt);
-      }
-   };
 };
 
 

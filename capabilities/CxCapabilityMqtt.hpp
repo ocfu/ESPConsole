@@ -56,7 +56,6 @@ public:
       CxCapability::setup();
       
       setIoStream(*__console.getStream());
-      __bLocked = false;
       
       _CONSOLE_INFO(F("====  Cap: %s  ===="), getName());
       
@@ -314,13 +313,6 @@ public:
       }
    }
 
-   static void loadCap(bool bLock = false) {
-      CAPREG(CxCapabilityMqtt);
-      CAPLOAD(CxCapabilityMqtt);
-      if (bLock) {
-         CAPLOCK(CxCapabilityMqtt);
-      }
-   };
 };
 
 #endif /* CxCapabilityMqtt_hpp */
