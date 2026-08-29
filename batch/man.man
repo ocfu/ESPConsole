@@ -10,18 +10,134 @@ PARAMETERS=$(ESC_BOLD)Parameters:$(ESC_RESET)
 EXAMPLES=$(ESC_BOLD)Examples:$(ESC_RESET)
 NOTE=$(ESC_BOLD)Note:$(ESC_RESET)
 
+default:
+echo "$(ESC_BOLD)ESPConsole Manual$(ESC_RESET)"
+echo
+echo "$(USAGE) <command>"
+echo
+echo "Enter 'man <command>' for details on a command."
+echo
+echo "$(ESC_BOLD)Capabilities:$(ESC_RESET)"
+echo "  basic        basic system commands"
+echo "  ext          extended commands"
+echo "  fs           file system commands"
+echo "  mqtt         mqtt"
+echo "  ha           home assistant"
+echo "  seg          segment display"
+echo "  slideshow    segment display slide show"
+echo "  i2c          i2c bus"
+echo "  rc           radio controlled (433 MHz) switches"
+echo "  serial       software serial"
+
+?:
+echo "$(USAGE)"
+echo "  Prints a list of all available commands."
+
 #
 # basic
 #
 cap:
 echo "$(USAGE) <command> [<parameters>]"
-echo "commands:"
-echo " load <cap. name>"
-echo " unload <cap. name>"
-echo " list"
+echo "$(COMMANDS)"
+echo "  load <cap. name>"
+echo "  unload <cap. name>"
+echo "  list"
+echo "  prio <cap. name> <priority>"
+
+reboot:
+echo "$(USAGE) [-f]"
+echo "  Reboots the device. Without the -f option the reboot is only announced."
+
+cls:
+echo "$(USAGE)"
+echo "  Clears the console screen."
+
+prompt:
+echo "$(USAGE) [-CL] [-OFF|-ON] [<prompt string>]"
+echo "$(PARAMETERS)"
+echo "  -CL                   apply to the client (telnet) prompt, default is the local prompt."
+echo "  -OFF / -ON            de-activate / activate the prompt."
+echo "  <prompt string>       set the prompt string. Escape sequences are converted to escape codes."
+
+wlcm:
+echo "$(USAGE)"
+echo "  Prints the welcome message."
+
+info:
+echo "$(USAGE) [<sub-command>]"
+echo "$(COMMANDS)"
+echo "  reason    show the reset reason."
+echo "  last      show the last start time."
+echo "  up        show the uptime in seconds."
+echo "  <none>    show basic system information."
+
+uptime:
+echo "$(USAGE)"
+echo "  Shows the uptime and sets the output variable."
+
+time:
+echo "$(USAGE)"
+echo "  Shows the current time and sets the output variable."
+
+date:
+echo "$(USAGE)"
+echo "  Shows the current date and sets the output variable."
+
+heap:
+echo "$(USAGE)"
+echo "  Shows the heap size, used, free and low memory and the fragmentation."
+
+frag:
+echo "$(USAGE)"
+echo "  Shows the heap fragmentation and sets the output variable."
+
+ps:
+echo "$(USAGE)"
+echo "  Shows the running tasks of the system."
+
+stack:
+echo "$(USAGE) [on|off|low|high]"
+echo "$(COMMANDS)"
+echo "  on        enable stack debug printing."
+echo "  off       disable stack debug printing."
+echo "  low       set the output variable to the lowest stack usage."
+echo "  high      set the output variable to the highest stack usage."
+echo "  <none>    show the stack usage."
+
+loopdelay:
+echo "$(USAGE) [<ms>]"
+echo "  Without a parameter the current loop delay is shown, otherwise it is set."
+
+delay:
+echo "$(USAGE) <ms>"
+echo "  Waits the given time in milliseconds."
+
+hostname:
+echo "$(USAGE)"
+echo "  Shows the hostname and sets the output variable."
+
+ip:
+echo "$(USAGE)"
+echo "  Shows the ip address and sets the output variable."
+
+ssid:
+echo "$(USAGE)"
+echo "  Shows the current ssid and signal strength and sets the output variable."
+
+net:
+echo "$(USAGE)"
+echo "  Shows network information (mode, ssid, host, ip, gateway, dns, ntp, tz)."
+
+users:
+echo "$(USAGE)"
+echo "  Shows the number of connected users and sets the output variable."
+
+exit:
+echo "$(USAGE)"
+echo "  Exits the wifi client."
 
 usr:
-echo "$(USAGE) <command> [<parameters>]"
+echo "$(USAGE) <cmd> [<flag/value> [<0|1>]]"
 echo " 0           be quiet, switch all log messages off on the console."
 echo " 1  <1..5>   set the log level to show log messages on the console."
 echo " 2  <flag>   set the extended debug flag(s) to the value."
@@ -31,35 +147,85 @@ echo " 2  <flag> 1 add an extended debug flag."
 echo:
 echo "$(USAGE) [-n] [<string>]"
 echo "  -n   suppress the trailing newline character."
-echo "The echo utility exits 0 on success."
+echo "The echo utility exits 0 on success."
+
+@echo:
+echo "$(USAGE) on|off"
+echo "  Switches the echoing of the processed commands on or off."
+
+timer:
+echo "$(USAGE) <command> [<parameters>]"
+echo "  Sets the exit value $? to 0 (true) or 1 (false) if the command fails."
+echo
+echo "$(COMMANDS)"
+echo "  add <period>|<cron> <cmd> [<id> [<mode>]]  | max. 8 timers, max. 7 days, mode: once, repeat, replace"
+echo "  del <id>"
+echo "  start <id>"
+echo "  stop <id>"
+echo "  list"
+
+ntp:
+echo "$(USAGE) <command> [<parameters>]"
+echo "  Uses the 'NTP' and 'TZ' environment variables."
+echo
+echo "$(COMMANDS)"
+echo "  server <server>   Sets the NTP server and tries to sync with it."
+echo "  sync              Tries to sync with the NTP server."
+echo "  <none>            Shows the current NTP server and the sync status."
 
 #
 # ext
 #
+hw:
+echo "$(USAGE)"
+echo "  Shows hardware information (chip type, chip id, flash size, frequency)."
+
+sw:
+echo "$(USAGE)"
+echo "  Shows software information (platform, core, sdk, arduino, firmware)."
+
+esp:
+echo "$(USAGE)"
+echo "  Shows detailed information about the ESP (cpu, flash, firmware, boot)."
+
+flash:
+echo "$(USAGE)"
+echo "  Shows the flash memory map (partitions)."
+
+id:
+echo "$(USAGE)"
+echo "  Sets the output variable to the chip id."
+
+app:
+echo "$(USAGE)"
+echo "  Sets the output variable to the application name."
+
 gpio:
 echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
 echo "  state [<pin>]"
-echo "  set <pin> <mode> (in, out, pwm, inverted, non-inverted)"
+echo "  set <pin> <mode> (in, out, inverted, non-inverted)"
 echo "  set <pin> 0...1023 (set pin state to value)"
 echo "  name <pin> <name>"
 echo "  fn <pin> <friendly name>"
 echo "  get <pin>"
 echo "  list"
 echo "  add <pin> <type> <name> <inverted> [<cmd> [<param>]]"
+echo "     types: button, led, relay, contact, counter, analog, virtual"
 echo "  del <name>"
-echo "  let <name> = <name>"
+echo "  let <name> = <name>|<value>"
 echo "  deb <pin> <debounce time>"
 echo "  isr <pin> <id> [<debounce time>]"
 
 set:
-echo "$(USAGE) <name>[[/<prec>] [<value>] | [ = <expr>]"
-echo "  Set a variable."
+echo "$(USAGE) <name>[[/<prec>] [<value>] | [ = <expr>]]"
+echo "  Sets a variable. Without any parameter all variables are printed."
 echo "  Use of the equal sign expects a numeric expression. Strings are set without the equal sign."
 echo
 echo $(PARAMETERS)
 echo "  <name>    Name of the variable"
 echo "  <prec>    Precision (decimals) to store the float value."
-echo "  <value>   Value to be set (number of string)"
+echo "  <value>   Value to be set (number or string)"
 echo "  <expr>    evaluate the mathematical expression, +,-,*,/,() are supported."
 echo
 echo $(EXAMPLES)
@@ -76,42 +242,47 @@ echo "  Don't use the equal sign, if setting a string."
 
 eeprom:
 echo "$(USAGE) [<start address>] [<length>]"
-echo "  Prints the content of the eeprom from start to start + lenght.
-echo "  The output format is in hexadecimal format.
+echo "  Prints the content of the eeprom from start to start + length."
+echo "  The output format is in hexadecimal format."
 
 wifi:
 echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
 echo "  ssid [<ssid>]"
 echo "  password [<password>]"
 echo "  hostname [<hostname>]"
 echo "  connect [<ssid> <password>]"
 echo "  disconnect"
-echo "  check"
 echo "  scan"
-echo "  otapw [<password>]"
 echo "  ap"
+echo "  check [-q]"
+echo "  rssi"
 
 led:
-echo "$(USAGE) [<command>]|[<name> <command>] [<parameters>]"
+echo "$(USAGE) [<name>] <command> [<parameters>]"
 echo "  Controls a led. If no name is given, the build-in led is addressed."
 echo
+echo "$(COMMANDS)"
 echo "  on|off"
 echo "  toggle"
 echo "  blink [period] [duty]"
-echo "  blink [pattern] (ok, error...)"
+echo "  blink [pattern] (ok, error, busy, flash, data, wait, connect)"
 echo "  flash [period] [duty] [number]"
+echo "  flash [pattern] (ok, error, busy, flash, data, wait, connect)"
 echo "  invert [0|1]"
 
 sensor:
 echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
 echo "  list"
 echo "  name <id> <name>"
 echo "  get <id>"
-echo "  add <name> <unit> <variable> [<friendly name>]"
+echo "  add <name> <type> <unit> <variable> [<friendly name>]"
 echo "  del <name>"
 
 relay:
 echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
 echo "  list"
 echo "  <name> on"
 echo "  <name> off"
@@ -119,173 +290,27 @@ echo "  <name> toggle"
 echo "  <name> offtimer <ms>"
 echo "  <name> default <0|1>"
 
-exec:
-echo "$(USAGE) <batchfile> [<label> [<args>]]"
-
-#
-# fs
-#
-log:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  server <server> <port>"
-echo "  level <level>"
-
-#
-# mqtt
-#
-mqtt:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  server <server> <port>"
-echo "  qos <qos>"
-echo "  root <root path>"
-echo "  name <name>"
-echo "  will <0|1> [<will topic>]"
-echo "  connect [<server>] [<port>]"
-echo "  stop"
-echo "  heartbeat <period in ms> (0, 1000...n)"
-echo "  list"
-echo "  publish <topic> <message> [<0|1> (retain)]"
-echo "  subscribe <topic> <variable> [<command>]"
-
-#
-# ha
-#
-ha:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  enable 0|1"
-echo "  list"
-echo "  sensor add <name> [<period>]"
-echo "  sensor del <name>"
-echo "  button add <name>"
-echo "  button del <name>"
-echo "  switch add <name> [<variable> [<command>]]"
-echo "  switch del <name>"
-echo "  state <name> <state>"
-
-#
-# seg
-#
-seg:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  enable 0|1"
-echo "  setpins <clk> <data>"
-echo "  list"
-echo "  br <brightness> (0..100)"
-echo "  print <value>"
-echo "  clear"
-echo "  on"
-echo "  off"
-echo "  blink [<n>]"
-echo "  msg <msg>"
-echo "  opt <n>"
-echo "  level <n> [0|1]"
-echo "  screen"
-echo "  show <screen>"
-echo "  slideshow"
-echo "  test"
-echo "  init"
-
-slideshow:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  add <screen>"
-echo "  del <screen>"
-echo "  list"
-echo "  on"
-echo "  off"
-
-
-#
-# i2c
-#
-i2c:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  enable 0|1"
-echo "  setpins <sda> <scl> [<vu>]"
-echo "  list"
-echo "  scan"
-echo "  init"
-
-#
-# rc
-#
-rc:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  enable 0|1"
-echo "  setpins <rx> <tx>"
-echo "  list"
-echo "  on <ch>"
-echo "  off <ch>"
-echo "  fn <name>"
-echo "  ch <channel> <on-code> <off-code> <toggle>"
-echo "  test"
-echo "  init"
-echo "  repeat <n>"
-echo
-
-#
-# timer
-#
-timer:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  Sets the exit value $? to 0 (true) or 1 (false) if the command fails."
-echo
-echo "$(COMMANDS)"
-echo "  add <period>|<cron> <cmd> [<id> [<mode>]]  | max. 8 timers, max. 7 days, mode: once, repeat, replace"
-echo "  del <id>"
-echo "  start <id>"
-echo "  stop <id>"
-echo "  list"
-
-
-#
-# test
-# condition evaluation utility
-#
-test:
-echo "$(USAGE) <expression>"
-echo "  Condition evaluation utility"
-echo "  The test utility evaluates the expression and, if it evaluates to true, returns a zero (true) exit value; otherwise it"
-echo "  returns 1 (false).  If there is no expression, test also returns 1 (false)."
-echo
-echo "$(ESC_BOLD)Expression:$(ESC_RESET)"
-echo "  -f <file>     True if file exists"
-echo "  -z <string>   True if the length of string is zero"
-echo "  -n <string>   True if the length of string is nonzero"
-echo "  s1 = s2       True if s1 == s2"
-echo "  s1 != s2      True if s1 != s2"
-echo "  n1 -eq n2     True if n1 == n2"
-echo "  n1 -ne n2     True if n1 != n2"
-echo "  n1 -lt n2     True if n1 < n2"
-echo "  n1 -le n2     True if n1 <= n2"
-echo "  n1 -gt n2     True if n1 > n2"
-echo "  n1 -ge n2     True if n1 >= n2"
-echo "  ! <expression> True if expression is false"
-
-#
 ping:
 echo "$(USAGE) <host> <port>"
 echo "   Sets the exit value $? to 0 (true) or 1 (false) if the host:port is reachable."
 
-#
 processdata:
 echo "$(USAGE) <type>"
-echo   Processing of received data and converting into system variables.
+echo "  Processing of received data and converting into system variables."
 echo
-echo "$(ESC_BOLD)Types:$(ESC_RESET)"
+echo $(COMMANDS)
 echo "  json <json path> <command>"
 echo "  list"
 echo
 echo $(EXAMPLES)
-echo "processdata json "data.a" "set a = $(VALUE) && echo $a"
+echo "  processdata json "data.a" "set a = $(VALUE)""
 echo
 echo "$(ESC_BOLD)Variables:$(ESC_RESET)"
-echo " jsonstate <path to json state>   set this variable, if the json data contains a valid state.
+echo "  jsonstate <path to json state>   set this variable, if the json data contains a valid state."
 
-
-#
 smooth:
 echo "$(USAGE) <reference> <value> <maxDiff> [<threshold> <minAlpha> <maxAlpha>]"
-echo "  Applies robust smoothing with absolute outlier rejection.
+echo "  Applies robust smoothing with absolute outlier rejection."
 echo "  Set the output variable $> to the smoothed value."
 echo "  Set the exit value to 0, if valid."
 echo
@@ -308,24 +333,282 @@ echo "smooth   0     0    1   0   0.1   0.4 -> 0 (no change)"
 echo "smooth   0     1    1   0   0.1   0.4 -> 0.1 (fixed alpha smoothing since threshold=0)"
 echo "smooth 100   105    5 ; echo $>       -> 105 (no smoothing, accepted value)"
 
-#
-ntp:
-echo "$(USAGE) <command> [<parameters>]"
-echo "  Uses the 'NTP' and 'TZ' environment variables.'
-echo
-echo "$(COMMANDS)"
-echo "  server   Sets the NTP server and try to sync with."
-echo "  sync     Try to sync with NTP server."
-echo
-
-#
 min:
-echo "$(USAGE) <value1> <value2> [<value3> ...]
+echo "$(USAGE) <value1> <value2> [<value3> ...]"
 echo "  Returns the minimum value of the given values."
 
-#
 max:
 echo "$(USAGE) <value1> <value2> [<value3> ...]"
 echo "  Returns the maximum value of the given values."
 
+ota:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  start [<password>]   start the OTA service."
+echo "  stop                 stop the OTA service."
+echo "  pw [<password>]      get or set the OTA password."
+echo "  status               show the status of the OTA service."
 
+syslog:
+echo "$(USAGE) <message> [<options>]"
+echo "  Sends a syslog message (RFC 5424) via UDP."
+echo
+echo "$(COMMANDS)"
+echo "  -n <server>     syslog server (default: variable SYSLOG_SERVER)"
+echo "  -P <port>       syslog port (default: 514)"
+echo "  -s <severity>   severity (default: 6 (info))"
+echo "  -f <facility>   facility (default: 16 (local0))"
+echo "  -M              add metrics to the structured data"
+
+#
+# fs
+#
+du:
+echo "$(USAGE) [<file>]"
+echo "  Without a file the used bytes of the file system are printed, otherwise the size of the file."
+
+df:
+echo "$(USAGE)"
+echo "  Shows the free bytes of the file system and sets the output variable."
+
+size:
+echo "$(USAGE)"
+echo "  Shows the total size of the file system in bytes and sets the output variable."
+
+ls:
+echo "$(USAGE) [-a|-l|-la]"
+echo "  -a   show hidden files."
+echo "  -l   long format (size, date/time)."
+
+la:
+echo "$(USAGE)"
+echo "  Same as 'ls -la'."
+
+cat:
+echo "$(USAGE) <file>"
+echo "  Prints the content of the file."
+
+cp:
+echo "$(USAGE) <src_file> <tgt_file>"
+echo "  Copies the source file to the target file."
+
+rm:
+echo "$(USAGE) <file>"
+echo "  Removes the file."
+
+mv:
+echo "$(USAGE) <src_file> <tgt_file>"
+echo "  Renames the source file to the target file."
+
+touch:
+echo "$(USAGE) <file>"
+echo "  Creates an empty file, if it does not exist yet."
+
+mount:
+echo "$(USAGE)"
+echo "  Mounts the file system."
+
+umount:
+echo "$(USAGE)"
+echo "  Unmounts the file system."
+
+format:
+echo "$(USAGE)"
+echo "  Formats the file system. The file system must be unmounted first."
+
+fs:
+echo "$(USAGE)"
+echo "  Shows file system information (type, size, used, free)."
+
+hasfs:
+echo "$(USAGE)"
+echo "  Returns 0 (true) if the file system is available, otherwise 1 (false)."
+
+log:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  server <server> <port>"
+echo "  level <level>"
+echo "  error|info|warn|debug <message>"
+echo "  debug_ext <flag> <message>"
+echo "  on"
+echo "  off"
+echo "  <none>   show the current log settings"
+
+exec:
+echo "$(USAGE) <batchfile> [<label> [<args>]]"
+echo "  Executes a batch (.bat) or a man (.man) file, starting at the given label."
+
+break:
+echo "$(USAGE) [on <value>]"
+echo "  Breaks the processing of the current batch file. 'break on <value>' only breaks, if the value is not 0."
+
+man:
+echo "$(USAGE) [<command>]"
+echo "  Shows the man page of the given command. Without a command, it shows an overview."
+
+test:
+echo "$(USAGE) <expression>"
+echo "  Condition evaluation utility"
+echo "  The test utility evaluates the expression and, if it evaluates to true, returns a zero (true) exit value; otherwise it"
+echo "  returns 1 (false).  If there is no expression, test also returns 1 (false)."
+echo
+echo "$(ESC_BOLD)Expression:$(ESC_RESET)"
+echo "  -e <file>     True if the file exists"
+echo "  -f <file>     True if the file exists"
+echo "  -z <string>   True if the length of string is zero"
+echo "  -n <string>   True if the length of string is nonzero"
+echo "  s1 = s2       True if s1 == s2"
+echo "  s1 != s2      True if s1 != s2"
+echo "  s1 ?= s2      True if s1 contains s2"
+echo "  n1 -eq n2     True if n1 == n2"
+echo "  n1 -ne n2     True if n1 != n2"
+echo "  n1 -lt n2     True if n1 < n2"
+echo "  n1 -le n2     True if n1 <= n2"
+echo "  n1 -gt n2     True if n1 > n2"
+echo "  n1 -ge n2     True if n1 >= n2"
+echo "  ! <expression> True if expression is false"
+
+range:
+echo "$(USAGE) <value> <min> <max difference>"
+echo "  Returns 0 (true) if the value is within the range min...min + max difference, otherwise 1 (false)."
+
+substr:
+echo "$(USAGE) <string> <start> [<len>]"
+echo "  Sets the output variable to the substring. A negative len removes characters from the end."
+
+strlen:
+echo "$(USAGE) <string>"
+echo "  Sets the output variable to the length of the string."
+
+strfind:
+echo "$(USAGE) <string> <substring>"
+echo "  Sets the output variable to the position of the substring in the string, -1 if not found."
+
+#
+# mqtt
+#
+mqtt:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  connect [<server>] [<port>]"
+echo "  stop"
+echo "  server <server> [<port>]"
+echo "  qos <qos>"
+echo "  root <root path>"
+echo "  name <name>"
+echo "  will <0|1> [<will topic>]"
+echo "  heartbeat <period in ms> (0, 1000...n)"
+echo "  list"
+echo "  counter"
+echo "  publish <topic> <message> [<0|1> (retain)]"
+echo "  pubvar"
+echo "  subscribe <topic> <variable> [<command>]"
+echo "  <none>   show the current mqtt settings"
+
+#
+# ha
+#
+ha:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  enable 0|1"
+echo "  list"
+echo "  sensor add <name> [<period>]"
+echo "  sensor del <name>"
+echo "  button add <name>"
+echo "  button del <name>"
+echo "  switch add <name> [<friendly name> [<command>]]"
+echo "  switch del <name>"
+echo "  select add <name> <friendly name> [<as config>]"
+echo "  select addopt <name> <option>"
+echo "  select del <name>"
+echo "  number add <name> <friendly name> [<as config>] [<min,max,step,unit>]"
+echo "  number del <name>"
+echo "  text add <name> <friendly name> [<as config>] [<max length>]"
+echo "  text del <name>"
+echo "  diag add <name> <friendly name> <variable> [<param>]"
+echo "  diag del <name>"
+echo "  diag update"
+echo "  state <name> <state>"
+
+#
+# seg
+#
+seg:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  enable 0|1"
+echo "  init"
+echo "  setpins <clk> <data>"
+echo "  list"
+echo "  test"
+echo "  br <brightness> (0..100)"
+echo "  print <value>"
+echo "  clear"
+echo "  on"
+echo "  off"
+echo "  blink [<n>]"
+echo "  msg <msg> [<remain time in ms>]"
+echo "  opt <n>"
+echo "  level <n> [0|1]"
+echo "  screen add <name> <type> [<id>]"
+echo "  screen add sensors"
+echo "  screen del <name>"
+echo "  show <id>"
+echo "  slideshow <add|del|list|on|off> [<screen>]"
+
+slideshow:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  add <screen>"
+echo "  del <screen>"
+echo "  list"
+echo "  on"
+echo "  off"
+
+#
+# i2c
+#
+i2c:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  enable 0|1"
+echo "  setpins <sda> <scl> [<vu>]"
+echo "  list"
+echo "  scan"
+echo "  init"
+echo "  <none>   show the current i2c settings"
+
+#
+# rc
+#
+rc:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  enable 0|1"
+echo "  setpins <rx> <tx>"
+echo "  list"
+echo "  on <ch>"
+echo "  off <ch>"
+echo "  fn <name>"
+echo "  ch <channel> <on-code> <off-code> <toggle>"
+echo "  let <ch> = <device>"
+echo "  repeat <n>"
+echo "  init"
+echo "  <none>   show the current rc settings"
+
+#
+# serial
+#
+serial:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  enable 0|1"
+echo "  setpins <rx> <tx>"
+echo "  baud <rate> [<protocol>]"
+echo "  fn <name>"
+echo "  init"
+echo "  test 0|1"
+echo "  sync <start> [<end>]"
+echo "  send <data>"
