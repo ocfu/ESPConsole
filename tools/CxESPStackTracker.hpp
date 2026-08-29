@@ -13,6 +13,9 @@ class CxESPStackTracker;
 extern CxESPStackTracker g_Stack; // init as early as possible...
 
 class CxESPStackTracker {
+   size_t _nMax = 0x4000;
+   size_t _nLow = 0x4000;
+
    char *_pStack = 0;
    
    size_t _nHigh = 0;
@@ -92,17 +95,23 @@ public:
    }
    
    size_t getLow() {
+      return _nLow;
+   }
+
+   size_t getFree() {
+      size_t free = 0;
 #ifdef ARDUINO
 #ifdef ESP32
-      return uxTaskGetStackHighWaterMark(NULL);
+      free = uxTaskGetStackHighWaterMark(NULL);
 #else
-      return ESP.getFreeContStack();
+      free = ESP.getFreeContStack();
+      ESP.resetFreeContStack();
 #endif
-#else
-      return 0;
 #endif
+      _nLow = (free < _nLow) ? free : _nLow;
+      return free;
    }
-   
+
    size_t getHeapDistance() {
       char stack;
       char *heap = new char(1);

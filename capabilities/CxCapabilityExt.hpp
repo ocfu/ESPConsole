@@ -178,7 +178,7 @@ public:
    explicit CxCapabilityExt() : CxCapability("ext", getCmds()) {}
    static constexpr const char* getName() { return "ext"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth", "id", "app", "min", "max", "ota" };
+      static std::vector<const char*> commands = { "hw", "sw", "esp", "flash", "set", "eeprom", "wifi", "gpio", "led", "ping", "sensor", "relay", "processdata", "smooth", "id", "app", "min", "max", "ota", "syslog" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -1171,6 +1171,48 @@ public:
             println(F("  pw [<password>]"));
             println(F("  status"));
          }  
+      } else if (cmd == "syslog") {
+         // syslog <message> [options]
+         // options:
+         //   -n <server>
+         //   -P <port>                (default: 514)
+         //   -s <severity>            (default: 6 (info))
+         //   -f <facility>            (default: 16 (local0))
+         //   -M                       (enable metrics)
+
+         const char* szMessage = TKTOCHAR(tkArgs, 1);
+         if (szMessage) {
+            const char* szServer = __console.getVariable("SYSLOG_SERVER");
+            const char* szPort = __console.getVariable("SYSLOG_PORT");
+
+            if (szServer && szServer[0] != '\0') {
+               uint16_t port = (szPort) ? (uint16_t)strtol(szPort, nullptr, 10) : SYSLOG_DEFAULT_PORT;
+               uint8_t severity = SYSLOG_DEFAULT_SEVERITY;
+               uint8_t facility = SYSLOG_DEFAULT_FACILITY;
+               bool bMetrics = false;
+
+               for (int8_t i = 2; i < tkArgs.count(); i++) {
+                  if (tkArgs.indexOf("-n") == i && (i + 1) < tkArgs.count()) {
+                     i++;
+                     szServer = TKTOCHAR(tkArgs, i);
+                  } else if (tkArgs.indexOf("-P") == i && (i + 1) < tkArgs.count()) {
+                     i++;
+                     port = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_PORT);
+                  } else if (tkArgs.indexOf("-f") == i && (i + 1) < tkArgs.count()) {
+                     i++;
+                     facility = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_FACILITY);
+                  } else if (tkArgs.indexOf("-s") == i && (i + 1) < tkArgs.count()) {
+                     i++;
+                     severity = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_SEVERITY);
+                  } else if (tkArgs.indexOf("-M") == i) {
+                     i++;
+                     // enable metrics
+                     bMetrics = true;
+                  }
+               }
+               _syslog(szServer, port, szMessage, facility, severity, bMetrics) ? nExitValue = EXIT_SUCCESS : nExitValue = EXIT_FAILURE;
+            }
+         }
       }
       else {
          return EXIT_NOT_HANDLED;
@@ -1749,6 +1791,73 @@ private:
       _CONSOLE_INFO(F("stop OTA service"));
       return Ota1.stop();
    }
+
+   bool _syslog(const char *syslogServer, uint16_t port, const char *szMessage, uint8_t facility, uint8_t severity, bool bMetrics) {
+      // RFC 5424 Syslog message format: <PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
+      if (!syslogServer || !szMessage || !*syslogServer || !*szMessage) return false;
+      if (WiFi.status() != WL_CONNECTED) return false;
+
+      WiFiUDP udp;
+      int pri = facility * 8 + severity;
+
+      // RFC5424 timestamp: "YYYY-MM-DDTHH:MM:SS.sssZ"
+      // Example: "2023-03-15T12:34:56.789Z"
+      // Use one buffer.
+      char timestamp[40];
+      struct timeval tv;
+      gettimeofday(&tv, nullptr);
+      int millisec = tv.tv_usec / 1000;
+      strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", gmtime(&tv.tv_sec));
+      snprintf(timestamp + strlen(timestamp), sizeof(timestamp) - strlen(timestamp), ".%03dZ", millisec);
+
+      // Version is always 1 for RFC5424
+      const char *version = "1";
+
+      // Hostname, app name, procid, msgid
+      const char *hostname = __console.getHostName();
+      const char *appname = __console.getAppName();
+      const char *appver = __console.getAppVer();
+      const char *msgid = "-";     // No message ID
+
+      char procid[16];
+      snprintf(procid, sizeof(procid), "%d", getChipId());
+
+      // some examples for structured data
+      // [metrics@32473 looptime="250" heap="4" free="1234" fragm="0.03" stack="1024"]
+
+      // Send RFC5424 syslog message in sequence
+      udp.beginPacket(syslogServer, port);
+
+      // <PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
+      char priVer[16];
+      snprintf(priVer, sizeof(priVer), "<%d>%s ", pri, version);
+      udp.write((const uint8_t *)priVer, strlen(priVer));
+      udp.write((const uint8_t *)timestamp, strlen(timestamp));
+      udp.write((const uint8_t *)" ", 1);
+      udp.write((const uint8_t *)hostname, strlen(hostname));
+      udp.write((const uint8_t *)" ", 1);
+      udp.write((const uint8_t *)appname, strlen(appname));
+      udp.write((const uint8_t *)"-", 1);  // separator between appname and version
+      udp.write((const uint8_t *)appver, strlen(appver));
+      udp.write((const uint8_t *)" ", 1);
+      udp.write((const uint8_t *)procid, strlen(procid));
+      udp.write((const uint8_t *)" ", 1);
+      udp.write((const uint8_t *)msgid, strlen(msgid));
+      udp.write((const uint8_t *)" ", 1);
+      if (bMetrics) {
+         char structured_data[96];
+         snprintf(structured_data, sizeof(structured_data), "[metrics@%s looptime=\"%d\" free=\"%d\" fragm=\"%u\" stack=\"%d\"]",
+                  procid, __console.avglooptime(), g_Heap.available(), g_Heap.fragmentation(), g_Stack.getFree());
+         udp.write((const uint8_t *)structured_data, strlen(structured_data));
+      } else {
+         udp.write((const uint8_t *)"-", 1);
+      }
+      udp.write((const uint8_t *)" ", 1);
+      udp.write((const uint8_t *)szMessage, strlen(szMessage));
+
+      udp.endPacket();
+      return true;
+   }  
 
 #endif /* ESP_CONSOLE_NOWIFI */
 
