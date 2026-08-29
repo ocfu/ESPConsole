@@ -358,7 +358,7 @@ echo "  -n <server>     syslog server (default: variable SYSLOG_SERVER)"
 echo "  -P <port>       syslog port (default: 514)"
 echo "  -s <severity>   severity (default: 6 (info))"
 echo "  -f <facility>   facility (default: 16 (local0))"
-echo "  -M              add metrics to the structured data"
+echo "  -M <variable> [<variable2> ...] add value(s) of console variable(s) as structured data"
 
 #
 # fs

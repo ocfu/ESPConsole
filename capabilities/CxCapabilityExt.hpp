@@ -1171,49 +1171,55 @@ public:
             println(F("  pw [<password>]"));
             println(F("  status"));
          }  
-      } else if (cmd == "syslog") {
-         // syslog <message> [options]
-         // options:
-         //   -n <server>
-         //   -P <port>                (default: 514)
-         //   -s <severity>            (default: 6 (info))
-         //   -f <facility>            (default: 16 (local0))
-         //   -M                       (enable metrics)
+} else if (cmd == "syslog") {
+          // syslog <message> [options]
+          // options:
+          //   -n <server>
+          //   -P <port>                (default: 514)
+          //   -s <severity>            (default: 6 (info))
+          //   -f <facility>            (default: 16 (local0))
+          //   -M <variable> [<variable2> ...]   add variable values as structured data
 
-         const char* szMessage = TKTOCHAR(tkArgs, 1);
-         if (szMessage) {
-            const char* szServer = __console.getVariable("SYSLOG_SERVER");
-            const char* szPort = __console.getVariable("SYSLOG_PORT");
+          const char* szMessage = TKTOCHAR(tkArgs, 1);
+          if (szMessage) {
+             const char* szServer = __console.getVariable("SYSLOG_SERVER");
+             const char* szPort = __console.getVariable("SYSLOG_PORT");
 
-            if (szServer && szServer[0] != '\0') {
-               uint16_t port = (szPort) ? (uint16_t)strtol(szPort, nullptr, 10) : SYSLOG_DEFAULT_PORT;
-               uint8_t severity = SYSLOG_DEFAULT_SEVERITY;
-               uint8_t facility = SYSLOG_DEFAULT_FACILITY;
-               bool bMetrics = false;
+             if (szServer && szServer[0] != '\0') {
+                uint16_t port = (szPort) ? (uint16_t)strtol(szPort, nullptr, 10) : SYSLOG_DEFAULT_PORT;
+                uint8_t severity = SYSLOG_DEFAULT_SEVERITY;
+                uint8_t facility = SYSLOG_DEFAULT_FACILITY;
+                const char* apszVariables[MAX_TOKENS];
+                uint8_t nNumVars = 0;
 
-               for (int8_t i = 2; i < tkArgs.count(); i++) {
-                  if (tkArgs.indexOf("-n") == i && (i + 1) < tkArgs.count()) {
-                     i++;
-                     szServer = TKTOCHAR(tkArgs, i);
-                  } else if (tkArgs.indexOf("-P") == i && (i + 1) < tkArgs.count()) {
-                     i++;
-                     port = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_PORT);
-                  } else if (tkArgs.indexOf("-f") == i && (i + 1) < tkArgs.count()) {
-                     i++;
-                     facility = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_FACILITY);
-                  } else if (tkArgs.indexOf("-s") == i && (i + 1) < tkArgs.count()) {
-                     i++;
-                     severity = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_SEVERITY);
-                  } else if (tkArgs.indexOf("-M") == i) {
-                     i++;
-                     // enable metrics
-                     bMetrics = true;
-                  }
-               }
-               _syslog(szServer, port, szMessage, facility, severity, bMetrics) ? nExitValue = EXIT_SUCCESS : nExitValue = EXIT_FAILURE;
-            }
-         }
-      }
+                for (int8_t i = 2; i < tkArgs.count(); i++) {
+                   if (tkArgs.indexOf("-n") == i && (i + 1) < tkArgs.count()) {
+                      i++;
+                      szServer = TKTOCHAR(tkArgs, i);
+                   } else if (tkArgs.indexOf("-P") == i && (i + 1) < tkArgs.count()) {
+                      i++;
+                      port = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_PORT);
+                   } else if (tkArgs.indexOf("-f") == i && (i + 1) < tkArgs.count()) {
+                      i++;
+                      facility = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_FACILITY);
+                   } else if (tkArgs.indexOf("-s") == i && (i + 1) < tkArgs.count()) {
+                      i++;
+                      severity = TKTOINT(tkArgs, i, SYSLOG_DEFAULT_SEVERITY);
+                   } else if (tkArgs.indexOf("-M") == i) {
+                      i++;
+                      while (i < tkArgs.count() && nNumVars < MAX_TOKENS) {
+                         const char* szVariable = TKTOCHAR(tkArgs, i);
+                         if (!szVariable || szVariable[0] == '-') break;
+                         apszVariables[nNumVars++] = szVariable;
+                         i++;
+                      }
+                      i--;
+                   }
+                }
+                _syslog(szServer, port, szMessage, facility, severity, apszVariables, nNumVars) ? nExitValue = EXIT_SUCCESS : nExitValue = EXIT_FAILURE;
+             }
+          }
+       }
       else {
          return EXIT_NOT_HANDLED;
       }
@@ -1792,7 +1798,7 @@ private:
       return Ota1.stop();
    }
 
-   bool _syslog(const char *syslogServer, uint16_t port, const char *szMessage, uint8_t facility, uint8_t severity, bool bMetrics) {
+   bool _syslog(const char *syslogServer, uint16_t port, const char *szMessage, uint8_t facility, uint8_t severity, const char* const* pszVariables, uint8_t nNumVars) {
       // RFC 5424 Syslog message format: <PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
       if (!syslogServer || !szMessage || !*syslogServer || !*szMessage) return false;
       if (WiFi.status() != WL_CONNECTED) return false;
@@ -1844,11 +1850,33 @@ private:
       udp.write((const uint8_t *)" ", 1);
       udp.write((const uint8_t *)msgid, strlen(msgid));
       udp.write((const uint8_t *)" ", 1);
-      if (bMetrics) {
-         char structured_data[96];
-         snprintf(structured_data, sizeof(structured_data), "[metrics@%s looptime=\"%d\" free=\"%d\" fragm=\"%u\" stack=\"%d\"]",
-                  procid, __console.avglooptime(), g_Heap.available(), g_Heap.fragmentation(), g_Stack.getFree());
-         udp.write((const uint8_t *)structured_data, strlen(structured_data));
+      // structured data: [metrics@<procid> <variable>="<value>" ...]
+      if (nNumVars > 0) {
+         bool bFound = false;
+         for (uint8_t i = 0; i < nNumVars; i++) {
+            if (__console.getVariable(pszVariables[i])) { bFound = true; break; }
+         }
+         if (bFound) {
+            char header[32];
+            snprintf(header, sizeof(header), "[metrics@%s ", procid);
+            udp.write((const uint8_t *)header, strlen(header));
+
+            bool bFirstOutput = true;
+            char pair[64];
+            for (uint8_t i = 0; i < nNumVars; i++) {
+               const char* szValue = __console.getVariable(pszVariables[i]);
+               if (!szValue) continue;
+               if (!bFirstOutput) {
+                  udp.write((const uint8_t *)" ", 1);
+               }
+               int len = snprintf(pair, sizeof(pair), "%s=\"%s\"", pszVariables[i], szValue);
+               udp.write((const uint8_t *)pair, len);
+               bFirstOutput = false;
+            }
+            udp.write((const uint8_t *)"]", 1);
+         } else {
+            udp.write((const uint8_t *)"-", 1);
+         }
       } else {
          udp.write((const uint8_t *)"-", 1);
       }
