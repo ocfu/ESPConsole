@@ -148,7 +148,6 @@ public:
          if (opt == "-f") {
             reboot();
          } else {
-            // TODO: prompt user to be improved
             __console.__promptUserYN("Are you sure you want to reboot?", [this](bool confirmed) {
                if (confirmed) {
                   reboot();
