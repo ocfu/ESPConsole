@@ -149,11 +149,11 @@ public:
             reboot();
          } else {
             // TODO: prompt user to be improved
-            //         __console.__promptUserYN("Are you sure you want to reboot?", [this](bool confirmed) {
-            //            if (confirmed) {
-            //               __console.reboot();
-            //            }
-            //         });
+            __console.__promptUserYN("Are you sure you want to reboot?", [this](bool confirmed) {
+               if (confirmed) {
+                  reboot();
+               }
+            });
             nExitValue = EXIT_SUCCESS;
          }
       } else if (cmd == "cls") {

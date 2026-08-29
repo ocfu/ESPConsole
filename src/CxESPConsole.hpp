@@ -177,7 +177,8 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    int _nStateEscSequence = 0;          // Actual ESC sequence state during input
    
    bool _bWaitingForUsrResponseYN = false;   // Indicates an active (pending) user response
-   void (*_cbUsrResponse)(bool) = nullptr; // Callback for the response answer
+   std::function<void(bool)> _cbUsrResponse = nullptr; // Callback for the response answer
+   String _strUsrResponseQuestion;           // Question of the active user response
     
    void _clearCmdBuffer() {
       *_pszCmdBuffer = '\0';
@@ -234,7 +235,7 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
    void _handleUserResponse(char c) {
       if (_bWaitingForUsrResponseYN) {
          if (c == 'y' || c == 'Y') {
-            printf("Yes");
+            println("Yes");
             _bWaitingForUsrResponseYN = false;
             if (_cbUsrResponse) _cbUsrResponse(true);
          } else if (c == 'n' || c == 'N') {
@@ -242,9 +243,12 @@ class CxESPConsole : public CxESPConsoleBase, public CxESPTime, public CxProcess
             _bWaitingForUsrResponseYN = false;
             if (_cbUsrResponse) _cbUsrResponse(false);
          } else {
+            println();
             println("Invalid input. Please type 'y' or 'n'.");
+            __promptUserYN(_strUsrResponseQuestion.c_str(), _cbUsrResponse);
+            return;
          }
-         println();
+         prompt();
       }
    }
    // logging functions
@@ -539,10 +543,10 @@ public:
    /// Yes/No user response query
    /// - Parameter message: message presented at the prompt
    /// - Parameter callback: callback function to the reaction
-   void __promptUserYN(const char* message, void (*responseCallback)(bool)) {
+   void __promptUserYN(const char* message, std::function<void(bool)> responseCallback) {
       print(ESC_CLEAR_LINE);
       printf(FMT_PROMPT_USER_YN, message);
-      print(" \b");        // position the cursor behind the command
+      _strUsrResponseQuestion = message;
       _bWaitingForUsrResponseYN = true;
       _cbUsrResponse = responseCallback;
    }

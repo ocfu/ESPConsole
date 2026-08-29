@@ -173,7 +173,9 @@ void CxESPConsole::__handleConsoleInputs() {
          CxESPConsoleMaster::getInstance().processCmd(*__ioStream, _pszCmdBuffer, isWiFiClient() ? 1 : 0);
          _storeCmd(_pszCmdBuffer);
          _clearCmdBuffer();
-         prompt();
+         if (!_bWaitingForUsrResponseYN) {
+            prompt();
+         }
          _iCmdHistoryIndex = -1; // Reset der Historiennavigation
       } else if (c == '\b' || c == 127) { // Backspace or del
          if (_iCmdBufferIndex > 0) {
