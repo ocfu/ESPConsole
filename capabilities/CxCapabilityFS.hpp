@@ -65,7 +65,7 @@ public:
    explicit CxCapabilityFS() : CxCapability("fs", getCmds()) {}
    static constexpr const char* getName() { return "fs"; }
    static const std::vector<const char*>& getCmds() {
-      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "cp", "rm", "touch", "mount", "umount", "format", "fs", "log", "exec", "mv", "man", "test", "range" };
+      static std::vector<const char*> commands = { "du", "df", "size", "ls", "cat", "grep", "cp", "rm", "touch", "mount", "umount", "format", "fs", "log", "exec", "mv", "man", "test", "range" };
       return commands;
    }
    static std::unique_ptr<CxCapability> construct(const char* param) {
@@ -138,6 +138,26 @@ public:
        } else if (cmd == "la") {
           nExitValue = ls (true, true);
        } else if (cmd == "cat") {nExitValue = cat(a);
+       } else if (cmd == "grep") {
+          bool bIgnoreCase = false;
+          bool bQuiet = false;
+          uint8_t i = 1;
+          const char* szPattern = nullptr;
+          const char* szFn = nullptr;
+          while (i < tkArgs.count()) {
+             const char* szArg = TKTOCHAR(tkArgs, i);
+             if (strcmp(szArg, "-i") == 0) {
+                bIgnoreCase = true;
+             } else if (strcmp(szArg, "-q") == 0) {
+                bQuiet = true;
+             } else if (!szPattern) {
+                szPattern = szArg;
+             } else if (!szFn) {
+                szFn = szArg;
+             }
+             i++;
+          }
+          nExitValue = grep(szPattern, szFn, bIgnoreCase, bQuiet);
        } else if (cmd == "cp") {nExitValue = cp(a, b);
        } else if (cmd == "rm") {nExitValue = rm(a);
        } else if (cmd == "mv") {nExitValue = mv(a, b);
@@ -481,6 +501,68 @@ public:
       return EXIT_FAILURE;
    }
    
+   uint8_t grep(const char* szPattern, const char* szFn, bool bIgnoreCase = false, bool bQuiet = false) {
+      if (!szPattern || !szFn) {
+         println(F("usage: grep [-i] [-q] <pattern> <file>"));
+         return EXIT_FAILURE;
+      }
+      if (hasFS()) {
+#ifdef ARDUINO
+         if (!LittleFS.exists(szFn)) {
+            _printNoSuchFileOrDir("grep", szFn);
+            return EXIT_FAILURE;
+         }
+         File file = LittleFS.open(szFn, "r");
+         if (file) {
+            uint8_t nFound = 0;
+            while (file.available()) {
+               String strLine = file.readStringUntil('\n');
+               if (strLine.length() > 0 && strLine[strLine.length() - 1] == '\r') {
+                  strLine.remove(strLine.length() - 1);
+               }
+               if (_lineMatches(strLine.c_str(), szPattern, bIgnoreCase)) {
+                  nFound++;
+                  if (!bQuiet) {
+                     println(strLine);
+                  } else {
+                     __console.setOutputVariable((uint8_t)1);
+                  }
+               }
+            }
+            file.close();
+            return nFound > 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+         } else {
+            _printNoSuchFileOrDir("grep", szFn);
+            return EXIT_FAILURE;
+         }
+#else
+         std::ifstream file;
+         file.open(szFn);
+         if (file.is_open()) {
+            uint8_t nFound = 0;
+            std::string strLine;
+            while (std::getline(file, strLine)) {
+               if (_lineMatches(strLine.c_str(), szPattern, bIgnoreCase)) {
+                  nFound++;
+                  if (!bQuiet) {
+                     println(strLine.c_str());
+                  } else {
+                     __console.setOutputVariable((uint8_t)1);
+                  }
+               }
+            }
+            file.close();
+            return nFound > 0 ? EXIT_SUCCESS : EXIT_FAILURE;
+         } else {
+            return EXIT_FAILURE;
+         }
+#endif
+      } else {
+         _printNoFS();
+      }
+      return EXIT_FAILURE;
+   }
+
    uint8_t rm(const char* szFn) {
       if (! szFn) {
          println(F("usage: rm <file>"));
@@ -1195,6 +1277,22 @@ private:
              (vExpression[1] != end2 && *end2 == '\0') &&
              (vExpression[2] != end2 && *end2 == '\0') &&
              (value >= min && value <= min + maxDiff);   
+   }
+
+   bool _lineMatches(const char* szLine, const char* szPattern, bool bIgnoreCase = false) {
+      if (!szLine || !szPattern) return false;
+      if (bIgnoreCase) {
+         for (size_t i = 0; szLine[i] != '\0'; i++) {
+            size_t j = 0;
+            while (szPattern[j] != '\0' && (szLine[i + j] != '\0') &&
+                   (tolower((unsigned char)szLine[i + j]) == tolower((unsigned char)szPattern[j]))) {
+               j++;
+            }
+            if (szPattern[j] == '\0') return true;
+         }
+         return false;
+      }
+      return strstr(szLine, szPattern) != nullptr;
    }
 
 };

@@ -388,6 +388,13 @@ cat:
 echo "$(USAGE) <file>"
 echo "  Prints the content of the file."
 
+grep:
+echo "$(USAGE) [-i] [-q] <pattern> <file>"
+echo "  -i   ignore case"
+echo "  -q   quiet, no output, exit value indicates whether a match was found"
+echo "  Prints the lines of the file containing the given pattern. Returns 0 (success) if a"
+echo "  match was found, otherwise 1 (false)."
+
 cp:
 echo "$(USAGE) <src_file> <tgt_file>"
 echo "  Copies the source file to the target file."
