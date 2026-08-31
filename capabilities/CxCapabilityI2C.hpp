@@ -346,6 +346,7 @@ public:
             scan();
             
             // loop through all initializers
+            _CONSOLE_INFO(F("I2C: executing %d initializers"), VI2CInitializers.size());
             for (auto& pInit : VI2CInitializers) {
                if (pInit) {
                   pInit->init();

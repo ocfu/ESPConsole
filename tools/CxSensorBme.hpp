@@ -279,7 +279,7 @@ class CxBmeSensorContainer : public CxInitializer {
    /// Vector of BME sensors
    std::vector<std::unique_ptr<CxSensorBme>> _vBmeSensors; /// vector of BME sensors
    
-   CxBmeSensorContainer() {} 
+   CxBmeSensorContainer() {begin();} 
 
 protected:
    CxESPConsoleMaster& __console = CxESPConsoleMaster::getInstance();  /// Reference to the console instance
