@@ -439,5 +439,34 @@ void CxESPConsole::printLog(uint8_t level, uint32_t flag, const char *sz) {
    }
    
    if (getUsrLogLevel() >= level) println(sz);
-   if (getLogLevel() >= level) print2LogServer(sz);  // suppress time stame here? (sz+17)
+   if (getLogLevel() >= level) {
+      // check if syslog server and port are set in the variables, if yes, send the log message to the syslog server
+      if (this->getVariable("SYSLOG_SERVER") && this->getVariable("SYSLOG_PORT")) {
+         // build the syslog command. 
+         // syslog <message> -s <severity> -f <facility>
+         uint8_t nSeverity = 6; // default to info
+         switch (level) {
+            case LOGLEVEL_DEBUG:
+            case LOGLEVEL_DEBUG_EXT:
+               nSeverity = 7; // debug
+               break;
+            case LOGLEVEL_INFO:
+               nSeverity = 6; // info
+               break;
+            case LOGLEVEL_WARN:
+               nSeverity = 4; // warning
+               break;
+            case LOGLEVEL_ERROR:
+               nSeverity = 3; // error
+               break;
+         }
+         uint8_t nFacility = 0; // default to kernel-level messages
+         char szCmdBuffer[256] = {0};
+         const char *pszMsg = strlen(sz) > 17 && sz[2] == ':' && sz[5] == ':' ? sz + 17 : sz; // suppress time stamp here (sz+17)
+         snprintf(szCmdBuffer, sizeof(szCmdBuffer), "syslog \"%s\" -s %d -f %d", pszMsg, nSeverity, nFacility);
+         processCmd(szCmdBuffer);
+      } else {
+         print2LogServer(sz);  // suppress time stame here? (sz+17)
+      }
+   }
 }

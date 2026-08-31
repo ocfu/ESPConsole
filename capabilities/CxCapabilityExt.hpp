@@ -1177,7 +1177,7 @@ public:
           //   -n <server>
           //   -P <port>                (default: 514)
           //   -s <severity>            (default: 6 (info))
-          //   -f <facility>            (default: 16 (local0))
+          //   -f <facility>            (default: 2 (user))
           //   -M <variable> [<variable2> ...]   add variable values as structured data
 
           const char* szMessage = TKTOCHAR(tkArgs, 1);
