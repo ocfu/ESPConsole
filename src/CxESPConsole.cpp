@@ -105,6 +105,7 @@ void CxESPConsoleMaster::begin() {
 
    if (isSafeMode()) {
       executeBatch("rdy", "sm");
+      error(F("Safe mode active. Only basic capabilities are available."));
    } else {
       executeBatch("init", "final");
       executeBatch("rdy", "ma");

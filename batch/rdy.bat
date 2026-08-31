@@ -37,11 +37,9 @@ prompt -CL "$(USER)@$(HOSTNAME):/> "
 # ESP in safemode
 #
 sm:
-log warn "ESP in safemode"
 exec $(userscript) sm
 prompt "$(ESC_BOLD)$(USER)@serial-$(ESC_BRED)$(ESC_BLINK)SAFEMODE$(ESC_RESET):/> "
 timer add 2s "led flash 100 100 2" tiSMLed repeat
 
 sm-cl:
-log warn "ESP in safemode"
 prompt -CL "$(ESC_BOLD)$(USER)@$(HOSTNAME)-$(ESC_BRED)$(ESC_BLINK)SAFEMODE$(ESC_RESET):/> "
