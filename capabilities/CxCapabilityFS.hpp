@@ -1084,17 +1084,12 @@ private:
             if (processCommands) {
                _CONSOLE_DEBUG_EXT(DEBUG_FLAG_BATCH, F("Batch command: %s"), command.c_str());
 
-               // Check if the command is an exec command
-               if (command.startsWith("exec")) {
-                  __console.substituteVariables(command); // needed ? yes
-                  CxStrToken tkExecCmd(command.c_str(), " ");
-                  _CONSOLE_DEBUG_EXT(DEBUG_FLAG_BATCH, F("exec command found: %s"), command.c_str());
-                  // recursively call executeBatch
-                  nExitValue = executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
-               } else {
-                  nExitValue = __console.processCmd(*__console.getStream(), command.c_str(), 0);  // MARK: getStream needed here?
-               }
-
+               // Route every command line through processCmd(). It tokenizes ';'
+               // / '&&' / '||' (POSIX chaining) and dispatches "exec" to this
+               // capability's own command handler. Treating "exec" as a normal
+               // command makes batch and console behaviour identical and allows
+               // e.g. "exec init.bat fs ; echo done".
+               nExitValue = __console.processCmd(*__console.getStream(), command.c_str(), 0);  // MARK: getStream needed here?
                if (_bBreakBatch) break;
             }
          }  // while (file.available())

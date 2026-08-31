@@ -37,29 +37,18 @@ uint8_t CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
    }
    
    bool overallResult = false;
-   
+   bool bRunNext = true; // POSIX: the first command is always executed
+
    for (uint8_t i = 0; i < ptkCmd->count(); i++) {
       String* pstrCmd = new String(TKTOCHAR(*ptkCmd, i));
-      uint8_t nLogic = 0; // 0: no logic, 1: AND, 2: OR
-      
-      switch (ptkCmd->delimiterIndex(i)) {  // 1-based return. 0: no delimiter used
-         case 2: // 2nd delimiter
-            nLogic = 1;
-            break;
-         case 3: // 3rd
-            nLogic = 2;
-            break;
-         default: // 0 and 1st
-            nLogic = 0;
-      }
-      
-      if (pstrCmd) {
+
+      if (pstrCmd && bRunNext) {
          substituteVariables(*pstrCmd);
          pstrCmd->replace("§", "$"); // § used in quotes for variables.
-         
+
          for (auto& entry : _mapCapInstances) {
             uint8_t nExitValue;
-            
+
             entry.second->setIoStream(*__ioStream);
             entry.second->setQuiet(!isEcho());
             //setOutputVariable("");
@@ -71,27 +60,35 @@ uint8_t CxESPConsole::processCmd(const char* cmd, uint8_t nClient) {
                break; // Stop processing further instances for this command
             }
          }
-         
+
          if (!overallResult && pstrCmd->length() > 0 && !pstrCmd->startsWith("?")) {
             println("Unknown command: ");
             println(pstrCmd->c_str());
          }
-         delete pstrCmd;
       }
-            
-      // TODO: improve compatibility with POSIX
-      // example: test 1 -eq 0 && echo hello || echo world
-      // since the first expression fails, the later command echo world is not processed (same with ";").
-      // this is not compatible with the POSIX
-      
-      if (nLogic == 1 && getExitValue() == EXIT_FAILURE) { // AND logic, break, if the command was not successful
-         overallResult = true; // consider it as done, the next command will not be processed
-         break; // Stop processing further commands
-      } else if (nLogic == 2 && getExitValue() == EXIT_SUCCESS) { // OR logic, break, if the command was successful
-         overallResult = true; // consider it as done, the next command will not be processed
-         break; // Stop processing further commands
-      }
+      delete pstrCmd;
 
+      // POSIX compatible command chaining: decide whether the next command shall
+      // be executed based on the exit value of the current command and the
+      // operator that follows it (delimiterIndex returns the 1-based index of the
+      // delimiter AFTER token i; 0 if it is the last token):
+      //    ;  -> run next command always
+      //    && -> run next command only if this one succeeded
+      //    || -> run next command only if this one failed
+      // This also fixes e.g. "test 1 -eq 0 && echo hello || echo world", where a
+      // failed "&&" chain hands control to the following "||" group.
+      if (i + 1 < ptkCmd->count()) {
+         switch (ptkCmd->delimiterIndex(i)) {
+            case 2: // && ...: run next only after success
+               bRunNext = (getExitValue() == EXIT_SUCCESS);
+               break;
+            case 3: // || ...: run next only after failure
+               bRunNext = (getExitValue() != EXIT_SUCCESS);
+               break;
+            default: // no delimiter or ';'
+               bRunNext = true;
+         }
+      }
    }
    delete ptkCmd;
    return overallResult ? EXIT_SUCCESS : EXIT_FAILURE;
