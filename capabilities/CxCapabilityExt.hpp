@@ -1803,12 +1803,9 @@ private:
       if (!syslogServer || !szMessage || !*syslogServer || !*szMessage) return false;
       if (WiFi.status() != WL_CONNECTED) return false;
 
-      WiFiUDP udp;
       int pri = facility * 8 + severity;
 
       // RFC5424 timestamp: "YYYY-MM-DDTHH:MM:SS.sssZ"
-      // Example: "2023-03-15T12:34:56.789Z"
-      // Use one buffer.
       char timestamp[40];
       struct timeval tv;
       gettimeofday(&tv, nullptr);
@@ -1819,70 +1816,81 @@ private:
       // Version is always 1 for RFC5424
       const char *version = "1";
 
-      // Hostname, app name, procid, msgid
+      // Hostname, app name (+ version kept merged in APP-NAME), procid
       const char *hostname = __console.getHostName();
       const char *appname = __console.getAppName();
       const char *appver = __console.getAppVer();
-      const char *msgid = "-";     // No message ID
 
       char procid[16];
       snprintf(procid, sizeof(procid), "%d", getChipId());
 
-      // some examples for structured data
-      // [metrics@32473 looptime="250" heap="4" free="1234" fragm="0.03" stack="1024"]
+      // Determine whether metrics structured data will actually be emitted,
+      // so the MSGID can be chosen before the header is assembled.
+      bool bSendMetrics = false;
+      for (uint8_t i = 0; i < nNumVars; i++) {
+         if (__console.getVariable(pszVariables[i])) { bSendMetrics = true; break; }
+      }
+      const char *msgid = bSendMetrics ? "metrics" : "msg";
 
-      // Send RFC5424 syslog message in sequence
-      udp.beginPacket(syslogServer, port);
+      // Assemble the whole datagram into a bounded buffer (ESP8266 UDP limit ~512 bytes).
+      const int MAX_BUF = 512;
+      char buf[MAX_BUF];
+      int n = 0;
+      auto append = [&](const char *s, int len) {
+         if (n >= MAX_BUF) return;
+         if (len > MAX_BUF - n) len = MAX_BUF - n;
+         memcpy(buf + n, s, len);
+         n += len;
+      };
+      auto cat = [&](const char *s) { append(s, (int)strlen(s)); };
+      auto appendEscaped = [&](const char *s) {
+         for (const char *p = s; p && *p; p++) {
+            if (*p == '"') append("\\\"", 2);
+            else if (*p == '\\') append("\\\\", 2);
+            else append(p, 1);
+         }
+      };
 
       // <PRI>VERSION TIMESTAMP HOSTNAME APP-NAME PROCID MSGID STRUCTURED-DATA MSG
       char priVer[16];
       snprintf(priVer, sizeof(priVer), "<%d>%s ", pri, version);
-      udp.write((const uint8_t *)priVer, strlen(priVer));
-      udp.write((const uint8_t *)timestamp, strlen(timestamp));
-      udp.write((const uint8_t *)" ", 1);
-      udp.write((const uint8_t *)hostname, strlen(hostname));
-      udp.write((const uint8_t *)" ", 1);
-      udp.write((const uint8_t *)appname, strlen(appname));
-      udp.write((const uint8_t *)"-", 1);  // separator between appname and version
-      udp.write((const uint8_t *)appver, strlen(appver));
-      udp.write((const uint8_t *)" ", 1);
-      udp.write((const uint8_t *)procid, strlen(procid));
-      udp.write((const uint8_t *)" ", 1);
-      udp.write((const uint8_t *)msgid, strlen(msgid));
-      udp.write((const uint8_t *)" ", 1);
-      // structured data: [metrics@<procid> <variable>="<value>" ...]
-      if (nNumVars > 0) {
-         bool bFound = false;
+      cat(priVer);
+      cat(timestamp);
+      cat(" ");
+      cat(hostname);
+      cat(" ");
+      cat(appname);
+      cat("-");            // separator kept merged in APP-NAME (name-version)
+      cat(appver);
+      cat(" ");
+      cat(procid);
+      cat(" ");
+      cat(msgid);
+      cat(" ");
+      if (bSendMetrics) {
+         cat("[metrics ");
+         bool bFirstOutput = true;
          for (uint8_t i = 0; i < nNumVars; i++) {
-            if (__console.getVariable(pszVariables[i])) { bFound = true; break; }
+            const char* szValue = __console.getVariable(pszVariables[i]);
+            if (!szValue) continue;
+            if (!bFirstOutput) cat(" ");
+            cat(pszVariables[i]);
+            cat("=\"");
+            appendEscaped(szValue);
+            cat("\"");
+            bFirstOutput = false;
          }
-         if (bFound) {
-            char header[32];
-            snprintf(header, sizeof(header), "[metrics@%s ", procid);
-            udp.write((const uint8_t *)header, strlen(header));
-
-            bool bFirstOutput = true;
-            char pair[64];
-            for (uint8_t i = 0; i < nNumVars; i++) {
-               const char* szValue = __console.getVariable(pszVariables[i]);
-               if (!szValue) continue;
-               if (!bFirstOutput) {
-                  udp.write((const uint8_t *)" ", 1);
-               }
-               int len = snprintf(pair, sizeof(pair), "%s=\"%s\"", pszVariables[i], szValue);
-               udp.write((const uint8_t *)pair, len);
-               bFirstOutput = false;
-            }
-            udp.write((const uint8_t *)"]", 1);
-         } else {
-            udp.write((const uint8_t *)"-", 1);
-         }
+         cat("]");
       } else {
-         udp.write((const uint8_t *)"-", 1);
+         cat("-");
       }
-      udp.write((const uint8_t *)" ", 1);
-      udp.write((const uint8_t *)szMessage, strlen(szMessage));
+      cat(" ");
+      // MSG (capped so the total datagram stays within MAX_BUF).
+      append(szMessage, (int)strlen(szMessage));
 
+      WiFiUDP udp;
+      udp.beginPacket(syslogServer, port);
+      udp.write((const uint8_t *)buf, n);
       udp.endPacket();
       return true;
    }  
