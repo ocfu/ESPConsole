@@ -940,9 +940,9 @@ private:
          label = "default";
       };
 
-      _CONSOLE_INFO(F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
-      if (arg) _CONSOLE_INFO(F("Arguments: %s"), arg);
-      
+      _CONSOLE_DEBUG_EXT(DEBUG_FLAG_BATCH, F("Execute batch file: %s %s"), strBatchFile.c_str(), label);
+      if (arg) _CONSOLE_DEBUG_EXT(DEBUG_FLAG_BATCH, F("Arguments: %s"), arg);
+
       uint8_t nExitValue = EXIT_FAILURE;
 
 #ifdef ARDUINO
@@ -1082,13 +1082,13 @@ private:
             }
 
             if (processCommands) {
-               _CONSOLE_DEBUG(F("Batch command: %s"), command.c_str());
+               _CONSOLE_DEBUG_EXT(DEBUG_FLAG_BATCH, F("Batch command: %s"), command.c_str());
 
                // Check if the command is an exec command
                if (command.startsWith("exec")) {
                   __console.substituteVariables(command); // needed ? yes
                   CxStrToken tkExecCmd(command.c_str(), " ");
-                  _CONSOLE_DEBUG(F("exec command found: %s"), command.c_str());
+                  _CONSOLE_DEBUG_EXT(DEBUG_FLAG_BATCH, F("exec command found: %s"), command.c_str());
                   // recursively call executeBatch
                   nExitValue = executeBatch(TKTOCHAR(tkExecCmd, 1), TKTOCHAR(tkExecCmd, 2), TKTOCHAR(tkExecCmd, 3));
                } else {
