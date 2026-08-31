@@ -13,6 +13,7 @@
 #define ESP_CONSOLE_SEGDISPLAY
 #define ESP_CONSOLE_RC
 #define ESP_CONSOLE_SERIAL
+#define ESP_CONSOLE_DISPLAY
 #endif
 
 #if defined(ESP_CONSOLE_MQTTHA)
@@ -49,6 +50,10 @@
 
 #if defined (ESP_CONSOLE_SERIAL)
 #include "../capabilities/CxCapabilitySerial.hpp"
+#endif
+
+#if defined (ESP_CONSOLE_DISPLAY)
+#include "../capabilities/CxCapabilityDisplay.hpp"
 #endif
 
 #ifndef __SKIP_GLOBALS__

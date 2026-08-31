@@ -28,6 +28,7 @@ echo "  slideshow    segment display slide show"
 echo "  i2c          i2c bus"
 echo "  rc           radio controlled (433 MHz) switches"
 echo "  serial       software serial"
+echo "  disp         oled display"
 
 ?:
 echo "$(USAGE)"
@@ -619,3 +620,17 @@ echo "  init"
 echo "  test 0|1"
 echo "  sync <start> [<end>]"
 echo "  send <data>"
+
+#
+# disp (oled display)
+#
+disp:
+echo "$(USAGE) <command> [<parameters>]"
+echo "$(COMMANDS)"
+echo "  enable 0|1"
+echo "  init"
+echo "  on"
+echo "  off"
+echo "  clear"
+echo "  msg <text>"
+echo "  <none>   show the current display settings"
