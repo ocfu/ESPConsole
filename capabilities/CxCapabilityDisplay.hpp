@@ -43,6 +43,7 @@ public:
    void setTextSize(uint8_t) {}
    void setTextColor(uint16_t) {}
    void setCursor(int16_t, int16_t) {}
+   void setRotation(uint8_t) {}
    void fillScreen(uint16_t) {}
    size_t print(const char* s) {std::cout << "OLED: '" << s << "'\n"; return 0;}
    size_t println(const char* s) {std::cout << "OLED: '" << s << "'\n"; return 0;}
@@ -98,6 +99,8 @@ private:
    uint8_t _nWidth = 128;
    uint8_t _nHeight = 32;
    uint8_t _nAddr = OLED_DEFAULT_ADDR;
+
+   uint8_t _nRotation = 0;
 
    Adafruit_SSD1306* _pDisplay = nullptr;
 
@@ -198,13 +201,23 @@ public:
             nExitValue = off();
          } else if (strSubCmd == "clear") {
             nExitValue = clear();
+         } else if (strSubCmd == "rotate") {
+            uint8_t nSteps = TKTOINT(tkCmd, 2, 1) % 4;
+            if (nSteps == 0) nSteps = 1;
+            nExitValue = rotate(nSteps);
          } else if (strSubCmd == "msg") {
-            nExitValue = showMsg(TKTOCHAR(tkCmd, 2));
+            uint8_t nSize = 1;
+            int8_t nIdx = tkCmd.indexOf("-fs");
+            if (nIdx >= 0 && (nIdx + 1) < tkCmd.count()) {
+               nSize = clampFontSize(TKTOINT(tkCmd, nIdx + 1, 1));
+            }
+            nExitValue = showMsg(TKTOCHAR(tkCmd, 2), nSize);
          } else {
             printf(F(ESC_ATTR_BOLD " Enabled:      " ESC_ATTR_RESET "%d\n"), _bEnabled);
             printf(F(ESC_ATTR_BOLD " Type:         " ESC_ATTR_RESET "%s\n"), getTypeSz());
             printf(F(ESC_ATTR_BOLD " Size:         " ESC_ATTR_RESET "%d x %d\n"), _nWidth, _nHeight);
             printf(F(ESC_ATTR_BOLD " I2C Addr:     " ESC_ATTR_RESET "0x%02X\n"), _nAddr);
+            printf(F(ESC_ATTR_BOLD " Rotation:     " ESC_ATTR_RESET "%d (%d°)\n"), _nRotation, _nRotation * 90);
             __console.man(getName());
             nExitValue = EXIT_SUCCESS;
          }
@@ -315,14 +328,57 @@ public:
    }
 
    /**
+    * @brief Rotates the display orientation in 90 degree steps.
+    * @param nSteps Number of 90-degree steps (1..3, normalized). Default 1.
+    * @details Advances the rotation counter modulo 4, applies it via the
+    * display driver and refreshes the screen.
+    */
+   uint8_t rotate(uint8_t nSteps) {
+      if (_pDisplay == nullptr) return EXIT_FAILURE;
+
+      _nRotation = (_nRotation + nSteps) % 4;
+#ifdef ARDUINO
+      _pDisplay->setRotation(_nRotation);
+#endif
+      clear();
+
+      printf(F(ESC_ATTR_BOLD " Rotation:     " ESC_ATTR_RESET "%d (%d°)\n"), _nRotation, _nRotation * 90);
+      return EXIT_SUCCESS;
+   }
+
+   /**
+    * @brief Clamps a font size to the display capability.
+    * @details Min size 1, max size derived from the effective draw area,
+    * so at least one character still fits on the display.
+    */
+   uint8_t maxFontSize() {
+      uint8_t w = _nWidth, h = _nHeight;
+      if (_nRotation % 2 == 1) { // 90°/270° swap drawing dimensions
+         uint8_t t = w; w = h; h = t;
+      }
+      uint8_t nMaxH = h / 8; // at least one line vertically
+      uint8_t nMaxW = w / 6; // at least one char across
+      return (nMaxH < nMaxW) ? nMaxH : nMaxW;
+   }
+
+   uint8_t clampFontSize(uint8_t nSize) {
+      if (nSize == 0) nSize = 1;
+      uint8_t nMax = maxFontSize();
+      return (nSize > nMax) ? nMax : nSize;
+   }
+
+   /**
     * @brief Shows a message on the display and refreshes it.
     * @param szMsg The message to show.
+    * @param nSize The font size (1..max, clamped to the display capability).
     */
-   uint8_t showMsg(const char* szMsg) {
+   uint8_t showMsg(const char* szMsg, uint8_t nSize = 1) {
       if (_pDisplay == nullptr) return EXIT_FAILURE;
       if (szMsg == nullptr) return EXIT_FAILURE;
+      if (nSize == 0) nSize = 1;
 
       _pDisplay->clearDisplay();
+      _pDisplay->setTextSize(nSize);
       _pDisplay->setCursor(0, 0);
 #ifdef ARDUINO
       _pDisplay->print(szMsg);
