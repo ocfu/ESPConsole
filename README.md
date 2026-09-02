@@ -107,6 +107,55 @@ The following capabilities are available and can be loaded on demand:
 | mqttha       | ha |
 | seg          | seg |
 
+## Batch Scripting (LittleFS)
+
+Batch files (.bat, .man) are executed with the FS command `exec <file> [<label> [<args>]]`.
+Execution starts at the selected label and ends when the next label starts.
+
+### Conditional execution: if / then / else / endif
+
+The batch engine supports block conditionals:
+
+```bash
+if <condition>
+then
+   <commands>
+else
+   <commands>
+endif
+```
+
+Notes:
+- Condition truth is based on exit value: 0 = true, non-zero = false.
+- `<condition>` is evaluated like a normal command line (for example `test ...`, including `&&` and `||` chaining).
+- `else` is optional.
+- Nested blocks are supported up to depth 4.
+- `if <condition> then` is also supported as one-line opener.
+
+Example:
+
+```bash
+if test $(stage) -eq 2 && test -n $>
+then
+   echo "stage 2 with valid input"
+else
+   echo "condition failed"
+endif
+```
+
+### Variable assignment reminder
+
+The `set` command uses two forms:
+- String value: `set name value`
+- Numeric expression: `set name = expression`
+
+Examples:
+
+```bash
+set mode safe
+set cnt = $cnt+1
+```
+
 
 ## Tools
 The following tools are available:

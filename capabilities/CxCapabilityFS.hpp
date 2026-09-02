@@ -960,6 +960,14 @@ private:
       bool processCommands = true; // Start processing commands immediately
       _bBreakBatch = false;
       _nBatchDepth++;  // executeBatch will be called recursively, note the depth
+
+      // Lightweight conditional execution state for batch scripts.
+      // Supports: if <condition> [then], then, else, endif
+      const uint8_t MAX_IF_DEPTH = 4;
+      bool abIfExecute[MAX_IF_DEPTH] = {false};
+      bool abIfCondition[MAX_IF_DEPTH] = {false};
+      bool abIfHasElse[MAX_IF_DEPTH] = {false};
+      uint8_t nIfDepth = 0;
       
       // reserve a buffer for reading lines from the file
       const size_t LINE_BUFFER_SIZE = 256;
@@ -1008,11 +1016,109 @@ private:
                continue;
             }
 
+            // Control flow parser (streaming, no block buffering)
+            if (strcmp(szLineBuffer, "then") == 0) {
+               if (nIfDepth == 0) {
+                  __console.error(F("Batch syntax error: 'then' without matching 'if' in %s"), strBatchFile.c_str());
+                  nExitValue = EXIT_FAILURE;
+                  break;
+               }
+               continue;
+            }
+
+            if (strcmp(szLineBuffer, "else") == 0) {
+               if (nIfDepth == 0) {
+                  __console.error(F("Batch syntax error: 'else' without matching 'if' in %s"), strBatchFile.c_str());
+                  nExitValue = EXIT_FAILURE;
+                  break;
+               }
+
+               uint8_t nCurrentLevel = nIfDepth - 1;
+               if (abIfHasElse[nCurrentLevel]) {
+                  __console.error(F("Batch syntax error: duplicate 'else' in %s"), strBatchFile.c_str());
+                  nExitValue = EXIT_FAILURE;
+                  break;
+               }
+
+               // Determine if all parent levels (except current) are executable.
+               bool bParentExec = processCommands;
+               for (uint8_t i = 0; i < nCurrentLevel; i++) {
+                  if (!abIfExecute[i]) {
+                     bParentExec = false;
+                     break;
+                  }
+               }
+
+               abIfExecute[nCurrentLevel] = (bParentExec && !abIfCondition[nCurrentLevel]);
+               abIfHasElse[nCurrentLevel] = true;
+               continue;
+            }
+
+            if (strcmp(szLineBuffer, "endif") == 0) {
+               if (nIfDepth == 0) {
+                  __console.error(F("Batch syntax error: 'endif' without matching 'if' in %s"), strBatchFile.c_str());
+                  nExitValue = EXIT_FAILURE;
+                  break;
+               }
+               nIfDepth--;
+               continue;
+            }
+
+            if (strncmp(szLineBuffer, "if ", 3) == 0) {
+               if (nIfDepth >= MAX_IF_DEPTH) {
+                  __console.error(F("Batch syntax error: max if-depth (%d) exceeded in %s"), MAX_IF_DEPTH, strBatchFile.c_str());
+                  nExitValue = EXIT_FAILURE;
+                  break;
+               }
+
+               String strCond = szLineBuffer + 3;
+               strCond.trim();
+               if (strCond.endsWith(" then")) {
+                  strCond.remove(strCond.length() - 5);
+                  strCond.trim();
+               }
+
+               if (strCond.length() == 0) {
+                  __console.error(F("Batch syntax error: empty if-condition in %s"), strBatchFile.c_str());
+                  nExitValue = EXIT_FAILURE;
+                  break;
+               }
+
+               bool bParentExec = processCommands;
+               for (uint8_t i = 0; i < nIfDepth; i++) {
+                  if (!abIfExecute[i]) {
+                     bParentExec = false;
+                     break;
+                  }
+               }
+
+               bool bCond = false;
+               if (bParentExec) {
+                  __console.processCmd(*__console.getStream(), strCond.c_str(), 0);
+                  bCond = (__console.getExitValue() == EXIT_SUCCESS);
+               }
+
+               abIfCondition[nIfDepth] = bCond;
+               abIfExecute[nIfDepth] = (bParentExec && bCond);
+               abIfHasElse[nIfDepth] = false;
+               nIfDepth++;
+               continue;
+            }
+
+            // Determine if current line should execute considering labels and if/else branches.
+            bool bShouldExecute = processCommands;
+            for (uint8_t i = 0; i < nIfDepth; i++) {
+               if (!abIfExecute[i]) {
+                  bShouldExecute = false;
+                  break;
+               }
+            }
+
             const uint8_t nMaxVariableNameLength = 32;
 
             // Check if the line is a variable definition
             char* equalsSign = strchr(szLineBuffer, '=');
-            if (equalsSign) {
+            if (equalsSign && bShouldExecute) {
                // Identify and store defined local variables
                // Local variable are defined without the set command and assigned with =.
                // Syntax: <variable_name> = <value>
@@ -1067,6 +1173,15 @@ private:
             command.reserve(strlen(szLineBuffer) + 128);  // // Reserve enough space for the command and potential variable substitutions
             command = szLineBuffer;
             command.trim();
+
+            // While inside an if/else block, labels are treated as regular lines to
+            // avoid changing section routing based on branch contents.
+            if (nIfDepth == 0 && command.endsWith(":")) {
+               // Check if the command is a label and matches with label argument or with "all:". In case of a match, set processCommands to true
+               // and continue to process the batch file.
+               processCommands = ((command.substring(0, command.length() - 1) == label) || command == "all:");
+               continue;
+            }
                         
             // Substitue command with local variables first
             __console.substituteVariables(command, mapTempVariables, false);
@@ -1074,14 +1189,7 @@ private:
             // Substitue command with global variables
             //__console.substituteVariables(command);
 
-            if (command.endsWith(":")) {
-               // Check if the command is a label and matches with label argument or with "all:". In case of a match, set processCommands to true
-               // and continue to process the batch file.
-               processCommands = ((command.substring(0, command.length() - 1) == label) || command == "all:");
-               continue;
-            }
-
-            if (processCommands) {
+            if (bShouldExecute) {
                _CONSOLE_DEBUG_EXT(DEBUG_FLAG_BATCH, F("Batch command: %s"), command.c_str());
 
                // Route every command line through processCmd(). It tokenizes ';'
@@ -1093,6 +1201,11 @@ private:
                if (_bBreakBatch) break;
             }
          }  // while (file.available())
+
+         if (nIfDepth > 0) {
+            __console.error(F("Batch syntax error: missing 'endif' in %s"), strBatchFile.c_str());
+            nExitValue = EXIT_FAILURE;
+         }
 
          _bBreakBatch = false; // limits the break for the current batch, not for the upper one in nested calls
          
@@ -1120,19 +1233,25 @@ private:
       
 private:
    void trim(char* str) {
-      char* end;
-      
-      // Trim leading space
-      while (isspace((unsigned char)*str)) str++;
-      
-      if (*str == 0) return;
-      
-      // Trim trailing space
-      end = str + strlen(str) - 1;
-      while (end > str && isspace((unsigned char)*end)) end--;
-      
-      // Write new null terminator
-      *(end + 1) = 0;
+      if (!str) return;
+
+      char* start = str;
+      while (isspace((unsigned char)*start)) start++;
+
+      // String contains only spaces
+      if (*start == '\0') {
+         *str = '\0';
+         return;
+      }
+
+      char* end = start + strlen(start) - 1;
+      while (end > start && isspace((unsigned char)*end)) end--;
+      *(end + 1) = '\0';
+
+      // Shift left if leading spaces were removed.
+      if (start != str) {
+         memmove(str, start, (size_t)(end - start + 2));
+      }
    }
    
    bool test(std::vector<const char*>& vExpression) {

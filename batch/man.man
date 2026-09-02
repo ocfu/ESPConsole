@@ -451,6 +451,37 @@ break:
 echo "$(USAGE) [on <value>]"
 echo "  Breaks the processing of the current batch file. 'break on <value>' only breaks, if the value is not 0."
 
+if:
+echo "$(USAGE) <condition>"
+echo "  Batch control flow statement for conditional execution in .bat/.man files."
+echo "  The condition is evaluated by running it as a normal command line."
+echo "  Exit value 0 means true, non-zero means false."
+echo
+echo "$(ESC_BOLD)Syntax:$(ESC_RESET)"
+echo "  if <condition>"
+echo "  then"
+echo "     <commands>"
+echo "  else"
+echo "     <commands>"
+echo "  endif"
+echo
+echo "  Optional one-line opener: if <condition> then"
+echo "  'else' is optional. Nested if blocks are supported (max depth: 4)."
+echo
+echo "$(EXAMPLES)"
+echo "  if test §(heap) -lt 5000"
+echo "  then"
+echo "     echo low heap"
+echo "  else"
+echo "     echo heap ok"
+echo "  endif"
+echo
+echo "  if test §(mode) = safe then"
+echo "     echo safe mode"
+echo "  else"
+echo "     echo normal mode"
+echo "  endif"
+
 man:
 echo "$(USAGE) [<command>]"
 echo "  Shows the man page of the given command. Without a command, it shows an overview."
